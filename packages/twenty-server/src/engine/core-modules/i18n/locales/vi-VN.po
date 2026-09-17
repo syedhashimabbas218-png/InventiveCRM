@@ -197,8 +197,8 @@ msgstr "Một tập khách hàng được chọn thủ công"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "Thông báo trước khi bản dùng thử Twenty của bạn kết thúc"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "Thông báo trước khi bản dùng thử InventiveCRM của bạn kết thúc"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,8 +5894,8 @@ msgstr "Bảng nối liên kết các liên kết tin nhắn của kênh với c
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
-msgstr "Tham gia vào đội ngũ của bạn trên Twenty"
+msgid "Join your team on InventiveCRM"
+msgstr "Tham gia vào đội ngũ của bạn trên InventiveCRM"
 
 #. js-lingui-id: +KEn4d
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-call-recording-standard-flat-field-metadata.util.ts
@@ -9941,8 +9941,8 @@ msgstr "Các trường hệ thống không thể được cập nhật"
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "Các chỉ mục hệ thống là bắt buộc để Twenty hoạt động và không thể bị xóa."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "Các chỉ mục hệ thống là bắt buộc để InventiveCRM hoạt động và không thể bị xóa."
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "Khóa API này chưa được gán vai trò."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Ứng dụng này yêu cầu phiên bản máy chủ Twenty mới hơn. Vui lòng nâng cấp máy chủ của bạn hoặc dùng phiên bản ứng dụng tương thích."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Ứng dụng này yêu cầu phiên bản máy chủ InventiveCRM mới hơn. Vui lòng nâng cấp máy chủ của bạn hoặc dùng phiên bản ứng dụng tương thích."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,8 +12499,8 @@ msgstr "Thứ Tư"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "Chào mừng đến với Twenty: Vui lòng xác nhận email của bạn"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "Chào mừng đến với InventiveCRM: Vui lòng xác nhận email của bạn"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13467,13 +13467,13 @@ msgstr "Thành viên trong nhóm của bạn phụ trách quản lý tài khoả
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Gói Twenty của bạn sẽ gia hạn sớm"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "Gói InventiveCRM của bạn sẽ gia hạn sớm"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "Bản dùng thử Twenty của bạn sắp kết thúc"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "Bản dùng thử InventiveCRM của bạn sắp kết thúc"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

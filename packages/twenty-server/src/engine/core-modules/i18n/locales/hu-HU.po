@@ -197,8 +197,8 @@ msgstr "Gondosan kiválasztott emberekből álló célközönség"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "Előzetes figyelmeztetés, mielőtt a Twenty próbaidőszaka lejár"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "Előzetes figyelmeztetés, mielőtt a InventiveCRM próbaidőszaka lejár"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,7 +5894,7 @@ msgstr "Kapcsolótábla, amely az üzenetcsatorna üzenet-társításait az üze
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
+msgid "Join your team on InventiveCRM"
 msgstr "Csatlakozzon a csapatához a Twentyn"
 
 #. js-lingui-id: +KEn4d
@@ -9941,8 +9941,8 @@ msgstr "A rendszermezők nem módosíthatók."
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "A rendszerindexek szükségesek ahhoz, hogy a Twenty működjön, és nem törölhetők."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "A rendszerindexek szükségesek ahhoz, hogy a InventiveCRM működjön, és nem törölhetők."
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "Ehhez az API-kulcshoz nincs szerepkör hozzárendelve."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Ez az alkalmazás a Twenty kiszolgáló újabb verzióját igényli. Frissítse a kiszolgálót, vagy használjon kompatibilis alkalmazásverziót."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Ez az alkalmazás a InventiveCRM kiszolgáló újabb verzióját igényli. Frissítse a kiszolgálót, vagy használjon kompatibilis alkalmazásverziót."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,8 +12499,8 @@ msgstr "Szerda"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "Üdvözöljük a Twenty-ben: Kérjük, erősítse meg e-mail-címét"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "Üdvözöljük a InventiveCRM-ben: Kérjük, erősítse meg e-mail-címét"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13467,13 +13467,13 @@ msgstr "Az Ön csapatának megbízott tagja, aki a cégfiókot kezeli"
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "A Twenty csomagod hamarosan megújul"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "A InventiveCRM csomagod hamarosan megújul"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "A Twenty próbaidőszakod hamarosan lejár"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "A InventiveCRM próbaidőszakod hamarosan lejár"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

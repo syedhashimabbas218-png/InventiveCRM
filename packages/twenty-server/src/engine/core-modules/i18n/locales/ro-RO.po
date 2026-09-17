@@ -197,8 +197,8 @@ msgstr "O audiență de persoane selectată manual"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "O avertizare înainte ca perioada de probă Twenty să se încheie"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "O avertizare înainte ca perioada de probă InventiveCRM să se încheie"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,8 +5894,8 @@ msgstr "Tabel de legătură care conectează asocierile mesaj–canal la dosarel
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
-msgstr "Alăturați-vă echipei pe Twenty"
+msgid "Join your team on InventiveCRM"
+msgstr "Alăturați-vă echipei pe InventiveCRM"
 
 #. js-lingui-id: +KEn4d
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-call-recording-standard-flat-field-metadata.util.ts
@@ -9941,8 +9941,8 @@ msgstr "Câmpurile de sistem nu pot fi actualizate"
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "Indexurile de sistem sunt necesare pentru ca Twenty să funcționeze și nu pot fi șterse."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "Indexurile de sistem sunt necesare pentru ca InventiveCRM să funcționeze și nu pot fi șterse."
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "Această cheie API nu are niciun rol atribuit."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Această aplicație necesită o versiune mai nouă a serverului Twenty. Vă rugăm să actualizați serverul sau să utilizați o versiune de aplicație compatibilă."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Această aplicație necesită o versiune mai nouă a serverului InventiveCRM. Vă rugăm să actualizați serverul sau să utilizați o versiune de aplicație compatibilă."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,8 +12499,8 @@ msgstr "miercuri"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "Bine ați venit la Twenty: Vă rugăm să confirmați adresa de e-mail"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "Bine ați venit la InventiveCRM: Vă rugăm să confirmați adresa de e-mail"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13467,13 +13467,13 @@ msgstr "Membrul echipei dumneavoastră responsabil de gestionarea contului compa
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Abonamentul dvs. Twenty se reînnoiește în curând"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "Abonamentul dvs. InventiveCRM se reînnoiește în curând"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "Perioada de probă Twenty se încheie în curând"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "Perioada de probă InventiveCRM se încheie în curând"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

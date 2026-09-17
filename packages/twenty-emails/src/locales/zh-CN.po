@@ -70,8 +70,8 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
-msgid "Connect to Twenty"
-msgstr "连接 Twenty"
+msgid "Connect to InventiveCRM"
+msgstr "连接 InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
@@ -129,8 +129,8 @@ msgstr "您好，{userName},"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
-msgid "If Twenty is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
-msgstr "如果 Twenty 很适合您，那就一切就绪——您无需做任何操作。如果它并不合适，您可以在此之前一键取消，且不会被收费。"
+msgid "If InventiveCRM is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
+msgstr "如果 InventiveCRM 很适合您，那就一切就绪——您无需做任何操作。如果它并不合适，您可以在此之前一键取消，且不会被收费。"
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -149,8 +149,8 @@ msgstr "如果您什么都不做，我们会暂停您的工作区，并在 {data
 
 #. js-lingui-explicit-id
 #: src/emails/clean-suspended-workspace.email.tsx
-msgid "If you'd ever like to give Twenty another try, you can start a fresh workspace in minutes — we'd love to have you back."
-msgstr "如果您想再次尝试 Twenty，您可以在几分钟内创建一个全新的工作区——我们非常期待您回归。"
+msgid "If you'd ever like to give InventiveCRM another try, you can start a fresh workspace in minutes — we'd love to have you back."
+msgstr "如果您想再次尝试 InventiveCRM，您可以在几分钟内创建一个全新的工作区——我们非常期待您回归。"
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -169,8 +169,8 @@ msgstr "其数据已被移除，无法再恢复。"
 
 #. js-lingui-explicit-id
 #: src/emails/send-invite-link.email.tsx
-msgid "Join your team on Twenty"
-msgstr "加入您的团队，使用 Twenty"
+msgid "Join your team on InventiveCRM"
+msgstr "加入您的团队，使用 InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx
@@ -205,8 +205,8 @@ msgstr "重新激活工作区"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Read Twenty's user guide"
-msgstr "阅读 Twenty 的用户指南"
+msgid "Read InventiveCRM's user guide"
+msgstr "阅读 InventiveCRM 的用户指南"
 
 #. js-lingui-explicit-id
 #: src/emails/password-reset-link.email.tsx
@@ -265,8 +265,8 @@ msgstr "若要保留您的工作区以及您构建的一切，请添加付款方
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Twenty.com, Public Benefit Corporation"
-msgstr "Twenty.com，公益公司"
+msgid "InventiveCRM.com, Public Benefit Corporation"
+msgstr "InventiveCRM.com，公益公司"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
@@ -286,18 +286,18 @@ msgstr "验证邮箱"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's developer documentation"
-msgstr "访问 Twenty 的开发者文档"
+msgid "Visit InventiveCRM's developer documentation"
+msgstr "访问 InventiveCRM 的开发者文档"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's GitHub repository"
-msgstr "访问 Twenty 的 GitHub 仓库"
+msgid "Visit InventiveCRM's GitHub repository"
+msgstr "访问 InventiveCRM 的 GitHub 仓库"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's website"
-msgstr "访问 Twenty 的网站"
+msgid "Visit InventiveCRM's website"
+msgstr "访问 InventiveCRM 的网站"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
@@ -311,8 +311,8 @@ msgstr "网站"
 
 #. js-lingui-explicit-id
 #: src/components/WhatIsTwenty.tsx
-msgid "What is Twenty?"
-msgstr "什么是 Twenty？"
+msgid "What is InventiveCRM?"
+msgstr "什么是 InventiveCRM？"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx

@@ -1681,38 +1681,38 @@ msgstr ""
 
 #. js-lingui-id: FKGcEL
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server as a remote context server in Zed."
-msgstr "在 Zed 中將 Twenty MCP 伺服器新增為遠端內容伺服器。"
+msgid "Add the InventiveCRM MCP server as a remote context server in Zed."
+msgstr "在 Zed 中將 InventiveCRM MCP 伺服器新增為遠端內容伺服器。"
 
 #. js-lingui-id: iA2nHX
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Augment Code settings."
-msgstr "在 Augment Code 設定中新增 Twenty MCP 伺服器。"
+msgid "Add the InventiveCRM MCP server from Augment Code settings."
+msgstr "在 Augment Code 設定中新增 InventiveCRM MCP 伺服器。"
 
 #. js-lingui-id: l+NzAk
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Raycast's MCP commands or settings."
-msgstr "透過 Raycast 的 MCP 指令或設定新增 Twenty MCP 伺服器。"
+msgid "Add the InventiveCRM MCP server from Raycast's MCP commands or settings."
+msgstr "透過 Raycast 的 MCP 指令或設定新增 InventiveCRM MCP 伺服器。"
 
 #. js-lingui-id: j6G/yI
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server in Gemini CLI settings."
-msgstr "在 Gemini CLI 設定中新增 Twenty MCP 伺服器。"
+msgid "Add the InventiveCRM MCP server in Gemini CLI settings."
+msgstr "在 Gemini CLI 設定中新增 InventiveCRM MCP 伺服器。"
 
 #. js-lingui-id: /OyhlM
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server to your LibreChat configuration file."
-msgstr "將 Twenty MCP 伺服器新增到您的 LibreChat 設定檔。"
+msgid "Add the InventiveCRM MCP server to your LibreChat configuration file."
+msgstr "將 InventiveCRM MCP 伺服器新增到您的 LibreChat 設定檔。"
 
 #. js-lingui-id: K0DXoj
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty remote server with LM Studio's install link."
-msgstr "使用 LM Studio 的安裝連結新增 Twenty 遠端伺服器。"
+msgid "Add the InventiveCRM remote server with LM Studio's install link."
+msgstr "使用 LM Studio 的安裝連結新增 InventiveCRM 遠端伺服器。"
 
 #. js-lingui-id: BTFMKE
 #: src/pages/settings/communications/SettingsWorkspaceCommunicationGroupChannelDetail.tsx
-msgid "Add these records at your DNS provider. Twenty checks them automatically."
-msgstr "在您的 DNS 供應商新增這些記錄。Twenty 會自動檢查它們。"
+msgid "Add these records at your DNS provider. InventiveCRM checks them automatically."
+msgstr "在您的 DNS 供應商新增這些記錄。InventiveCRM 會自動檢查它們。"
 
 #. js-lingui-id: 5+ttxv
 #: src/modules/settings/accounts/components/SettingsAccountsBlocklistInput.tsx
@@ -1731,8 +1731,8 @@ msgstr "新增主題"
 
 #. js-lingui-id: 4D/zWv
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add Twenty as a Streamable HTTP extension in Goose."
-msgstr "在 Goose 中將 Twenty 新增為可串流的 HTTP 擴充功能。"
+msgid "Add InventiveCRM as a Streamable HTTP extension in Goose."
+msgstr "在 Goose 中將 InventiveCRM 新增為可串流的 HTTP 擴充功能。"
 
 #. js-lingui-id: XnwceV
 #: src/pages/settings/applications/components/SettingsApplicationRegistrationRedirectURIsInput.tsx
@@ -3317,8 +3317,8 @@ msgstr "在每個新建立的工作區自動安裝此應用程式"
 
 #. js-lingui-id: MHsVk5
 #: src/pages/settings/ai/components/SettingsAiModelTiersPreview.tsx
-msgid "Automatically selected by Twenty for this mode."
-msgstr "Twenty 會自動為此模式選擇。"
+msgid "Automatically selected by InventiveCRM for this mode."
+msgstr "InventiveCRM 會自動為此模式選擇。"
 
 #. js-lingui-id: XFGV21
 #: src/pages/settings/applications/tabs/SettingsApplicationGeneralSection.tsx
@@ -3521,8 +3521,8 @@ msgstr "計費期間"
 
 #. js-lingui-id: xF/NXI
 #: src/modules/settings/billing/hooks/useBillingPortalSession.ts
-msgid "Billing portal session error. Please retry or contact Twenty team"
-msgstr "帳務入口會話錯誤。請重試或聯絡 Twenty 團隊"
+msgid "Billing portal session error. Please retry or contact InventiveCRM team"
+msgstr "帳務入口會話錯誤。請重試或聯絡 InventiveCRM 團隊"
 
 #. js-lingui-id: 8kIU+G
 #: src/modules/advanced-text-editor/constants/AdvancedTextEditorBlockCatalog.ts
@@ -3714,8 +3714,8 @@ msgstr "由 {author}"
 
 #. js-lingui-id: 8Pfllj
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
-msgid "By using Twenty, you agree to the"
-msgstr "使用 Twenty 即表示您同意"
+msgid "By using InventiveCRM, you agree to the"
+msgstr "使用 InventiveCRM 即表示您同意"
 
 #. js-lingui-id: Yx41df
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
@@ -4258,8 +4258,8 @@ msgstr "請檢查您的收件匣以驗證新的電子郵件地址。"
 #. js-lingui-id: SxwQE8
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
-msgid "Checkout session error. Please retry or contact Twenty team"
-msgstr "結賬會話錯誤。請重試或聯繫 Twenty 團隊"
+msgid "Checkout session error. Please retry or contact InventiveCRM team"
+msgstr "結賬會話錯誤。請重試或聯繫 InventiveCRM 團隊"
 
 #. js-lingui-id: SviKkE
 #: src/localization/hooks/useLocaleOptions.ts
@@ -4952,13 +4952,13 @@ msgstr "在 Amazon Q Developer 的 MCP 設定中設定遠端伺服器。"
 
 #. js-lingui-id: g1/8jH
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cascade."
-msgstr "在 Cascade 中手動設定 Twenty MCP 伺服器。"
+msgid "Configure the InventiveCRM MCP server manually in Cascade."
+msgstr "在 Cascade 中手動設定 InventiveCRM MCP 伺服器。"
 
 #. js-lingui-id: XiyvRh
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cline."
-msgstr "在 Cline 中手動設定 Twenty MCP 伺服器。"
+msgid "Configure the InventiveCRM MCP server manually in Cline."
+msgstr "在 Cline 中手動設定 InventiveCRM MCP 伺服器。"
 
 #. js-lingui-id: qA9AGQ
 #: src/modules/settings/domains/components/SettingsDomainRecords.tsx
@@ -8569,7 +8569,7 @@ msgstr "取消方案切換時出現錯誤。"
 
 #. js-lingui-id: QmR+2U
 #: src/modules/settings/billing/hooks/useEndSubscriptionTrialPeriod.ts
-msgid "Error while ending trial period. Please contact Twenty team."
+msgid "Error while ending trial period. Please contact InventiveCRM team."
 msgstr "結束試用期時發生錯誤。請聯繫Twenty團隊。"
 
 #. js-lingui-id: 5g78zo
@@ -10508,8 +10508,8 @@ msgstr "高"
 
 #. js-lingui-id: 1ETc0T
 #: src/pages/settings/community/SettingsCommunity.tsx
-msgid "Hire a partner to help you implement and customize Twenty."
-msgstr "聘請合作夥伴協助你導入並自訂 Twenty。"
+msgid "Hire a partner to help you implement and customize InventiveCRM."
+msgstr "聘請合作夥伴協助你導入並自訂 InventiveCRM。"
 
 #. js-lingui-id: i0qMbr
 #: src/modules/navigation/hooks/useMobileNavigationBarItems.ts
@@ -13057,8 +13057,8 @@ msgstr "模型資訊"
 
 #. js-lingui-id: iaurWj
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Model used when you chat with Twenty"
-msgstr "您與 Twenty 聊天時使用的模型"
+msgid "Model used when you chat with InventiveCRM"
+msgstr "您與 InventiveCRM 聊天時使用的模型"
 
 #. js-lingui-id: //nm2/
 #: src/pages/settings/admin-panel/SettingsAdminAiProviderDetail.tsx
@@ -15062,8 +15062,8 @@ msgstr "一或多個篩選器參照了已停用或已刪除的欄位，儲存時
 
 #. js-lingui-id: 1WZTTl
 #: src/pages/settings/enterprise/SettingsEnterprise.tsx
-msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install Twenty on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
-msgstr "一份訂閱提供一組組織金鑰，可供一個正式環境執行個體與一個潛在的預備或測試執行個體使用。若要執行預備或測試環境，請在第二台伺服器上安裝 Twenty，使用相同的組織金鑰啟用，然後將該伺服器註冊為開發環境執行個體。開發環境執行個體可在不額外收費的情況下解鎖進階功能，且不會計入您的正式環境席次數量。"
+msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install InventiveCRM on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
+msgstr "一份訂閱提供一組組織金鑰，可供一個正式環境執行個體與一個潛在的預備或測試執行個體使用。若要執行預備或測試環境，請在第二台伺服器上安裝 InventiveCRM，使用相同的組織金鑰啟用，然後將該伺服器註冊為開發環境執行個體。開發環境執行個體可在不額外收費的情況下解鎖進階功能，且不會計入您的正式環境席次數量。"
 
 #. js-lingui-id: JEtonz
 #: src/modules/settings/event-logs/components/SettingsLogs.tsx
@@ -15158,13 +15158,13 @@ msgstr "作為連結開啟"
 
 #. js-lingui-id: n0vVgf
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Claude with the Twenty connector name and MCP URL prefilled."
-msgstr "開啟 Claude，並預先填入 Twenty 連接器名稱與 MCP URL。"
+msgid "Open Claude with the InventiveCRM connector name and MCP URL prefilled."
+msgstr "開啟 Claude，並預先填入 InventiveCRM 連接器名稱與 MCP URL。"
 
 #. js-lingui-id: +n2jpB
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Cursor's MCP installer with the Twenty remote server config."
-msgstr "使用 Twenty 的遠端伺服器設定開啟 Cursor 的 MCP 安裝程式。"
+msgid "Open Cursor's MCP installer with the InventiveCRM remote server config."
+msgstr "使用 InventiveCRM 的遠端伺服器設定開啟 Cursor 的 MCP 安裝程式。"
 
 #. js-lingui-id: pZZH4Q
 #: src/modules/auth/sign-in-up/components/EmailVerificationSent.tsx
@@ -15226,13 +15226,13 @@ msgstr "在專用頁面開啟記錄"
 
 #. js-lingui-id: q170S2
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Replit with the Twenty remote server config."
-msgstr "使用 Twenty 的遠端伺服器設定開啟 Replit。"
+msgid "Open Replit with the InventiveCRM remote server config."
+msgstr "使用 InventiveCRM 的遠端伺服器設定開啟 Replit。"
 
 #. js-lingui-id: sBd/cl
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Twenty's official ChatGPT integration for your workspace."
-msgstr "為您的工作區開啟 Twenty 官方的 ChatGPT 整合。"
+msgid "Open InventiveCRM's official ChatGPT integration for your workspace."
+msgstr "為您的工作區開啟 InventiveCRM 官方的 ChatGPT 整合。"
 
 #. js-lingui-id: OV5wZZ
 #: src/modules/navigation-menu-item/display/sections/components/NavigationDrawerOpenedSection.tsx
@@ -15583,8 +15583,8 @@ msgstr "頁面名稱"
 
 #. js-lingui-id: NRvxzv
 #: src/pages/not-found/NotFound.tsx
-msgid "Page Not Found | Twenty"
-msgstr "找不到頁面 | Twenty"
+msgid "Page Not Found | InventiveCRM"
+msgstr "找不到頁面 | InventiveCRM"
 
 #. js-lingui-id: oIhFvf
 #: src/modules/side-panel/pages/email-block-settings/components/EmailPageStyleSection.tsx
@@ -19597,8 +19597,8 @@ msgstr "訂閱已啟動。"
 #: src/modules/settings/billing/components/AddPaymentMethodForm.tsx
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
-msgid "Subscription error. Please retry or contact Twenty team"
-msgstr "訂閱錯誤。請重試或聯繫 Twenty 團隊"
+msgid "Subscription error. Please retry or contact InventiveCRM team"
+msgstr "訂閱錯誤。請重試或聯繫 InventiveCRM 團隊"
 
 #. js-lingui-id: FooJUj
 #. placeholder {0}: getTargetPlanLabel(targetPlanKey)
@@ -20040,11 +20040,11 @@ msgstr "Bedrock 的 AWS 區域"
 #. js-lingui-id: HP7per
 #: src/pages/settings/applications/utils/getStandardApplicationDescription.ts
 msgid ""
-"The base data model every Twenty workspace runs on.\n"
+"The base data model every InventiveCRM workspace runs on.\n"
 "\n"
 "#### What \"foundation\" means\n"
 "\n"
-"Every Twenty workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
+"Every InventiveCRM workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
 "\n"
 "#### Included objects\n"
 "- **People & Companies**: contact and account records\n"
@@ -20052,11 +20052,11 @@ msgid ""
 "- **Notes & Tasks**: activity and follow-ups\n"
 "- **Workflows & Dashboards**: automation and reporting\n"
 "\n"
-"Remove this app and the rest of Twenty has nothing to hang off.\n"
+"Remove this app and the rest of InventiveCRM has nothing to hang off.\n"
 "\n"
 "#### Build your own app\n"
 "\n"
-"Extend Twenty with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
+"Extend InventiveCRM with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20186,8 +20186,8 @@ msgstr "您正在尋找的頁面已經消失或從未存在。讓我們幫助您
 
 #. js-lingui-id: Ya1wb4
 #: src/pages/settings/legal/SettingsLegalDpaNew.tsx
-msgid "The PDF is pre-signed by Twenty and executed with your legal entity and authorized signatory."
-msgstr "此 PDF 已由 Twenty 預先簽署，並與您的法人實體與授權簽署人共同生效。"
+msgid "The PDF is pre-signed by InventiveCRM and executed with your legal entity and authorized signatory."
+msgstr "此 PDF 已由 InventiveCRM 預先簽署，並與您的法人實體與授權簽署人共同生效。"
 
 #. js-lingui-id: Ir4tSJ
 #: src/modules/page-layout/widgets/call-recording/utils/getCallRecordingStatusDisplayConfiguration.ts
@@ -21209,13 +21209,13 @@ msgstr "綠松石色"
 
 #. js-lingui-id: JnaRPe
 #: src/modules/spreadsheet-import/steps/components/MatchColumnsStep/components/ColumnGrid.tsx
-msgid "Twenty fields"
-msgstr "Twenty 欄位"
+msgid "InventiveCRM fields"
+msgstr "InventiveCRM 欄位"
 
 #. js-lingui-id: pNo8xt
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Twenty fills each level with the best model that meets your requirements"
-msgstr "Twenty 會為每個層級配置最符合您需求的最佳模型"
+msgid "InventiveCRM fills each level with the best model that meets your requirements"
+msgstr "InventiveCRM 會為每個層級配置最符合您需求的最佳模型"
 
 #. js-lingui-id: YIjS4q
 #: src/modules/ai/components/SettingsAgentModelCapabilities.tsx
@@ -22905,8 +22905,8 @@ msgstr ""
 
 #. js-lingui-id: nTuObL
 #: src/pages/auth/SignInUp.tsx
-msgid "Welcome to Twenty"
-msgstr "歡迎來到 Twenty"
+msgid "Welcome to InventiveCRM"
+msgstr "歡迎來到 InventiveCRM"
 
 #. js-lingui-id: t8ZvkC
 #: src/modules/onboarding/constants/WelcomeTitleMessage.ts

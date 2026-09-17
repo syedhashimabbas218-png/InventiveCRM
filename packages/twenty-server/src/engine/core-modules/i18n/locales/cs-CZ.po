@@ -197,8 +197,8 @@ msgstr "Pečlivě vybrané publikum lidí"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "Upozornění před ukončením vašeho zkušebního období Twenty"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "Upozornění před ukončením vašeho zkušebního období InventiveCRM"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,8 +5894,8 @@ msgstr "Spojovací tabulka propojující přiřazení zpráv kanálu zpráv se s
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
-msgstr "Připojte se k svému týmu na Twenty"
+msgid "Join your team on InventiveCRM"
+msgstr "Připojte se k svému týmu na InventiveCRM"
 
 #. js-lingui-id: +KEn4d
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-call-recording-standard-flat-field-metadata.util.ts
@@ -9941,8 +9941,8 @@ msgstr "Systémová pole nelze aktualizovat"
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "Systémové indexy jsou nezbytné pro fungování Twenty a nelze je odstranit."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "Systémové indexy jsou nezbytné pro fungování InventiveCRM a nelze je odstranit."
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "Tomuto klíči API není přiřazena žádná role."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Tato aplikace vyžaduje novější verzi serveru Twenty. Aktualizujte prosím svůj server nebo použijte kompatibilní verzi aplikace."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Tato aplikace vyžaduje novější verzi serveru InventiveCRM. Aktualizujte prosím svůj server nebo použijte kompatibilní verzi aplikace."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,8 +12499,8 @@ msgstr "Středa"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "Vítejte v Twenty: Prosím potvrďte svůj e-mail"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "Vítejte v InventiveCRM: Prosím potvrďte svůj e-mail"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13467,13 +13467,13 @@ msgstr "Člen vašeho týmu odpovědný za správu firemního účtu"
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Váš tarif Twenty bude brzy obnoven"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "Váš tarif InventiveCRM bude brzy obnoven"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "Vaše zkušební období Twenty brzy skončí"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "Vaše zkušební období InventiveCRM brzy skončí"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

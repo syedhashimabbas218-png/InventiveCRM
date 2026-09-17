@@ -70,8 +70,8 @@ msgstr "Bestätige deine neue E-Mail-Adresse"
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
-msgid "Connect to Twenty"
-msgstr "Mit Twenty verbinden"
+msgid "Connect to InventiveCRM"
+msgstr "Mit InventiveCRM verbinden"
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
@@ -129,8 +129,8 @@ msgstr "Hallo {userName},"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
-msgid "If Twenty is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
-msgstr "Wenn Twenty für Sie funktioniert, ist alles vorbereitet – Sie müssen nichts weiter tun. Wenn es nicht das Richtige für Sie ist, können Sie vorher mit einem Klick kündigen und es wird Ihnen nichts berechnet."
+msgid "If InventiveCRM is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
+msgstr "Wenn InventiveCRM für Sie funktioniert, ist alles vorbereitet – Sie müssen nichts weiter tun. Wenn es nicht das Richtige für Sie ist, können Sie vorher mit einem Klick kündigen und es wird Ihnen nichts berechnet."
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -149,8 +149,8 @@ msgstr "Wenn Sie nichts tun, pausieren wir Ihren Arbeitsbereich und bewahren Ihr
 
 #. js-lingui-explicit-id
 #: src/emails/clean-suspended-workspace.email.tsx
-msgid "If you'd ever like to give Twenty another try, you can start a fresh workspace in minutes — we'd love to have you back."
-msgstr "Wenn Sie Twenty irgendwann noch einmal ausprobieren möchten, können Sie in wenigen Minuten einen neuen Arbeitsbereich starten – wir würden uns freuen, Sie wiederzuhaben."
+msgid "If you'd ever like to give InventiveCRM another try, you can start a fresh workspace in minutes — we'd love to have you back."
+msgstr "Wenn Sie InventiveCRM irgendwann noch einmal ausprobieren möchten, können Sie in wenigen Minuten einen neuen Arbeitsbereich starten – wir würden uns freuen, Sie wiederzuhaben."
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -169,8 +169,8 @@ msgstr "Seine Daten wurden entfernt und können nicht mehr wiederhergestellt wer
 
 #. js-lingui-explicit-id
 #: src/emails/send-invite-link.email.tsx
-msgid "Join your team on Twenty"
-msgstr "Treten Sie Ihrem Team auf Twenty bei"
+msgid "Join your team on InventiveCRM"
+msgstr "Treten Sie Ihrem Team auf InventiveCRM bei"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx
@@ -205,8 +205,8 @@ msgstr "Arbeitsbereich reaktivieren"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Read Twenty's user guide"
-msgstr "Lesen Sie das Benutzerhandbuch von Twenty"
+msgid "Read InventiveCRM's user guide"
+msgstr "Lesen Sie das Benutzerhandbuch von InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/emails/password-reset-link.email.tsx
@@ -265,8 +265,8 @@ msgstr "Um Ihren Arbeitsbereich und alles, was Sie aufgebaut haben, zu behalten,
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Twenty.com, Public Benefit Corporation"
-msgstr "Twenty.com, Gemeinnützige Aktiengesellschaft"
+msgid "InventiveCRM.com, Public Benefit Corporation"
+msgstr "InventiveCRM.com, Gemeinnützige Aktiengesellschaft"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
@@ -286,18 +286,18 @@ msgstr "E-Mail verifizieren"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's developer documentation"
-msgstr "Besuchen Sie die Entwicklerdokumentation von Twenty"
+msgid "Visit InventiveCRM's developer documentation"
+msgstr "Besuchen Sie die Entwicklerdokumentation von InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's GitHub repository"
-msgstr "Besuchen Sie das GitHub-Repository von Twenty"
+msgid "Visit InventiveCRM's GitHub repository"
+msgstr "Besuchen Sie das GitHub-Repository von InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's website"
-msgstr "Besuchen Sie die Twenty-Website"
+msgid "Visit InventiveCRM's website"
+msgstr "Besuchen Sie die InventiveCRM-Website"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
@@ -311,8 +311,8 @@ msgstr "Website"
 
 #. js-lingui-explicit-id
 #: src/components/WhatIsTwenty.tsx
-msgid "What is Twenty?"
-msgstr "Was ist Twenty?"
+msgid "What is InventiveCRM?"
+msgstr "Was ist InventiveCRM?"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx

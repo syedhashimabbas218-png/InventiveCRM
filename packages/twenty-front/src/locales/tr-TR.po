@@ -1681,38 +1681,38 @@ msgstr ""
 
 #. js-lingui-id: FKGcEL
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server as a remote context server in Zed."
-msgstr "Twenty MCP sunucusunu Zed'de uzak bağlam sunucusu olarak ekleyin."
+msgid "Add the InventiveCRM MCP server as a remote context server in Zed."
+msgstr "InventiveCRM MCP sunucusunu Zed'de uzak bağlam sunucusu olarak ekleyin."
 
 #. js-lingui-id: iA2nHX
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Augment Code settings."
-msgstr "Twenty MCP sunucusunu Augment Code ayarlarından ekleyin."
+msgid "Add the InventiveCRM MCP server from Augment Code settings."
+msgstr "InventiveCRM MCP sunucusunu Augment Code ayarlarından ekleyin."
 
 #. js-lingui-id: l+NzAk
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Raycast's MCP commands or settings."
-msgstr "Twenty MCP sunucusunu Raycast'in MCP komutları veya ayarlarından ekleyin."
+msgid "Add the InventiveCRM MCP server from Raycast's MCP commands or settings."
+msgstr "InventiveCRM MCP sunucusunu Raycast'in MCP komutları veya ayarlarından ekleyin."
 
 #. js-lingui-id: j6G/yI
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server in Gemini CLI settings."
-msgstr "Twenty MCP sunucusunu Gemini CLI ayarlarında ekleyin."
+msgid "Add the InventiveCRM MCP server in Gemini CLI settings."
+msgstr "InventiveCRM MCP sunucusunu Gemini CLI ayarlarında ekleyin."
 
 #. js-lingui-id: /OyhlM
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server to your LibreChat configuration file."
-msgstr "Twenty MCP sunucusunu LibreChat yapılandırma dosyanıza ekleyin."
+msgid "Add the InventiveCRM MCP server to your LibreChat configuration file."
+msgstr "InventiveCRM MCP sunucusunu LibreChat yapılandırma dosyanıza ekleyin."
 
 #. js-lingui-id: K0DXoj
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty remote server with LM Studio's install link."
-msgstr "Twenty uzak sunucusunu LM Studio'nun kurulum bağlantısıyla ekleyin."
+msgid "Add the InventiveCRM remote server with LM Studio's install link."
+msgstr "InventiveCRM uzak sunucusunu LM Studio'nun kurulum bağlantısıyla ekleyin."
 
 #. js-lingui-id: BTFMKE
 #: src/pages/settings/communications/SettingsWorkspaceCommunicationGroupChannelDetail.tsx
-msgid "Add these records at your DNS provider. Twenty checks them automatically."
-msgstr "Bu kayıtları DNS sağlayıcınıza ekleyin. Twenty bunları otomatik olarak kontrol eder."
+msgid "Add these records at your DNS provider. InventiveCRM checks them automatically."
+msgstr "Bu kayıtları DNS sağlayıcınıza ekleyin. InventiveCRM bunları otomatik olarak kontrol eder."
 
 #. js-lingui-id: 5+ttxv
 #: src/modules/settings/accounts/components/SettingsAccountsBlocklistInput.tsx
@@ -1731,8 +1731,8 @@ msgstr "Konu ekle"
 
 #. js-lingui-id: 4D/zWv
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add Twenty as a Streamable HTTP extension in Goose."
-msgstr "Twenty'yi Goose içinde Streamable HTTP uzantısı olarak ekleyin."
+msgid "Add InventiveCRM as a Streamable HTTP extension in Goose."
+msgstr "InventiveCRM'yi Goose içinde Streamable HTTP uzantısı olarak ekleyin."
 
 #. js-lingui-id: XnwceV
 #: src/pages/settings/applications/components/SettingsApplicationRegistrationRedirectURIsInput.tsx
@@ -3317,8 +3317,8 @@ msgstr "Bu uygulamayı yeni oluşturulan her çalışma alanına otomatik olarak
 
 #. js-lingui-id: MHsVk5
 #: src/pages/settings/ai/components/SettingsAiModelTiersPreview.tsx
-msgid "Automatically selected by Twenty for this mode."
-msgstr "Bu mod için Twenty tarafından otomatik olarak seçilir."
+msgid "Automatically selected by InventiveCRM for this mode."
+msgstr "Bu mod için InventiveCRM tarafından otomatik olarak seçilir."
 
 #. js-lingui-id: XFGV21
 #: src/pages/settings/applications/tabs/SettingsApplicationGeneralSection.tsx
@@ -3521,8 +3521,8 @@ msgstr "Fatura dönemi"
 
 #. js-lingui-id: xF/NXI
 #: src/modules/settings/billing/hooks/useBillingPortalSession.ts
-msgid "Billing portal session error. Please retry or contact Twenty team"
-msgstr "Faturalandırma portalı oturum hatası. Lütfen tekrar deneyin veya Twenty ekibi ile iletişime geçin"
+msgid "Billing portal session error. Please retry or contact InventiveCRM team"
+msgstr "Faturalandırma portalı oturum hatası. Lütfen tekrar deneyin veya InventiveCRM ekibi ile iletişime geçin"
 
 #. js-lingui-id: 8kIU+G
 #: src/modules/advanced-text-editor/constants/AdvancedTextEditorBlockCatalog.ts
@@ -3570,7 +3570,7 @@ msgstr "30 dakikalık bir görüşme ayırtın, çalışma alanınızı üretime
 #. js-lingui-id: 2yl5lQ
 #: src/pages/onboarding/UpgradeFreeTrial.tsx
 msgid "Book a Call"
-msgstr "\"Twenty\"'yi kullanarak"
+msgstr "\"InventiveCRM\"'yi kullanarak"
 
 #. js-lingui-id: bOwPjT
 #: src/modules/ai/constants/OutputFieldTypeOptions.ts
@@ -3714,8 +3714,8 @@ msgstr "{author} tarafından"
 
 #. js-lingui-id: 8Pfllj
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
-msgid "By using Twenty, you agree to the"
-msgstr "Twenty'i kullanarak,"
+msgid "By using InventiveCRM, you agree to the"
+msgstr "InventiveCRM'i kullanarak,"
 
 #. js-lingui-id: Yx41df
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
@@ -4258,8 +4258,8 @@ msgstr "Yeni e-posta adresinizi doğrulamak için gelen kutunuzu kontrol edin."
 #. js-lingui-id: SxwQE8
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
-msgid "Checkout session error. Please retry or contact Twenty team"
-msgstr "Ödeme oturumu hatası. Lütfen tekrar deneyin veya Twenty ekibi ile iletişime geçin"
+msgid "Checkout session error. Please retry or contact InventiveCRM team"
+msgstr "Ödeme oturumu hatası. Lütfen tekrar deneyin veya InventiveCRM ekibi ile iletişime geçin"
 
 #. js-lingui-id: SviKkE
 #: src/localization/hooks/useLocaleOptions.ts
@@ -4952,13 +4952,13 @@ msgstr "Uzak sunucuyu Amazon Q Developer'ın MCP ayarlarında yapılandırın."
 
 #. js-lingui-id: g1/8jH
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cascade."
-msgstr "Twenty MCP sunucusunu Cascade içinde manuel olarak yapılandırın."
+msgid "Configure the InventiveCRM MCP server manually in Cascade."
+msgstr "InventiveCRM MCP sunucusunu Cascade içinde manuel olarak yapılandırın."
 
 #. js-lingui-id: XiyvRh
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cline."
-msgstr "Twenty MCP sunucusunu Cline içinde manuel olarak yapılandırın."
+msgid "Configure the InventiveCRM MCP server manually in Cline."
+msgstr "InventiveCRM MCP sunucusunu Cline içinde manuel olarak yapılandırın."
 
 #. js-lingui-id: qA9AGQ
 #: src/modules/settings/domains/components/SettingsDomainRecords.tsx
@@ -8569,8 +8569,8 @@ msgstr "Plan değişikliği iptalinde hata oluştu."
 
 #. js-lingui-id: QmR+2U
 #: src/modules/settings/billing/hooks/useEndSubscriptionTrialPeriod.ts
-msgid "Error while ending trial period. Please contact Twenty team."
-msgstr "Deneme süresi sona erdirilirken hata oluştu. Lütfen Twenty ekibiyle iletişime geçin."
+msgid "Error while ending trial period. Please contact InventiveCRM team."
+msgstr "Deneme süresi sona erdirilirken hata oluştu. Lütfen InventiveCRM ekibiyle iletişime geçin."
 
 #. js-lingui-id: 5g78zo
 #: src/pages/settings/members/SettingsWorkspaceMember.tsx
@@ -10508,8 +10508,8 @@ msgstr "Yüksek"
 
 #. js-lingui-id: 1ETc0T
 #: src/pages/settings/community/SettingsCommunity.tsx
-msgid "Hire a partner to help you implement and customize Twenty."
-msgstr "Twenty’yi kurmanıza ve özelleştirmenize yardımcı olması için bir iş ortağı tutun."
+msgid "Hire a partner to help you implement and customize InventiveCRM."
+msgstr "InventiveCRM’yi kurmanıza ve özelleştirmenize yardımcı olması için bir iş ortağı tutun."
 
 #. js-lingui-id: i0qMbr
 #: src/modules/navigation/hooks/useMobileNavigationBarItems.ts
@@ -13080,8 +13080,8 @@ msgstr "Model bilgileri"
 
 #. js-lingui-id: iaurWj
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Model used when you chat with Twenty"
-msgstr "Twenty ile sohbet ettiğinizde kullanılan model"
+msgid "Model used when you chat with InventiveCRM"
+msgstr "InventiveCRM ile sohbet ettiğinizde kullanılan model"
 
 #. js-lingui-id: //nm2/
 #: src/pages/settings/admin-panel/SettingsAdminAiProviderDetail.tsx
@@ -15085,8 +15085,8 @@ msgstr "Bir veya daha fazla filtre, devre dışı bırakılmış veya silinmiş 
 
 #. js-lingui-id: 1WZTTl
 #: src/pages/settings/enterprise/SettingsEnterprise.tsx
-msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install Twenty on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
-msgstr "Tek bir abonelik, bir üretim örneğini ve olası bir hazırlık veya test örneğini çalıştıran bir Kuruluş anahtarı sağlar. Bir hazırlık veya test ortamı çalıştırmak için Twenty'yi ikinci bir sunucuya kurun, aynı Kuruluş anahtarıyla etkinleştirin ve ardından bu sunucuyu geliştirme örneği olarak kaydedin. Geliştirme örnekleri, ek faturalandırma olmadan premium özelliklerin kilidini açar ve üretim kullanıcı sayınıza dahil edilmez."
+msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install InventiveCRM on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
+msgstr "Tek bir abonelik, bir üretim örneğini ve olası bir hazırlık veya test örneğini çalıştıran bir Kuruluş anahtarı sağlar. Bir hazırlık veya test ortamı çalıştırmak için InventiveCRM'yi ikinci bir sunucuya kurun, aynı Kuruluş anahtarıyla etkinleştirin ve ardından bu sunucuyu geliştirme örneği olarak kaydedin. Geliştirme örnekleri, ek faturalandırma olmadan premium özelliklerin kilidini açar ve üretim kullanıcı sayınıza dahil edilmez."
 
 #. js-lingui-id: JEtonz
 #: src/modules/settings/event-logs/components/SettingsLogs.tsx
@@ -15181,13 +15181,13 @@ msgstr "Bağlantı olarak aç"
 
 #. js-lingui-id: n0vVgf
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Claude with the Twenty connector name and MCP URL prefilled."
-msgstr "Twenty bağlayıcı adı ve MCP URL'si önceden doldurulmuş olarak Claude'u açın."
+msgid "Open Claude with the InventiveCRM connector name and MCP URL prefilled."
+msgstr "InventiveCRM bağlayıcı adı ve MCP URL'si önceden doldurulmuş olarak Claude'u açın."
 
 #. js-lingui-id: +n2jpB
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Cursor's MCP installer with the Twenty remote server config."
-msgstr "Twenty uzak sunucu yapılandırmasıyla Cursor'un MCP yükleyicisini açın."
+msgid "Open Cursor's MCP installer with the InventiveCRM remote server config."
+msgstr "InventiveCRM uzak sunucu yapılandırmasıyla Cursor'un MCP yükleyicisini açın."
 
 #. js-lingui-id: pZZH4Q
 #: src/modules/auth/sign-in-up/components/EmailVerificationSent.tsx
@@ -15249,13 +15249,13 @@ msgstr "Kayıtları özel bir sayfada aç"
 
 #. js-lingui-id: q170S2
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Replit with the Twenty remote server config."
-msgstr "Twenty uzak sunucu yapılandırmasıyla Replit'i açın."
+msgid "Open Replit with the InventiveCRM remote server config."
+msgstr "InventiveCRM uzak sunucu yapılandırmasıyla Replit'i açın."
 
 #. js-lingui-id: sBd/cl
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Twenty's official ChatGPT integration for your workspace."
-msgstr "Çalışma alanınız için Twenty'nin resmi ChatGPT entegrasyonunu açın."
+msgid "Open InventiveCRM's official ChatGPT integration for your workspace."
+msgstr "Çalışma alanınız için InventiveCRM'nin resmi ChatGPT entegrasyonunu açın."
 
 #. js-lingui-id: OV5wZZ
 #: src/modules/navigation-menu-item/display/sections/components/NavigationDrawerOpenedSection.tsx
@@ -15606,8 +15606,8 @@ msgstr "Sayfa adı"
 
 #. js-lingui-id: NRvxzv
 #: src/pages/not-found/NotFound.tsx
-msgid "Page Not Found | Twenty"
-msgstr "Sayfa Bulunamadı | Twenty"
+msgid "Page Not Found | InventiveCRM"
+msgstr "Sayfa Bulunamadı | InventiveCRM"
 
 #. js-lingui-id: oIhFvf
 #: src/modules/side-panel/pages/email-block-settings/components/EmailPageStyleSection.tsx
@@ -19620,8 +19620,8 @@ msgstr "Abonelik etkinleştirildi."
 #: src/modules/settings/billing/components/AddPaymentMethodForm.tsx
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
-msgid "Subscription error. Please retry or contact Twenty team"
-msgstr "Abonelik hatası. Lütfen tekrar deneyin veya Twenty ekibi ile iletişime geçin"
+msgid "Subscription error. Please retry or contact InventiveCRM team"
+msgstr "Abonelik hatası. Lütfen tekrar deneyin veya InventiveCRM ekibi ile iletişime geçin"
 
 #. js-lingui-id: FooJUj
 #. placeholder {0}: getTargetPlanLabel(targetPlanKey)
@@ -20063,11 +20063,11 @@ msgstr "Bedrock için AWS bölgesi"
 #. js-lingui-id: HP7per
 #: src/pages/settings/applications/utils/getStandardApplicationDescription.ts
 msgid ""
-"The base data model every Twenty workspace runs on.\n"
+"The base data model every InventiveCRM workspace runs on.\n"
 "\n"
 "#### What \"foundation\" means\n"
 "\n"
-"Every Twenty workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
+"Every InventiveCRM workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
 "\n"
 "#### Included objects\n"
 "- **People & Companies**: contact and account records\n"
@@ -20075,11 +20075,11 @@ msgid ""
 "- **Notes & Tasks**: activity and follow-ups\n"
 "- **Workflows & Dashboards**: automation and reporting\n"
 "\n"
-"Remove this app and the rest of Twenty has nothing to hang off.\n"
+"Remove this app and the rest of InventiveCRM has nothing to hang off.\n"
 "\n"
 "#### Build your own app\n"
 "\n"
-"Extend Twenty with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
+"Extend InventiveCRM with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20094,11 +20094,11 @@ msgid ""
 "\n"
 "See the [Getting Started guide](https://twenty.com/developers/extend/apps/getting-started) for the full walkthrough, and [Building Apps](https://twenty.com/developers/extend/apps/building) for the `defineApplication` / `defineEntity` APIs."
 msgstr ""
-"Her Twenty çalışma alanının üzerinde çalıştığı temel veri modeli.\n"
+"Her InventiveCRM çalışma alanının üzerinde çalıştığı temel veri modeli.\n"
 "\n"
 "#### \\\"temel\\\" ne anlama gelir\n"
 "\n"
-"Her Twenty çalışma alanı bu nesne kümesiyle başlar. İlişkiler, etkinlik ve raporlamayı da içerecek şekilde CRM'inizin şeklini bunlar belirler. Pazar yeri uygulamaları, yapay zekâ ajanları ve özel nesneler dahil, diğer her şey bunlara bağlanır.\n"
+"Her InventiveCRM çalışma alanı bu nesne kümesiyle başlar. İlişkiler, etkinlik ve raporlamayı da içerecek şekilde CRM'inizin şeklini bunlar belirler. Pazar yeri uygulamaları, yapay zekâ ajanları ve özel nesneler dahil, diğer her şey bunlara bağlanır.\n"
 "\n"
 "#### Dahil edilen nesneler\n"
 "- **Kişiler ve Şirketler**: kişi ve hesap kayıtları\n"
@@ -20106,11 +20106,11 @@ msgstr ""
 "- **Notlar ve Görevler**: etkinlik ve takipler\n"
 "- **İş Akışları ve Panolar**: otomasyon ve raporlama\n"
 "\n"
-"Bu uygulamayı kaldırırsanız, Twenty'nin geri kalanı bağlanacak bir şeye sahip olmaz.\n"
+"Bu uygulamayı kaldırırsanız, InventiveCRM'nin geri kalanı bağlanacak bir şeye sahip olmaz.\n"
 "\n"
 "#### Kendi uygulamanızı oluşturun\n"
 "\n"
-"Twenty'yi kendi nesneleriniz, alanlarınız, mantık işlevleriniz veya yapay zekâ yeteneklerinizle genişletin. Tek bir komutla yeni bir uygulama iskeleti oluşturun:\n"
+"InventiveCRM'yi kendi nesneleriniz, alanlarınız, mantık işlevleriniz veya yapay zekâ yeteneklerinizle genişletin. Tek bir komutla yeni bir uygulama iskeleti oluşturun:\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20239,8 +20239,8 @@ msgstr "Aradığınız sayfa ya kaybolmuş ya da hiç olmamış. Sizi tekrar do�
 
 #. js-lingui-id: Ya1wb4
 #: src/pages/settings/legal/SettingsLegalDpaNew.tsx
-msgid "The PDF is pre-signed by Twenty and executed with your legal entity and authorized signatory."
-msgstr "PDF, Twenty tarafından önceden imzalanmıştır ve tüzel kişiliğiniz ve yetkili imza sahibiniz ile yürürlüğe konur."
+msgid "The PDF is pre-signed by InventiveCRM and executed with your legal entity and authorized signatory."
+msgstr "PDF, InventiveCRM tarafından önceden imzalanmıştır ve tüzel kişiliğiniz ve yetkili imza sahibiniz ile yürürlüğe konur."
 
 #. js-lingui-id: Ir4tSJ
 #: src/modules/page-layout/widgets/call-recording/utils/getCallRecordingStatusDisplayConfiguration.ts
@@ -21262,13 +21262,13 @@ msgstr "Turkuaz"
 
 #. js-lingui-id: JnaRPe
 #: src/modules/spreadsheet-import/steps/components/MatchColumnsStep/components/ColumnGrid.tsx
-msgid "Twenty fields"
-msgstr "Twenty alanları"
+msgid "InventiveCRM fields"
+msgstr "InventiveCRM alanları"
 
 #. js-lingui-id: pNo8xt
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Twenty fills each level with the best model that meets your requirements"
-msgstr "Twenty, her düzeyi gereksinimlerinizi karşılayan en iyi modelle doldurur"
+msgid "InventiveCRM fills each level with the best model that meets your requirements"
+msgstr "InventiveCRM, her düzeyi gereksinimlerinizi karşılayan en iyi modelle doldurur"
 
 #. js-lingui-id: YIjS4q
 #: src/modules/ai/components/SettingsAgentModelCapabilities.tsx
@@ -22958,8 +22958,8 @@ msgstr ""
 
 #. js-lingui-id: nTuObL
 #: src/pages/auth/SignInUp.tsx
-msgid "Welcome to Twenty"
-msgstr "Twenty'e Hoş Geldiniz"
+msgid "Welcome to InventiveCRM"
+msgstr "InventiveCRM'e Hoş Geldiniz"
 
 #. js-lingui-id: t8ZvkC
 #: src/modules/onboarding/constants/WelcomeTitleMessage.ts

@@ -197,8 +197,8 @@ msgstr "Un pubblico selezionato manualmente di persone"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "Un promemoria prima che la tua prova di Twenty finisca"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "Un promemoria prima che la tua prova di InventiveCRM finisca"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,8 +5894,8 @@ msgstr "Tabella di join che collega le associazioni dei messaggi del canale alle
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
-msgstr "Unisciti al tuo team su Twenty"
+msgid "Join your team on InventiveCRM"
+msgstr "Unisciti al tuo team su InventiveCRM"
 
 #. js-lingui-id: +KEn4d
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-call-recording-standard-flat-field-metadata.util.ts
@@ -9941,8 +9941,8 @@ msgstr "I campi di sistema non possono essere aggiornati"
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "Gli indici di sistema sono necessari perché Twenty funzioni e non possono essere eliminati."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "Gli indici di sistema sono necessari perché InventiveCRM funzioni e non possono essere eliminati."
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "A questa chiave API non è stato assegnato alcun ruolo."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Questa app richiede una versione più recente del server Twenty. Aggiorna il server oppure usa una versione dell'app compatibile."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Questa app richiede una versione più recente del server InventiveCRM. Aggiorna il server oppure usa una versione dell'app compatibile."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,8 +12499,8 @@ msgstr "Mercoledì"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "Benvenuto su Twenty: conferma la tua email"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "Benvenuto su InventiveCRM: conferma la tua email"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13467,13 +13467,13 @@ msgstr "Il membro del team responsabile della gestione dell'account aziendale"
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Il tuo piano Twenty verrà rinnovato a breve"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "Il tuo piano InventiveCRM verrà rinnovato a breve"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "La tua prova di Twenty terminerà a breve"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "La tua prova di InventiveCRM terminerà a breve"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

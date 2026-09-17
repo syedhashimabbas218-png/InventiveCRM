@@ -197,8 +197,8 @@ msgstr "精選的人員受眾"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "在您的 Twenty 試用結束前的提醒"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "在您的 InventiveCRM 試用結束前的提醒"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,8 +5894,8 @@ msgstr "將訊息通道訊息關聯連結至訊息資料夾的聯結表"
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
-msgstr "加入您的團隊，使用 Twenty"
+msgid "Join your team on InventiveCRM"
+msgstr "加入您的團隊，使用 InventiveCRM"
 
 #. js-lingui-id: +KEn4d
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-call-recording-standard-flat-field-metadata.util.ts
@@ -9941,8 +9941,8 @@ msgstr "系統欄位無法更新"
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "系統索引是 Twenty 正常運作所必需的，且無法刪除。"
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "系統索引是 InventiveCRM 正常運作所必需的，且無法刪除。"
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "此 API 金鑰未指派角色。"
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "此應用程式需要較新版本的 Twenty 伺服器。請升級您的伺服器，或使用相容的應用程式版本。"
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "此應用程式需要較新版本的 InventiveCRM 伺服器。請升級您的伺服器，或使用相容的應用程式版本。"
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,8 +12499,8 @@ msgstr "星期三"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "歡迎來到 Twenty：請確認您的電子郵件"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "歡迎來到 InventiveCRM：請確認您的電子郵件"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13467,13 +13467,13 @@ msgstr "負責管理公司帳戶的團隊成員"
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "您的 Twenty 方案即將續約"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "您的 InventiveCRM 方案即將續約"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "您的 Twenty 試用即將到期"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "您的 InventiveCRM 試用即將到期"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

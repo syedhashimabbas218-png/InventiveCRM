@@ -197,8 +197,8 @@ msgstr "En noggrant utvald målgrupp av personer"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "En förvarning innan din Twenty-testperiod avslutas"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "En förvarning innan din InventiveCRM-testperiod avslutas"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,8 +5894,8 @@ msgstr "Kopplingstabell som länkar meddelandekanalens meddelandeassociationer t
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
-msgstr "Gå med i ditt team på Twenty"
+msgid "Join your team on InventiveCRM"
+msgstr "Gå med i ditt team på InventiveCRM"
 
 #. js-lingui-id: +KEn4d
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-call-recording-standard-flat-field-metadata.util.ts
@@ -9947,8 +9947,8 @@ msgstr "Systemfält kan inte uppdateras"
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "Systemindex krävs för att Twenty ska fungera och kan inte raderas."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "Systemindex krävs för att InventiveCRM ska fungera och kan inte raderas."
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10834,8 +10834,8 @@ msgstr "Denna API-nyckel har ingen roll tilldelad."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Den här appen kräver en nyare version av Twenty-servern. Uppgradera din server eller använd en kompatibel appversion."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Den här appen kräver en nyare version av InventiveCRM-servern. Uppgradera din server eller använd en kompatibel appversion."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12505,8 +12505,8 @@ msgstr "Onsdag"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "Välkommen till Twenty: Bekräfta din e-post"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "Välkommen till InventiveCRM: Bekräfta din e-post"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13473,13 +13473,13 @@ msgstr "Din teammedlem som ansvarar för företagskontot"
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Ditt Twenty-abonnemang förnyas snart"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "Ditt InventiveCRM-abonnemang förnyas snart"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "Din Twenty-testperiod avslutas snart"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "Din InventiveCRM-testperiod avslutas snart"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

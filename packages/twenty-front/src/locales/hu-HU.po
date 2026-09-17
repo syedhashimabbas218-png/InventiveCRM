@@ -1681,38 +1681,38 @@ msgstr "Adjon meg egy tesztadatot az értékeléshez (pl. „Keresse meg az öss
 
 #. js-lingui-id: FKGcEL
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server as a remote context server in Zed."
-msgstr "Adja hozzá a Twenty MCP szervert távoli kontextus szerverként a Zedben."
+msgid "Add the InventiveCRM MCP server as a remote context server in Zed."
+msgstr "Adja hozzá a InventiveCRM MCP szervert távoli kontextus szerverként a Zedben."
 
 #. js-lingui-id: iA2nHX
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Augment Code settings."
-msgstr "Adja hozzá a Twenty MCP szervert az Augment Code beállításaiban."
+msgid "Add the InventiveCRM MCP server from Augment Code settings."
+msgstr "Adja hozzá a InventiveCRM MCP szervert az Augment Code beállításaiban."
 
 #. js-lingui-id: l+NzAk
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Raycast's MCP commands or settings."
-msgstr "Adja hozzá a Twenty MCP szervert a Raycast MCP parancsaiból vagy beállításaiból."
+msgid "Add the InventiveCRM MCP server from Raycast's MCP commands or settings."
+msgstr "Adja hozzá a InventiveCRM MCP szervert a Raycast MCP parancsaiból vagy beállításaiból."
 
 #. js-lingui-id: j6G/yI
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server in Gemini CLI settings."
-msgstr "Adja hozzá a Twenty MCP szervert a Gemini CLI beállításaiban."
+msgid "Add the InventiveCRM MCP server in Gemini CLI settings."
+msgstr "Adja hozzá a InventiveCRM MCP szervert a Gemini CLI beállításaiban."
 
 #. js-lingui-id: /OyhlM
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server to your LibreChat configuration file."
-msgstr "Adja hozzá a Twenty MCP szervert a LibreChat konfigurációs fájljához."
+msgid "Add the InventiveCRM MCP server to your LibreChat configuration file."
+msgstr "Adja hozzá a InventiveCRM MCP szervert a LibreChat konfigurációs fájljához."
 
 #. js-lingui-id: K0DXoj
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty remote server with LM Studio's install link."
-msgstr "Adja hozzá a Twenty távoli szervert az LM Studio telepítési hivatkozásával."
+msgid "Add the InventiveCRM remote server with LM Studio's install link."
+msgstr "Adja hozzá a InventiveCRM távoli szervert az LM Studio telepítési hivatkozásával."
 
 #. js-lingui-id: BTFMKE
 #: src/pages/settings/communications/SettingsWorkspaceCommunicationGroupChannelDetail.tsx
-msgid "Add these records at your DNS provider. Twenty checks them automatically."
-msgstr "Adja hozzá ezeket a rekordokat a DNS-szolgáltatójánál. A Twenty automatikusan ellenőrzi őket."
+msgid "Add these records at your DNS provider. InventiveCRM checks them automatically."
+msgstr "Adja hozzá ezeket a rekordokat a DNS-szolgáltatójánál. A InventiveCRM automatikusan ellenőrzi őket."
 
 #. js-lingui-id: 5+ttxv
 #: src/modules/settings/accounts/components/SettingsAccountsBlocklistInput.tsx
@@ -1731,8 +1731,8 @@ msgstr "Téma hozzáadása"
 
 #. js-lingui-id: 4D/zWv
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add Twenty as a Streamable HTTP extension in Goose."
-msgstr "Adja hozzá a Twenty-t Streamable HTTP-bővítményként a Goose-ban."
+msgid "Add InventiveCRM as a Streamable HTTP extension in Goose."
+msgstr "Adja hozzá a InventiveCRM-t Streamable HTTP-bővítményként a Goose-ban."
 
 #. js-lingui-id: XnwceV
 #: src/pages/settings/applications/components/SettingsApplicationRegistrationRedirectURIsInput.tsx
@@ -3317,8 +3317,8 @@ msgstr "Az alkalmazás automatikus telepítése minden újonnan létrehozott mun
 
 #. js-lingui-id: MHsVk5
 #: src/pages/settings/ai/components/SettingsAiModelTiersPreview.tsx
-msgid "Automatically selected by Twenty for this mode."
-msgstr "A Twenty automatikusan kiválasztja ehhez a módhoz."
+msgid "Automatically selected by InventiveCRM for this mode."
+msgstr "A InventiveCRM automatikusan kiválasztja ehhez a módhoz."
 
 #. js-lingui-id: XFGV21
 #: src/pages/settings/applications/tabs/SettingsApplicationGeneralSection.tsx
@@ -3521,8 +3521,8 @@ msgstr "Számlázási időszak"
 
 #. js-lingui-id: xF/NXI
 #: src/modules/settings/billing/hooks/useBillingPortalSession.ts
-msgid "Billing portal session error. Please retry or contact Twenty team"
-msgstr "Számlázási portál munkamenet hiba. Kérem, próbálja újra, vagy vegye fel a kapcsolatot a Twenty csapatával"
+msgid "Billing portal session error. Please retry or contact InventiveCRM team"
+msgstr "Számlázási portál munkamenet hiba. Kérem, próbálja újra, vagy vegye fel a kapcsolatot a InventiveCRM csapatával"
 
 #. js-lingui-id: 8kIU+G
 #: src/modules/advanced-text-editor/constants/AdvancedTextEditorBlockCatalog.ts
@@ -3714,8 +3714,8 @@ msgstr "készítette: {author}"
 
 #. js-lingui-id: 8Pfllj
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
-msgid "By using Twenty, you agree to the"
-msgstr "A Twenty használatával elfogadja a"
+msgid "By using InventiveCRM, you agree to the"
+msgstr "A InventiveCRM használatával elfogadja a"
 
 #. js-lingui-id: Yx41df
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
@@ -4258,8 +4258,8 @@ msgstr "Ellenőrizze a beérkező leveleit az új e-mail-cím megerősítéséhe
 #. js-lingui-id: SxwQE8
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
-msgid "Checkout session error. Please retry or contact Twenty team"
-msgstr "Fizetési munkamenet hiba. Kérem, próbálja újra, vagy vegye fel a kapcsolatot a Twenty csapatával"
+msgid "Checkout session error. Please retry or contact InventiveCRM team"
+msgstr "Fizetési munkamenet hiba. Kérem, próbálja újra, vagy vegye fel a kapcsolatot a InventiveCRM csapatával"
 
 #. js-lingui-id: SviKkE
 #: src/localization/hooks/useLocaleOptions.ts
@@ -4952,13 +4952,13 @@ msgstr "A távoli szerver konfigurálása az Amazon Q Developer MCP beállítás
 
 #. js-lingui-id: g1/8jH
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cascade."
-msgstr "A Twenty MCP szerver kézi konfigurálása a Cascade-ben."
+msgid "Configure the InventiveCRM MCP server manually in Cascade."
+msgstr "A InventiveCRM MCP szerver kézi konfigurálása a Cascade-ben."
 
 #. js-lingui-id: XiyvRh
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cline."
-msgstr "A Twenty MCP szerver kézi konfigurálása a Cline-ban."
+msgid "Configure the InventiveCRM MCP server manually in Cline."
+msgstr "A InventiveCRM MCP szerver kézi konfigurálása a Cline-ban."
 
 #. js-lingui-id: qA9AGQ
 #: src/modules/settings/domains/components/SettingsDomainRecords.tsx
@@ -8569,8 +8569,8 @@ msgstr "Hiba a csomagváltás törlésekor."
 
 #. js-lingui-id: QmR+2U
 #: src/modules/settings/billing/hooks/useEndSubscriptionTrialPeriod.ts
-msgid "Error while ending trial period. Please contact Twenty team."
-msgstr "Hiba a próbaidőszak befejezésekor. Kérjük, vegye fel a kapcsolatot a Twenty csapatával."
+msgid "Error while ending trial period. Please contact InventiveCRM team."
+msgstr "Hiba a próbaidőszak befejezésekor. Kérjük, vegye fel a kapcsolatot a InventiveCRM csapatával."
 
 #. js-lingui-id: 5g78zo
 #: src/pages/settings/members/SettingsWorkspaceMember.tsx
@@ -10508,8 +10508,8 @@ msgstr "Magas"
 
 #. js-lingui-id: 1ETc0T
 #: src/pages/settings/community/SettingsCommunity.tsx
-msgid "Hire a partner to help you implement and customize Twenty."
-msgstr "Fogadj fel egy partnert, hogy segítsen a Twenty bevezetésében és testreszabásában."
+msgid "Hire a partner to help you implement and customize InventiveCRM."
+msgstr "Fogadj fel egy partnert, hogy segítsen a InventiveCRM bevezetésében és testreszabásában."
 
 #. js-lingui-id: i0qMbr
 #: src/modules/navigation/hooks/useMobileNavigationBarItems.ts
@@ -13080,7 +13080,7 @@ msgstr "Modellinformációk"
 
 #. js-lingui-id: iaurWj
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Model used when you chat with Twenty"
+msgid "Model used when you chat with InventiveCRM"
 msgstr "A Twentyvel való csevegéskor használt modell"
 
 #. js-lingui-id: //nm2/
@@ -15085,8 +15085,8 @@ msgstr "Egy vagy több szűrő deaktivált vagy törölt mezőkre hivatkozik, é
 
 #. js-lingui-id: 1WZTTl
 #: src/pages/settings/enterprise/SettingsEnterprise.tsx
-msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install Twenty on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
-msgstr "Egy előfizetés egy szervezeti kulcsot biztosít, amely egy éles példányt és egy lehetséges staging- vagy tesztpéldányt működtet. Staging- vagy tesztkörnyezet futtatásához telepítse a Twenty-t egy második szerverre, aktiválja ugyanazzal a szervezeti kulccsal, majd regisztrálja azt a szervert fejlesztői példányként. A fejlesztői példányok további számlázás nélkül engedélyezik a prémium funkciókat, és nem számítanak bele az éles helyek számába."
+msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install InventiveCRM on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
+msgstr "Egy előfizetés egy szervezeti kulcsot biztosít, amely egy éles példányt és egy lehetséges staging- vagy tesztpéldányt működtet. Staging- vagy tesztkörnyezet futtatásához telepítse a InventiveCRM-t egy második szerverre, aktiválja ugyanazzal a szervezeti kulccsal, majd regisztrálja azt a szervert fejlesztői példányként. A fejlesztői példányok további számlázás nélkül engedélyezik a prémium funkciókat, és nem számítanak bele az éles helyek számába."
 
 #. js-lingui-id: JEtonz
 #: src/modules/settings/event-logs/components/SettingsLogs.tsx
@@ -15181,13 +15181,13 @@ msgstr "Megnyitás hivatkozásként"
 
 #. js-lingui-id: n0vVgf
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Claude with the Twenty connector name and MCP URL prefilled."
-msgstr "Nyissa meg a Claude-ot a Twenty connector nevével és az MCP URL-lel előre kitöltve."
+msgid "Open Claude with the InventiveCRM connector name and MCP URL prefilled."
+msgstr "Nyissa meg a Claude-ot a InventiveCRM connector nevével és az MCP URL-lel előre kitöltve."
 
 #. js-lingui-id: +n2jpB
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Cursor's MCP installer with the Twenty remote server config."
-msgstr "Nyissa meg a Cursor MCP telepítőjét a Twenty távoli szerver konfigurációjával."
+msgid "Open Cursor's MCP installer with the InventiveCRM remote server config."
+msgstr "Nyissa meg a Cursor MCP telepítőjét a InventiveCRM távoli szerver konfigurációjával."
 
 #. js-lingui-id: pZZH4Q
 #: src/modules/auth/sign-in-up/components/EmailVerificationSent.tsx
@@ -15249,13 +15249,13 @@ msgstr "Rekordok megnyitása egy külön oldalon"
 
 #. js-lingui-id: q170S2
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Replit with the Twenty remote server config."
-msgstr "Nyissa meg a Replitet a Twenty távoli szerver konfigurációjával."
+msgid "Open Replit with the InventiveCRM remote server config."
+msgstr "Nyissa meg a Replitet a InventiveCRM távoli szerver konfigurációjával."
 
 #. js-lingui-id: sBd/cl
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Twenty's official ChatGPT integration for your workspace."
-msgstr "Nyissa meg a Twenty hivatalos ChatGPT integrációját a munkaterületéhez."
+msgid "Open InventiveCRM's official ChatGPT integration for your workspace."
+msgstr "Nyissa meg a InventiveCRM hivatalos ChatGPT integrációját a munkaterületéhez."
 
 #. js-lingui-id: OV5wZZ
 #: src/modules/navigation-menu-item/display/sections/components/NavigationDrawerOpenedSection.tsx
@@ -15606,8 +15606,8 @@ msgstr "Oldal neve"
 
 #. js-lingui-id: NRvxzv
 #: src/pages/not-found/NotFound.tsx
-msgid "Page Not Found | Twenty"
-msgstr "Az oldal nem található | Twenty"
+msgid "Page Not Found | InventiveCRM"
+msgstr "Az oldal nem található | InventiveCRM"
 
 #. js-lingui-id: oIhFvf
 #: src/modules/side-panel/pages/email-block-settings/components/EmailPageStyleSection.tsx
@@ -19620,8 +19620,8 @@ msgstr "Az előfizetés aktiválva."
 #: src/modules/settings/billing/components/AddPaymentMethodForm.tsx
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
-msgid "Subscription error. Please retry or contact Twenty team"
-msgstr "Előfizetési hiba. Kérem, próbálja újra, vagy vegye fel a kapcsolatot a Twenty csapatával"
+msgid "Subscription error. Please retry or contact InventiveCRM team"
+msgstr "Előfizetési hiba. Kérem, próbálja újra, vagy vegye fel a kapcsolatot a InventiveCRM csapatával"
 
 #. js-lingui-id: FooJUj
 #. placeholder {0}: getTargetPlanLabel(targetPlanKey)
@@ -20063,11 +20063,11 @@ msgstr "Az AWS-régió a Bedrockhoz"
 #. js-lingui-id: HP7per
 #: src/pages/settings/applications/utils/getStandardApplicationDescription.ts
 msgid ""
-"The base data model every Twenty workspace runs on.\n"
+"The base data model every InventiveCRM workspace runs on.\n"
 "\n"
 "#### What \"foundation\" means\n"
 "\n"
-"Every Twenty workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
+"Every InventiveCRM workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
 "\n"
 "#### Included objects\n"
 "- **People & Companies**: contact and account records\n"
@@ -20075,11 +20075,11 @@ msgid ""
 "- **Notes & Tasks**: activity and follow-ups\n"
 "- **Workflows & Dashboards**: automation and reporting\n"
 "\n"
-"Remove this app and the rest of Twenty has nothing to hang off.\n"
+"Remove this app and the rest of InventiveCRM has nothing to hang off.\n"
 "\n"
 "#### Build your own app\n"
 "\n"
-"Extend Twenty with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
+"Extend InventiveCRM with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20094,11 +20094,11 @@ msgid ""
 "\n"
 "See the [Getting Started guide](https://twenty.com/developers/extend/apps/getting-started) for the full walkthrough, and [Building Apps](https://twenty.com/developers/extend/apps/building) for the `defineApplication` / `defineEntity` APIs."
 msgstr ""
-"Az az alapadatmodell, amelyre minden Twenty-munkaterület épül.\n"
+"Az az alapadatmodell, amelyre minden InventiveCRM-munkaterület épül.\n"
 "\n"
 "#### Mit jelent az \"alap\"\n"
 "\n"
-"Minden Twenty-munkaterület ezzel az objektumkészlettel indul. Ezek határozzák meg a CRM-ed felépítését, beleértve a kapcsolatokat, a tevékenységeket és a jelentéskészítést. Minden más, beleértve a piactéri alkalmazásokat, az AI-ügynököket és az egyéni objektumokat, ezekhez csatlakozik.\n"
+"Minden InventiveCRM-munkaterület ezzel az objektumkészlettel indul. Ezek határozzák meg a CRM-ed felépítését, beleértve a kapcsolatokat, a tevékenységeket és a jelentéskészítést. Minden más, beleértve a piactéri alkalmazásokat, az AI-ügynököket és az egyéni objektumokat, ezekhez csatlakozik.\n"
 "\n"
 "#### Tartalmazott objektumok\n"
 "- **Személyek és vállalatok**: kapcsolattartó- és vállalati rekordok\n"
@@ -20106,11 +20106,11 @@ msgstr ""
 "- **Jegyzetek és feladatok**: tevékenységek és utánkövetések\n"
 "- **Munkafolyamatok és irányítópultok**: automatizálás és jelentéskészítés\n"
 "\n"
-"Ha eltávolítod ezt az alkalmazást, nem marad semmi, amihez a Twenty többi része kapcsolódhat.\n"
+"Ha eltávolítod ezt az alkalmazást, nem marad semmi, amihez a InventiveCRM többi része kapcsolódhat.\n"
 "\n"
 "#### Készíts saját alkalmazást\n"
 "\n"
-"Bővítsd a Twenty-t saját objektumokkal, mezőkkel, logikai függvényekkel vagy AI-képességekkel. Hozz létre egy új alkalmazásvázat egyetlen paranccsal:\n"
+"Bővítsd a InventiveCRM-t saját objektumokkal, mezőkkel, logikai függvényekkel vagy AI-képességekkel. Hozz létre egy új alkalmazásvázat egyetlen paranccsal:\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20239,8 +20239,8 @@ msgstr "Az Ön által keresett oldal vagy eltűnt, vagy soha nem is létezett. S
 
 #. js-lingui-id: Ya1wb4
 #: src/pages/settings/legal/SettingsLegalDpaNew.tsx
-msgid "The PDF is pre-signed by Twenty and executed with your legal entity and authorized signatory."
-msgstr "A PDF-et a Twenty előre aláírta, és az Ön jogi entitásával és felhatalmazott aláírójával kerül végrehajtásra."
+msgid "The PDF is pre-signed by InventiveCRM and executed with your legal entity and authorized signatory."
+msgstr "A PDF-et a InventiveCRM előre aláírta, és az Ön jogi entitásával és felhatalmazott aláírójával kerül végrehajtásra."
 
 #. js-lingui-id: Ir4tSJ
 #: src/modules/page-layout/widgets/call-recording/utils/getCallRecordingStatusDisplayConfiguration.ts
@@ -21262,13 +21262,13 @@ msgstr "Türkiz"
 
 #. js-lingui-id: JnaRPe
 #: src/modules/spreadsheet-import/steps/components/MatchColumnsStep/components/ColumnGrid.tsx
-msgid "Twenty fields"
-msgstr "Twenty mezők"
+msgid "InventiveCRM fields"
+msgstr "InventiveCRM mezők"
 
 #. js-lingui-id: pNo8xt
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Twenty fills each level with the best model that meets your requirements"
-msgstr "A Twenty minden szintet az igényeinek megfelelő legjobb modellel tölt fel"
+msgid "InventiveCRM fills each level with the best model that meets your requirements"
+msgstr "A InventiveCRM minden szintet az igényeinek megfelelő legjobb modellel tölt fel"
 
 #. js-lingui-id: YIjS4q
 #: src/modules/ai/components/SettingsAgentModelCapabilities.tsx
@@ -22958,7 +22958,7 @@ msgstr ""
 
 #. js-lingui-id: nTuObL
 #: src/pages/auth/SignInUp.tsx
-msgid "Welcome to Twenty"
+msgid "Welcome to InventiveCRM"
 msgstr "Üdvözöljük a Twentyben"
 
 #. js-lingui-id: t8ZvkC

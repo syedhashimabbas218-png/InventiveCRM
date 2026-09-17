@@ -70,8 +70,8 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
-msgid "Connect to Twenty"
-msgstr "Συνδεθείτε στο Twenty"
+msgid "Connect to InventiveCRM"
+msgstr "Συνδεθείτε στο InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
@@ -129,8 +129,8 @@ msgstr "Γεια σου {userName},"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
-msgid "If Twenty is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
-msgstr "Αν το Twenty σας εξυπηρετεί, είστε καλυμμένοι — δεν χρειάζεται να κάνετε τίποτα. Αν δεν είναι η κατάλληλη λύση, μπορείτε να ακυρώσετε με ένα κλικ πριν από τότε και δεν θα χρεωθείτε."
+msgid "If InventiveCRM is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
+msgstr "Αν το InventiveCRM σας εξυπηρετεί, είστε καλυμμένοι — δεν χρειάζεται να κάνετε τίποτα. Αν δεν είναι η κατάλληλη λύση, μπορείτε να ακυρώσετε με ένα κλικ πριν από τότε και δεν θα χρεωθείτε."
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -149,8 +149,8 @@ msgstr "Αν δεν κάνετε τίποτα, θα θέσουμε τον χώρ
 
 #. js-lingui-explicit-id
 #: src/emails/clean-suspended-workspace.email.tsx
-msgid "If you'd ever like to give Twenty another try, you can start a fresh workspace in minutes — we'd love to have you back."
-msgstr "Αν θελήσετε κάποια στιγμή να δώσετε στο Twenty άλλη μια ευκαιρία, μπορείτε να ξεκινήσετε έναν νέο χώρο εργασίας μέσα σε λίγα λεπτά — θα χαρούμε πολύ να σας έχουμε ξανά μαζί μας."
+msgid "If you'd ever like to give InventiveCRM another try, you can start a fresh workspace in minutes — we'd love to have you back."
+msgstr "Αν θελήσετε κάποια στιγμή να δώσετε στο InventiveCRM άλλη μια ευκαιρία, μπορείτε να ξεκινήσετε έναν νέο χώρο εργασίας μέσα σε λίγα λεπτά — θα χαρούμε πολύ να σας έχουμε ξανά μαζί μας."
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -169,8 +169,8 @@ msgstr "Τα δεδομένα του έχουν αφαιρεθεί και δεν
 
 #. js-lingui-explicit-id
 #: src/emails/send-invite-link.email.tsx
-msgid "Join your team on Twenty"
-msgstr "Συμμετέχετε στην ομάδα σας στο Twenty"
+msgid "Join your team on InventiveCRM"
+msgstr "Συμμετέχετε στην ομάδα σας στο InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx
@@ -205,8 +205,8 @@ msgstr "Επανενεργοποίηση χώρου εργασίας"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Read Twenty's user guide"
-msgstr "Διαβάστε τον οδηγό χρήστη του Twenty"
+msgid "Read InventiveCRM's user guide"
+msgstr "Διαβάστε τον οδηγό χρήστη του InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/emails/password-reset-link.email.tsx
@@ -265,8 +265,8 @@ msgstr "Για να διατηρήσετε τον χώρο εργασίας σα
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Twenty.com, Public Benefit Corporation"
-msgstr "Twenty.com, Δημόσια Οφέλη Εταιρεία"
+msgid "InventiveCRM.com, Public Benefit Corporation"
+msgstr "InventiveCRM.com, Δημόσια Οφέλη Εταιρεία"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
@@ -286,18 +286,18 @@ msgstr "Επαληθεύστε το Email"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's developer documentation"
-msgstr "Επισκεφτείτε την τεκμηρίωση για προγραμματιστές του Twenty"
+msgid "Visit InventiveCRM's developer documentation"
+msgstr "Επισκεφτείτε την τεκμηρίωση για προγραμματιστές του InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's GitHub repository"
-msgstr "Επισκεφτείτε το αποθετήριο του Twenty στο GitHub"
+msgid "Visit InventiveCRM's GitHub repository"
+msgstr "Επισκεφτείτε το αποθετήριο του InventiveCRM στο GitHub"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's website"
-msgstr "Επισκεφτείτε την ιστοσελίδα του Twenty"
+msgid "Visit InventiveCRM's website"
+msgstr "Επισκεφτείτε την ιστοσελίδα του InventiveCRM"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
@@ -311,8 +311,8 @@ msgstr "Ιστοσελίδα"
 
 #. js-lingui-explicit-id
 #: src/components/WhatIsTwenty.tsx
-msgid "What is Twenty?"
-msgstr "Τι είναι το Twenty;"
+msgid "What is InventiveCRM?"
+msgstr "Τι είναι το InventiveCRM;"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx

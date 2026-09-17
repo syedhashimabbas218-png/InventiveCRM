@@ -70,8 +70,8 @@ msgstr "Հաստատեք ձեր նոր էլփոստի հասցեն"
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
-msgid "Connect to Twenty"
-msgstr "Միացեք Twenty պլատֆորմին"
+msgid "Connect to InventiveCRM"
+msgstr "Միացեք InventiveCRM պլատֆորմին"
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
@@ -129,8 +129,8 @@ msgstr "Ողջույն, {userName},"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
-msgid "If Twenty is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
-msgstr "Եթե Twenty-ը ձեզ հարմար է, ամեն ինչ կարգին է՝ այլևս ոչինչ անել պետք չէ։ Եթե այն ձեզ համար չէ, կարող եք մինչև այդ մեկ սեղմումով չեղարկել, և գանձում չի կատարվի։"
+msgid "If InventiveCRM is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
+msgstr "Եթե InventiveCRM-ը ձեզ հարմար է, ամեն ինչ կարգին է՝ այլևս ոչինչ անել պետք չէ։ Եթե այն ձեզ համար չէ, կարող եք մինչև այդ մեկ սեղմումով չեղարկել, և գանձում չի կատարվի։"
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -149,8 +149,8 @@ msgstr "Եթե ոչինչ չանեք, մենք կդադարեցնենք ձեր w
 
 #. js-lingui-explicit-id
 #: src/emails/clean-suspended-workspace.email.tsx
-msgid "If you'd ever like to give Twenty another try, you can start a fresh workspace in minutes — we'd love to have you back."
-msgstr "Եթե երբևէ ցանկանաք նորից փորձել Twenty-ը, կարող եք մի քանի րոպեում սկսել նոր workspace՝ մենք ուրախ կլինենք կրկին ձեզ տեսնել։"
+msgid "If you'd ever like to give InventiveCRM another try, you can start a fresh workspace in minutes — we'd love to have you back."
+msgstr "Եթե երբևէ ցանկանաք նորից փորձել InventiveCRM-ը, կարող եք մի քանի րոպեում սկսել նոր workspace՝ մենք ուրախ կլինենք կրկին ձեզ տեսնել։"
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -169,8 +169,8 @@ msgstr "Դրա տվյալները հեռացվել են և այլևս չեն կ�
 
 #. js-lingui-explicit-id
 #: src/emails/send-invite-link.email.tsx
-msgid "Join your team on Twenty"
-msgstr "Միացեք ձեր թիմին Twenty պլատֆորմում"
+msgid "Join your team on InventiveCRM"
+msgstr "Միացեք ձեր թիմին InventiveCRM պլատֆորմում"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx
@@ -205,8 +205,8 @@ msgstr "Վերաակտիվացնել workspace-ը"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Read Twenty's user guide"
-msgstr "Կարդացեք Twenty-ի օգտվողի ձեռնարկը"
+msgid "Read InventiveCRM's user guide"
+msgstr "Կարդացեք InventiveCRM-ի օգտվողի ձեռնարկը"
 
 #. js-lingui-explicit-id
 #: src/emails/password-reset-link.email.tsx
@@ -265,8 +265,8 @@ msgstr "Ձեր workspace-ը և ձեր ստեղծած ամեն ինչը պահպ�
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Twenty.com, Public Benefit Corporation"
-msgstr "Twenty.com, հասարակային շահի կորպորացիա"
+msgid "InventiveCRM.com, Public Benefit Corporation"
+msgstr "InventiveCRM.com, հասարակային շահի կորպորացիա"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
@@ -286,18 +286,18 @@ msgstr "Հաստատել էլփոստը"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's developer documentation"
-msgstr "Այցելեք Twenty-ի ծրագրավորողների փաստաթղթավորումը"
+msgid "Visit InventiveCRM's developer documentation"
+msgstr "Այցելեք InventiveCRM-ի ծրագրավորողների փաստաթղթավորումը"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's GitHub repository"
-msgstr "Այցելեք Twenty-ի GitHub պահոցը"
+msgid "Visit InventiveCRM's GitHub repository"
+msgstr "Այցելեք InventiveCRM-ի GitHub պահոցը"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's website"
-msgstr "Այցելեք Twenty-ի վեբկայքը"
+msgid "Visit InventiveCRM's website"
+msgstr "Այցելեք InventiveCRM-ի վեբկայքը"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
@@ -311,8 +311,8 @@ msgstr "Վեբկայք"
 
 #. js-lingui-explicit-id
 #: src/components/WhatIsTwenty.tsx
-msgid "What is Twenty?"
-msgstr "Ի՞նչ է Twenty-ը։"
+msgid "What is InventiveCRM?"
+msgstr "Ի՞նչ է InventiveCRM-ը։"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx

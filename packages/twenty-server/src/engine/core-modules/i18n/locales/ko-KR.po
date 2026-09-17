@@ -197,8 +197,8 @@ msgstr "선별된 사람들로 구성된 대상입니다."
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "Twenty 체험이 종료되기 전에 알려드립니다."
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "InventiveCRM 체험이 종료되기 전에 알려드립니다."
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,7 +5894,7 @@ msgstr "메시지 채널 메시지 연결을 메시지 폴더와 연결하는 �
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
+msgid "Join your team on InventiveCRM"
 msgstr "Twenty에서 팀에 합류하세요"
 
 #. js-lingui-id: +KEn4d
@@ -9941,7 +9941,7 @@ msgstr "시스템 필드는 업데이트할 수 없습니다."
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
 msgstr "시스템 인덱스는 Twenty가 동작하는 데 필수이며 삭제할 수 없습니다."
 
 #. js-lingui-id: /ojawH
@@ -10828,8 +10828,8 @@ msgstr "이 API 키에는 역할이 할당되어 있지 않습니다."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "이 앱을 사용하려면 더 최신 버전의 Twenty 서버가 필요합니다. 서버를 업그레이드하거나 호환되는 앱 버전을 사용하세요."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "이 앱을 사용하려면 더 최신 버전의 InventiveCRM 서버가 필요합니다. 서버를 업그레이드하거나 호환되는 앱 버전을 사용하세요."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,7 +12499,7 @@ msgstr "수요일"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
 msgstr "Twenty에 오신 것을 환영합니다: 이메일을 확인해 주세요"
 
 #. js-lingui-id: lKboI8
@@ -13467,13 +13467,13 @@ msgstr "회사 계정을 관리하는 팀원"
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Twenty 요금제가 곧 갱신됩니다."
+msgid "Your InventiveCRM plan renews soon"
+msgstr "InventiveCRM 요금제가 곧 갱신됩니다."
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "Twenty 체험 기간이 곧 종료됩니다."
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "InventiveCRM 체험 기간이 곧 종료됩니다."
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

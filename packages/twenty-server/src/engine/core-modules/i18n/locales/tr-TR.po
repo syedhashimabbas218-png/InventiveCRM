@@ -197,8 +197,8 @@ msgstr "Özenle seçilmiş bir kişi kitlesi"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "Twenty denemeniz bitmeden önce bir bilgilendirme"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "InventiveCRM denemeniz bitmeden önce bir bilgilendirme"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,8 +5894,8 @@ msgstr "Mesaj kanalı mesaj ilişkilendirmelerini mesaj klasörlerine bağlayan 
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
-msgstr "Ekibinize Twenty'de katılın"
+msgid "Join your team on InventiveCRM"
+msgstr "Ekibinize InventiveCRM'de katılın"
 
 #. js-lingui-id: +KEn4d
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-call-recording-standard-flat-field-metadata.util.ts
@@ -9941,8 +9941,8 @@ msgstr "Sistem alanları güncellenemez"
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "Twenty'nin çalışması için sistem indeksleri gereklidir ve silinemez."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "InventiveCRM'nin çalışması için sistem indeksleri gereklidir ve silinemez."
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "Bu API anahtarına herhangi bir rol atanmadı."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Bu uygulama Twenty sunucusunun daha yeni bir sürümünü gerektirir. Lütfen sunucunuzu yükseltin ya da uyumlu bir uygulama sürümü kullanın."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Bu uygulama InventiveCRM sunucusunun daha yeni bir sürümünü gerektirir. Lütfen sunucunuzu yükseltin ya da uyumlu bir uygulama sürümü kullanın."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,8 +12499,8 @@ msgstr "Çarşamba"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "Twenty'e Hoş Geldiniz: Lütfen E-postanızı Onaylayın"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "InventiveCRM'e Hoş Geldiniz: Lütfen E-postanızı Onaylayın"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13467,13 +13467,13 @@ msgstr "Şirket hesabını yönetmekten sorumlu ekip üyeniz"
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Twenty planınız yakında yenilenecek"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "InventiveCRM planınız yakında yenilenecek"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "Twenty denemeniz yakında sona eriyor"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "InventiveCRM denemeniz yakında sona eriyor"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

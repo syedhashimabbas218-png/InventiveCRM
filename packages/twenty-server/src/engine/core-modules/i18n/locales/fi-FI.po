@@ -197,8 +197,8 @@ msgstr "Harkiten valittu joukko ihmisiä"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "Ilmoitus ennen kuin Twenty-kokeilusi päättyy"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "Ilmoitus ennen kuin InventiveCRM-kokeilusi päättyy"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,7 +5894,7 @@ msgstr "Liitostaulu, joka yhdistää viestikanavan viestiyhdistykset viestikansi
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
+msgid "Join your team on InventiveCRM"
 msgstr "Liity tiimiisi Twentyssä"
 
 #. js-lingui-id: +KEn4d
@@ -9941,8 +9941,8 @@ msgstr "Järjestelmäkenttiä ei voi päivittää"
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "Järjestelmäindeksit ovat välttämättömiä, jotta Twenty toimii, eikä niitä voi poistaa."
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "Järjestelmäindeksit ovat välttämättömiä, jotta InventiveCRM toimii, eikä niitä voi poistaa."
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "Tähän API-avaimeen ei ole liitetty roolia."
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Tämä sovellus edellyttää Twenty-palvelimen uudempaa versiota. Päivitä palvelimesi tai käytä yhteensopivaa sovellusversiota."
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Tämä sovellus edellyttää InventiveCRM-palvelimen uudempaa versiota. Päivitä palvelimesi tai käytä yhteensopivaa sovellusversiota."
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,7 +12499,7 @@ msgstr "Keskiviikko"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
 msgstr "Tervetuloa Twentyyn: Vahvista sähköpostisi"
 
 #. js-lingui-id: lKboI8
@@ -13467,13 +13467,13 @@ msgstr "Tiimin jäsen vastuussa yritystilin hallinnasta"
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Twenty-tilauksesi uusiutuu pian"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "InventiveCRM-tilauksesi uusiutuu pian"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "Twenty-kokeilujaksosi päättyy pian"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "InventiveCRM-kokeilujaksosi päättyy pian"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

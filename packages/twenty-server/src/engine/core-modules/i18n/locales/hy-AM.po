@@ -197,8 +197,8 @@ msgstr "Ձեռքով ընտրված մարդկանց լսարան"
 
 #. js-lingui-id: TF/ZV2
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "A heads up before your Twenty trial ends"
-msgstr "Ծանուցում մինչև ձեր Twenty փորձաշրջանի ավարտը"
+msgid "A heads up before your InventiveCRM trial ends"
+msgstr "Ծանուցում մինչև ձեր InventiveCRM փորձաշրջանի ավարտը"
 
 #. js-lingui-id: 6yZjO1
 #: src/engine/core-modules/application/application.exception.ts
@@ -5894,8 +5894,8 @@ msgstr "Միացման աղյուսակ, որը կապում է հաղորդագ
 
 #. js-lingui-id: PviVyk
 #: src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts
-msgid "Join your team on Twenty"
-msgstr "Միացեք ձեր թիմին Twenty պլատֆորմում"
+msgid "Join your team on InventiveCRM"
+msgstr "Միացեք ձեր թիմին InventiveCRM պլատֆորմում"
 
 #. js-lingui-id: +KEn4d
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-call-recording-standard-flat-field-metadata.util.ts
@@ -9941,8 +9941,8 @@ msgstr "Համակարգային դաշտերը չի թույլատրվում թ
 
 #. js-lingui-id: aK2k19
 #: src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts
-msgid "System indexes are required for Twenty to work and cannot be deleted."
-msgstr "Համակարգային ինդեքսները անհրաժեշտ են Twenty-ի աշխատանքի համար և չեն կարող ջնջվել։"
+msgid "System indexes are required for InventiveCRM to work and cannot be deleted."
+msgstr "Համակարգային ինդեքսները անհրաժեշտ են InventiveCRM-ի աշխատանքի համար և չեն կարող ջնջվել։"
 
 #. js-lingui-id: /ojawH
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-object-metadata-validator.service.ts
@@ -10828,8 +10828,8 @@ msgstr "Այս API բանալուն դեր չի վերագրված։"
 #. js-lingui-id: zISk4k
 #: src/engine/core-modules/application/application-registration/application-registration.exception.ts
 #: src/engine/core-modules/application/application.exception.ts
-msgid "This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version."
-msgstr "Այս հավելվածը պահանջում է Twenty սերվերի ավելի նոր տարբերակ։ Խնդրում ենք թարմացնել ձեր սերվերը կամ օգտագործել համատեղելի հավելվածի տարբերակ։"
+msgid "This app requires a newer version of the InventiveCRM server. Please upgrade your server or use a compatible app version."
+msgstr "Այս հավելվածը պահանջում է InventiveCRM սերվերի ավելի նոր տարբերակ։ Խնդրում ենք թարմացնել ձեր սերվերը կամ օգտագործել համատեղելի հավելվածի տարբերակ։"
 
 #. js-lingui-id: y2nks/
 #: src/engine/core-modules/application/application.exception.ts
@@ -12499,8 +12499,8 @@ msgstr "Չորեքշաբթի"
 
 #. js-lingui-id: TVkCrJ
 #: src/engine/core-modules/email-verification/services/email-verification.service.ts
-msgid "Welcome to Twenty: Please Confirm Your Email"
-msgstr "Բարի գալուստ Twenty․ Խնդրում ենք հաստատել ձեր էլ. հասցեն"
+msgid "Welcome to InventiveCRM: Please Confirm Your Email"
+msgstr "Բարի գալուստ InventiveCRM․ Խնդրում ենք հաստատել ձեր էլ. հասցեն"
 
 #. js-lingui-id: lKboI8
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -13467,13 +13467,13 @@ msgstr "Ձեր թիմի այն անդամը, որը պատասխանատու է 
 
 #. js-lingui-id: sOfbGC
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty plan renews soon"
-msgstr "Ձեր Twenty փաթեթի ժամկետը շուտով կթարմացվի"
+msgid "Your InventiveCRM plan renews soon"
+msgstr "Ձեր InventiveCRM փաթեթի ժամկետը շուտով կթարմացվի"
 
 #. js-lingui-id: qW+K5e
 #: src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts
-msgid "Your Twenty trial is ending soon"
-msgstr "Ձեր Twenty փորձաշրջանը շուտով ավարտվում է"
+msgid "Your InventiveCRM trial is ending soon"
+msgstr "Ձեր InventiveCRM փորձաշրջանը շուտով ավարտվում է"
 
 #. js-lingui-id: ej/tZF
 #: src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook.ts

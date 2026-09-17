@@ -70,7 +70,7 @@ msgstr "Erősítsd meg az új e-mail címed"
 
 #. js-lingui-explicit-id
 #: src/emails/password-update-notify.email.tsx
-msgid "Connect to Twenty"
+msgid "Connect to InventiveCRM"
 msgstr "Csatlakozás a Twentyhez"
 
 #. js-lingui-explicit-id
@@ -129,8 +129,8 @@ msgstr "Szia {userName},"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
-msgid "If Twenty is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
-msgstr "Ha a Twenty bevált számodra, minden rendben — nincs további teendőd. Ha mégsem ez a megfelelő megoldás, egy kattintással lemondhatod addig, és nem számítunk fel díjat."
+msgid "If InventiveCRM is working for you, you're all set — there's nothing to do. If it's not the right fit, you can cancel in one click before then and you won't be charged."
+msgstr "Ha a InventiveCRM bevált számodra, minden rendben — nincs további teendőd. Ha mégsem ez a megfelelő megoldás, egy kattintással lemondhatod addig, és nem számítunk fel díjat."
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -149,8 +149,8 @@ msgstr "Ha nem teszel semmit, szüneteltetjük a munkaterületedet, és az adata
 
 #. js-lingui-explicit-id
 #: src/emails/clean-suspended-workspace.email.tsx
-msgid "If you'd ever like to give Twenty another try, you can start a fresh workspace in minutes — we'd love to have you back."
-msgstr "Ha valamikor később újra szeretnél esélyt adni a Twenty‑nek, néhány perc alatt új, üres munkaterületet indíthatsz — örömmel látunk vissza."
+msgid "If you'd ever like to give InventiveCRM another try, you can start a fresh workspace in minutes — we'd love to have you back."
+msgstr "Ha valamikor később újra szeretnél esélyt adni a InventiveCRM‑nek, néhány perc alatt új, üres munkaterületet indíthatsz — örömmel látunk vissza."
 
 #. js-lingui-explicit-id
 #: src/emails/server-admin-access-changed.email.tsx
@@ -169,7 +169,7 @@ msgstr "Az adatai törlésre kerültek, és többé nem állíthatók vissza."
 
 #. js-lingui-explicit-id
 #: src/emails/send-invite-link.email.tsx
-msgid "Join your team on Twenty"
+msgid "Join your team on InventiveCRM"
 msgstr "Csatlakozzon a csapatához a Twentyn"
 
 #. js-lingui-explicit-id
@@ -205,8 +205,8 @@ msgstr "Munkaterület újraaktiválása"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Read Twenty's user guide"
-msgstr "Olvassa el a Twenty felhasználói útmutatóját"
+msgid "Read InventiveCRM's user guide"
+msgstr "Olvassa el a InventiveCRM felhasználói útmutatóját"
 
 #. js-lingui-explicit-id
 #: src/emails/password-reset-link.email.tsx
@@ -265,8 +265,8 @@ msgstr "Ha meg szeretnéd tartani a munkaterületedet és mindent, amit létreho
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Twenty.com, Public Benefit Corporation"
-msgstr "Twenty.com, Közhasznú Vállalat"
+msgid "InventiveCRM.com, Public Benefit Corporation"
+msgstr "InventiveCRM.com, Közhasznú Vállalat"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
@@ -286,18 +286,18 @@ msgstr "Email ellenőrzése"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's developer documentation"
-msgstr "Látogasson el a Twenty fejlesztői dokumentációjához"
+msgid "Visit InventiveCRM's developer documentation"
+msgstr "Látogasson el a InventiveCRM fejlesztői dokumentációjához"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's GitHub repository"
-msgstr "Látogasson el a Twenty GitHub tárházához"
+msgid "Visit InventiveCRM's GitHub repository"
+msgstr "Látogasson el a InventiveCRM GitHub tárházához"
 
 #. js-lingui-explicit-id
 #: src/components/Footer.tsx
-msgid "Visit Twenty's website"
-msgstr "Látogasson el a Twenty weboldalára"
+msgid "Visit InventiveCRM's website"
+msgstr "Látogasson el a InventiveCRM weboldalára"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-trial-converting.email.tsx
@@ -311,8 +311,8 @@ msgstr "Weboldal"
 
 #. js-lingui-explicit-id
 #: src/components/WhatIsTwenty.tsx
-msgid "What is Twenty?"
-msgstr "Mi az a Twenty?"
+msgid "What is InventiveCRM?"
+msgstr "Mi az a InventiveCRM?"
 
 #. js-lingui-explicit-id
 #: src/emails/billing-subscription-renewing.email.tsx

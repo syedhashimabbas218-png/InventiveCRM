@@ -1681,38 +1681,38 @@ msgstr "Ավելացրեք փորձնական մուտք գնահատման հա
 
 #. js-lingui-id: FKGcEL
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server as a remote context server in Zed."
-msgstr "Ավելացրեք Twenty MCP սպասարկիչը որպես հեռավար context server Zed-ում։"
+msgid "Add the InventiveCRM MCP server as a remote context server in Zed."
+msgstr "Ավելացրեք InventiveCRM MCP սպասարկիչը որպես հեռավար context server Zed-ում։"
 
 #. js-lingui-id: iA2nHX
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Augment Code settings."
-msgstr "Ավելացրեք Twenty MCP սպասարկիչը Augment Code-ի կարգավորումներից։"
+msgid "Add the InventiveCRM MCP server from Augment Code settings."
+msgstr "Ավելացրեք InventiveCRM MCP սպասարկիչը Augment Code-ի կարգավորումներից։"
 
 #. js-lingui-id: l+NzAk
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Raycast's MCP commands or settings."
-msgstr "Ավելացրեք Twenty MCP սպասարկիչը Raycast-ի MCP հրամաններից կամ կարգավորումներից։"
+msgid "Add the InventiveCRM MCP server from Raycast's MCP commands or settings."
+msgstr "Ավելացրեք InventiveCRM MCP սպասարկիչը Raycast-ի MCP հրամաններից կամ կարգավորումներից։"
 
 #. js-lingui-id: j6G/yI
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server in Gemini CLI settings."
-msgstr "Ավելացրեք Twenty MCP սպասարկիչը Gemini CLI-ի կարգավորումներում։"
+msgid "Add the InventiveCRM MCP server in Gemini CLI settings."
+msgstr "Ավելացրեք InventiveCRM MCP սպասարկիչը Gemini CLI-ի կարգավորումներում։"
 
 #. js-lingui-id: /OyhlM
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server to your LibreChat configuration file."
-msgstr "Ավելացրեք Twenty MCP սպասարկիչը ձեր LibreChat-ի կազմաձևման ֆայլում։"
+msgid "Add the InventiveCRM MCP server to your LibreChat configuration file."
+msgstr "Ավելացրեք InventiveCRM MCP սպասարկիչը ձեր LibreChat-ի կազմաձևման ֆայլում։"
 
 #. js-lingui-id: K0DXoj
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty remote server with LM Studio's install link."
-msgstr "Ավելացրեք Twenty հեռավար սպասարկիչը LM Studio-ի install հղումով։"
+msgid "Add the InventiveCRM remote server with LM Studio's install link."
+msgstr "Ավելացրեք InventiveCRM հեռավար սպասարկիչը LM Studio-ի install հղումով։"
 
 #. js-lingui-id: BTFMKE
 #: src/pages/settings/communications/SettingsWorkspaceCommunicationGroupChannelDetail.tsx
-msgid "Add these records at your DNS provider. Twenty checks them automatically."
-msgstr "Ավելացրեք այս գրառումները ձեր DNS մատակարարի մոտ։ Twenty-ն դրանք ավտոմատ ստուգում է։"
+msgid "Add these records at your DNS provider. InventiveCRM checks them automatically."
+msgstr "Ավելացրեք այս գրառումները ձեր DNS մատակարարի մոտ։ InventiveCRM-ն դրանք ավտոմատ ստուգում է։"
 
 #. js-lingui-id: 5+ttxv
 #: src/modules/settings/accounts/components/SettingsAccountsBlocklistInput.tsx
@@ -1731,8 +1731,8 @@ msgstr "Ավելացնել թեմա"
 
 #. js-lingui-id: 4D/zWv
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add Twenty as a Streamable HTTP extension in Goose."
-msgstr "Ավելացրեք Twenty-ին որպես Streamable HTTP ընդլայնում Goose-ում։"
+msgid "Add InventiveCRM as a Streamable HTTP extension in Goose."
+msgstr "Ավելացրեք InventiveCRM-ին որպես Streamable HTTP ընդլայնում Goose-ում։"
 
 #. js-lingui-id: XnwceV
 #: src/pages/settings/applications/components/SettingsApplicationRegistrationRedirectURIsInput.tsx
@@ -3317,8 +3317,8 @@ msgstr "Ավտոմատ կերպով տեղադրել այս հավելվածը �
 
 #. js-lingui-id: MHsVk5
 #: src/pages/settings/ai/components/SettingsAiModelTiersPreview.tsx
-msgid "Automatically selected by Twenty for this mode."
-msgstr "Twenty-ն ավտոմատ ընտրում է այս ռեժիմի համար։"
+msgid "Automatically selected by InventiveCRM for this mode."
+msgstr "InventiveCRM-ն ավտոմատ ընտրում է այս ռեժիմի համար։"
 
 #. js-lingui-id: XFGV21
 #: src/pages/settings/applications/tabs/SettingsApplicationGeneralSection.tsx
@@ -3521,8 +3521,8 @@ msgstr "Վճարումների շրջանը"
 
 #. js-lingui-id: xF/NXI
 #: src/modules/settings/billing/hooks/useBillingPortalSession.ts
-msgid "Billing portal session error. Please retry or contact Twenty team"
-msgstr "Վճարային պորտալի նստաշրջանի սխալ։ Խնդրում ենք կրկին փորձել կամ կապ հաստատել Twenty թիմի հետ"
+msgid "Billing portal session error. Please retry or contact InventiveCRM team"
+msgstr "Վճարային պորտալի նստաշրջանի սխալ։ Խնդրում ենք կրկին փորձել կամ կապ հաստատել InventiveCRM թիմի հետ"
 
 #. js-lingui-id: 8kIU+G
 #: src/modules/advanced-text-editor/constants/AdvancedTextEditorBlockCatalog.ts
@@ -3714,8 +3714,8 @@ msgstr "հեղինակ՝ {author}"
 
 #. js-lingui-id: 8Pfllj
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
-msgid "By using Twenty, you agree to the"
-msgstr "Օգտագործելով Twenty-ն՝ դուք համաձայնվում եք"
+msgid "By using InventiveCRM, you agree to the"
+msgstr "Օգտագործելով InventiveCRM-ն՝ դուք համաձայնվում եք"
 
 #. js-lingui-id: Yx41df
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
@@ -4258,8 +4258,8 @@ msgstr "Ստուգեք ձեր մուտքային նամակները՝ նոր է�
 #. js-lingui-id: SxwQE8
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
-msgid "Checkout session error. Please retry or contact Twenty team"
-msgstr "Վճարման նստաշրջանի սխալ։ Խնդրում ենք կրկին փորձել կամ կապ հաստատել Twenty թիմի հետ"
+msgid "Checkout session error. Please retry or contact InventiveCRM team"
+msgstr "Վճարման նստաշրջանի սխալ։ Խնդրում ենք կրկին փորձել կամ կապ հաստատել InventiveCRM թիմի հետ"
 
 #. js-lingui-id: SviKkE
 #: src/localization/hooks/useLocaleOptions.ts
@@ -4952,13 +4952,13 @@ msgstr "Կարգավորեք հեռավար սպասարկիչը Amazon Q Develo
 
 #. js-lingui-id: g1/8jH
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cascade."
-msgstr "Կարգավորեք Twenty MCP սպասարկիչը Cascade-ում ձեռքով։"
+msgid "Configure the InventiveCRM MCP server manually in Cascade."
+msgstr "Կարգավորեք InventiveCRM MCP սպասարկիչը Cascade-ում ձեռքով։"
 
 #. js-lingui-id: XiyvRh
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cline."
-msgstr "Կարգավորեք Twenty MCP սպասարկիչը Cline-ում ձեռքով։"
+msgid "Configure the InventiveCRM MCP server manually in Cline."
+msgstr "Կարգավորեք InventiveCRM MCP սպասարկիչը Cline-ում ձեռքով։"
 
 #. js-lingui-id: qA9AGQ
 #: src/modules/settings/domains/components/SettingsDomainRecords.tsx
@@ -8569,8 +8569,8 @@ msgstr "Սխալ՝ փաթեթի փոփոխությունը չեղարկելիս�
 
 #. js-lingui-id: QmR+2U
 #: src/modules/settings/billing/hooks/useEndSubscriptionTrialPeriod.ts
-msgid "Error while ending trial period. Please contact Twenty team."
-msgstr "Սխալ փորձաշրջանի ավարտի ընթացքում։ Խնդրում ենք կապվել Twenty թիմի հետ։"
+msgid "Error while ending trial period. Please contact InventiveCRM team."
+msgstr "Սխալ փորձաշրջանի ավարտի ընթացքում։ Խնդրում ենք կապվել InventiveCRM թիմի հետ։"
 
 #. js-lingui-id: 5g78zo
 #: src/pages/settings/members/SettingsWorkspaceMember.tsx
@@ -10508,8 +10508,8 @@ msgstr "Բարձր"
 
 #. js-lingui-id: 1ETc0T
 #: src/pages/settings/community/SettingsCommunity.tsx
-msgid "Hire a partner to help you implement and customize Twenty."
-msgstr "Վարձեք գործընկեր, որը կօգնի ձեզ իրականացնել և հարմարեցնել Twenty-ը։"
+msgid "Hire a partner to help you implement and customize InventiveCRM."
+msgstr "Վարձեք գործընկեր, որը կօգնի ձեզ իրականացնել և հարմարեցնել InventiveCRM-ը։"
 
 #. js-lingui-id: i0qMbr
 #: src/modules/navigation/hooks/useMobileNavigationBarItems.ts
@@ -13080,8 +13080,8 @@ msgstr "Մոդելի տեղեկություններ"
 
 #. js-lingui-id: iaurWj
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Model used when you chat with Twenty"
-msgstr "Մոդել, որն օգտագործվում է Twenty-ի հետ զրուցելիս"
+msgid "Model used when you chat with InventiveCRM"
+msgstr "Մոդել, որն օգտագործվում է InventiveCRM-ի հետ զրուցելիս"
 
 #. js-lingui-id: //nm2/
 #: src/pages/settings/admin-panel/SettingsAdminAiProviderDetail.tsx
@@ -15085,8 +15085,8 @@ msgstr "Մեկ կամ մի քանի ֆիլտր հղվում են անջատվա�
 
 #. js-lingui-id: 1WZTTl
 #: src/pages/settings/enterprise/SettingsEnterprise.tsx
-msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install Twenty on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
-msgstr "Մեկ բաժանորդագրությունը տրամադրում է մեկ Կազմակերպության բանալի, որն ապահովում է մեկ արտադրական օրինակ և մեկ հնարավոր նախաարտադրական կամ փորձարկման օրինակ։ Նախաարտադրական կամ փորձարկման միջավայր գործարկելու համար տեղադրեք Twenty-ը երկրորդ սերվերի վրա, ակտիվացրեք այն նույն Կազմակերպության բանալիով, ապա գրանցեք այդ սերվերը որպես մշակման օրինակ։ Մշակման օրինակները բացում են պրեմիում հնարավորությունները՝ առանց լրացուցիչ վճարման, և չեն հաշվարկվում ձեր արտադրական տեղերի մեջ։"
+msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install InventiveCRM on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
+msgstr "Մեկ բաժանորդագրությունը տրամադրում է մեկ Կազմակերպության բանալի, որն ապահովում է մեկ արտադրական օրինակ և մեկ հնարավոր նախաարտադրական կամ փորձարկման օրինակ։ Նախաարտադրական կամ փորձարկման միջավայր գործարկելու համար տեղադրեք InventiveCRM-ը երկրորդ սերվերի վրա, ակտիվացրեք այն նույն Կազմակերպության բանալիով, ապա գրանցեք այդ սերվերը որպես մշակման օրինակ։ Մշակման օրինակները բացում են պրեմիում հնարավորությունները՝ առանց լրացուցիչ վճարման, և չեն հաշվարկվում ձեր արտադրական տեղերի մեջ։"
 
 #. js-lingui-id: JEtonz
 #: src/modules/settings/event-logs/components/SettingsLogs.tsx
@@ -15181,13 +15181,13 @@ msgstr "Բացել որպես հղում"
 
 #. js-lingui-id: n0vVgf
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Claude with the Twenty connector name and MCP URL prefilled."
-msgstr "Բացեք Claude-ը՝ Twenty միացուցիչի անունը և MCP URL-ը նախալրացված վիճակում։"
+msgid "Open Claude with the InventiveCRM connector name and MCP URL prefilled."
+msgstr "Բացեք Claude-ը՝ InventiveCRM միացուցիչի անունը և MCP URL-ը նախալրացված վիճակում։"
 
 #. js-lingui-id: +n2jpB
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Cursor's MCP installer with the Twenty remote server config."
-msgstr "Բացեք Cursor-ի MCP installer-ը՝ Twenty հեռավար սպասարկչի կազմաձևով։"
+msgid "Open Cursor's MCP installer with the InventiveCRM remote server config."
+msgstr "Բացեք Cursor-ի MCP installer-ը՝ InventiveCRM հեռավար սպասարկչի կազմաձևով։"
 
 #. js-lingui-id: pZZH4Q
 #: src/modules/auth/sign-in-up/components/EmailVerificationSent.tsx
@@ -15249,13 +15249,13 @@ msgstr "Բացեք գրառումները հատուկ էջում"
 
 #. js-lingui-id: q170S2
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Replit with the Twenty remote server config."
-msgstr "Բացեք Replit-ը՝ Twenty հեռավար սպասարկչի կազմաձևով։"
+msgid "Open Replit with the InventiveCRM remote server config."
+msgstr "Բացեք Replit-ը՝ InventiveCRM հեռավար սպասարկչի կազմաձևով։"
 
 #. js-lingui-id: sBd/cl
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Twenty's official ChatGPT integration for your workspace."
-msgstr "Բացեք Twenty-ի պաշտոնական ChatGPT ինտեգրումը ձեր աշխատանքային տարածքի համար։"
+msgid "Open InventiveCRM's official ChatGPT integration for your workspace."
+msgstr "Բացեք InventiveCRM-ի պաշտոնական ChatGPT ինտեգրումը ձեր աշխատանքային տարածքի համար։"
 
 #. js-lingui-id: OV5wZZ
 #: src/modules/navigation-menu-item/display/sections/components/NavigationDrawerOpenedSection.tsx
@@ -15606,8 +15606,8 @@ msgstr "Էջի անուն"
 
 #. js-lingui-id: NRvxzv
 #: src/pages/not-found/NotFound.tsx
-msgid "Page Not Found | Twenty"
-msgstr "Էջը չի գտնվել | Twenty"
+msgid "Page Not Found | InventiveCRM"
+msgstr "Էջը չի գտնվել | InventiveCRM"
 
 #. js-lingui-id: oIhFvf
 #: src/modules/side-panel/pages/email-block-settings/components/EmailPageStyleSection.tsx
@@ -19620,8 +19620,8 @@ msgstr "Բաժանորդագրությունը ակտիվացված է։"
 #: src/modules/settings/billing/components/AddPaymentMethodForm.tsx
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
-msgid "Subscription error. Please retry or contact Twenty team"
-msgstr "Բաժանորդագրության սխալ։ Խնդրում ենք կրկին փորձել կամ կապ հաստատել Twenty թիմի հետ"
+msgid "Subscription error. Please retry or contact InventiveCRM team"
+msgstr "Բաժանորդագրության սխալ։ Խնդրում ենք կրկին փորձել կամ կապ հաստատել InventiveCRM թիմի հետ"
 
 #. js-lingui-id: FooJUj
 #. placeholder {0}: getTargetPlanLabel(targetPlanKey)
@@ -20063,11 +20063,11 @@ msgstr "AWS տարածաշրջանը Bedrock-ի համար"
 #. js-lingui-id: HP7per
 #: src/pages/settings/applications/utils/getStandardApplicationDescription.ts
 msgid ""
-"The base data model every Twenty workspace runs on.\n"
+"The base data model every InventiveCRM workspace runs on.\n"
 "\n"
 "#### What \"foundation\" means\n"
 "\n"
-"Every Twenty workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
+"Every InventiveCRM workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
 "\n"
 "#### Included objects\n"
 "- **People & Companies**: contact and account records\n"
@@ -20075,11 +20075,11 @@ msgid ""
 "- **Notes & Tasks**: activity and follow-ups\n"
 "- **Workflows & Dashboards**: automation and reporting\n"
 "\n"
-"Remove this app and the rest of Twenty has nothing to hang off.\n"
+"Remove this app and the rest of InventiveCRM has nothing to hang off.\n"
 "\n"
 "#### Build your own app\n"
 "\n"
-"Extend Twenty with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
+"Extend InventiveCRM with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20094,11 +20094,11 @@ msgid ""
 "\n"
 "See the [Getting Started guide](https://twenty.com/developers/extend/apps/getting-started) for the full walkthrough, and [Building Apps](https://twenty.com/developers/extend/apps/building) for the `defineApplication` / `defineEntity` APIs."
 msgstr ""
-"Հիմնական տվյալների մոդելը, որի վրա աշխատում է յուրաքանչյուր Twenty աշխատանքային տարածք։\n"
+"Հիմնական տվյալների մոդելը, որի վրա աշխատում է յուրաքանչյուր InventiveCRM աշխատանքային տարածք։\n"
 "\n"
 "#### Ի՞նչ է նշանակում \"հիմք\"\n"
 "\n"
-"Յուրաքանչյուր Twenty աշխատանքային տարածք սկսում է այս օբյեկտների հավաքածուից։ Դրանք սահմանում են ձեր CRM-ի կառուցվածքը՝ ներառյալ փոխկապակցությունները, ակտիվությունը և հաշվետվությունը։ Մնացած ամեն ինչ՝ շուկայական հավելվածները, AI գործակալները և հարմարեցված օբյեկտները, միանում են դրանց։\n"
+"Յուրաքանչյուր InventiveCRM աշխատանքային տարածք սկսում է այս օբյեկտների հավաքածուից։ Դրանք սահմանում են ձեր CRM-ի կառուցվածքը՝ ներառյալ փոխկապակցությունները, ակտիվությունը և հաշվետվությունը։ Մնացած ամեն ինչ՝ շուկայական հավելվածները, AI գործակալները և հարմարեցված օբյեկտները, միանում են դրանց։\n"
 "\n"
 "#### Ներառված օբյեկտներ\n"
 "- **Մարդիկ և ընկերություններ**․ կոնտակտների և ընկերությունների գրառումներ\n"
@@ -20106,11 +20106,11 @@ msgstr ""
 "- **Նշումներ և առաջադրանքներ**․ ակտիվություն և հետագա գործողություններ\n"
 "- **Աշխատանքային հոսքեր և վահանակներ**․ ավտոմատացում և հաշվետվություն\n"
 "\n"
-"Հեռացրեք այս հավելվածը, և Twenty-ի մնացած մասը այլևս ոչնչի վրա չի հիմնվի։\n"
+"Հեռացրեք այս հավելվածը, և InventiveCRM-ի մնացած մասը այլևս ոչնչի վրա չի հիմնվի։\n"
 "\n"
 "#### Կառուցեք ձեր սեփական հավելվածը\n"
 "\n"
-"Ընդլայնեք Twenty-ն՝ ձեր սեփական օբյեկտներով, դաշտերով, տրամաբանության ֆունկցիաներով կամ AI հմտություններով։ Ստեղծեք նոր հավելված մեկ հրամանով․\n"
+"Ընդլայնեք InventiveCRM-ն՝ ձեր սեփական օբյեկտներով, դաշտերով, տրամաբանության ֆունկցիաներով կամ AI հմտություններով։ Ստեղծեք նոր հավելված մեկ հրամանով․\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20239,8 +20239,8 @@ msgstr "Դուք որոնում եք այնպիսի էջ, որը կամ հեռա
 
 #. js-lingui-id: Ya1wb4
 #: src/pages/settings/legal/SettingsLegalDpaNew.tsx
-msgid "The PDF is pre-signed by Twenty and executed with your legal entity and authorized signatory."
-msgstr "PDF-ն նախապես ստորագրված է Twenty-ի կողմից և կնքվում է ձեր իրավաբանական անձի և լիազորված ստորագրողի կողմից։"
+msgid "The PDF is pre-signed by InventiveCRM and executed with your legal entity and authorized signatory."
+msgstr "PDF-ն նախապես ստորագրված է InventiveCRM-ի կողմից և կնքվում է ձեր իրավաբանական անձի և լիազորված ստորագրողի կողմից։"
 
 #. js-lingui-id: Ir4tSJ
 #: src/modules/page-layout/widgets/call-recording/utils/getCallRecordingStatusDisplayConfiguration.ts
@@ -21262,13 +21262,13 @@ msgstr "Փիրուզագույն"
 
 #. js-lingui-id: JnaRPe
 #: src/modules/spreadsheet-import/steps/components/MatchColumnsStep/components/ColumnGrid.tsx
-msgid "Twenty fields"
-msgstr "Twenty դաշտեր"
+msgid "InventiveCRM fields"
+msgstr "InventiveCRM դաշտեր"
 
 #. js-lingui-id: pNo8xt
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Twenty fills each level with the best model that meets your requirements"
-msgstr "Twenty-ը յուրաքանչյուր մակարդակը համալրում է ձեր պահանջներին համապատասխանող լավագույն մոդելով"
+msgid "InventiveCRM fills each level with the best model that meets your requirements"
+msgstr "InventiveCRM-ը յուրաքանչյուր մակարդակը համալրում է ձեր պահանջներին համապատասխանող լավագույն մոդելով"
 
 #. js-lingui-id: YIjS4q
 #: src/modules/ai/components/SettingsAgentModelCapabilities.tsx
@@ -22958,8 +22958,8 @@ msgstr "շաբաթներ"
 
 #. js-lingui-id: nTuObL
 #: src/pages/auth/SignInUp.tsx
-msgid "Welcome to Twenty"
-msgstr "Բարի գալուստ Twenty"
+msgid "Welcome to InventiveCRM"
+msgstr "Բարի գալուստ InventiveCRM"
 
 #. js-lingui-id: t8ZvkC
 #: src/modules/onboarding/constants/WelcomeTitleMessage.ts

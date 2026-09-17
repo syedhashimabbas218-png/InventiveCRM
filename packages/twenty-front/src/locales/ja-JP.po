@@ -1681,37 +1681,37 @@ msgstr "評価用のテスト入力を追加(例: 「ニューヨークのすべ
 
 #. js-lingui-id: FKGcEL
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server as a remote context server in Zed."
-msgstr "Twenty MCP サーバーを Zed のリモートコンテキストサーバーとして追加します。"
+msgid "Add the InventiveCRM MCP server as a remote context server in Zed."
+msgstr "InventiveCRM MCP サーバーを Zed のリモートコンテキストサーバーとして追加します。"
 
 #. js-lingui-id: iA2nHX
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Augment Code settings."
-msgstr "Augment Code の設定から Twenty MCP サーバーを追加します。"
+msgid "Add the InventiveCRM MCP server from Augment Code settings."
+msgstr "Augment Code の設定から InventiveCRM MCP サーバーを追加します。"
 
 #. js-lingui-id: l+NzAk
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server from Raycast's MCP commands or settings."
-msgstr "Raycast の MCP コマンドまたは設定から Twenty MCP サーバーを追加します。"
+msgid "Add the InventiveCRM MCP server from Raycast's MCP commands or settings."
+msgstr "Raycast の MCP コマンドまたは設定から InventiveCRM MCP サーバーを追加します。"
 
 #. js-lingui-id: j6G/yI
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server in Gemini CLI settings."
-msgstr "Gemini CLI の設定で Twenty MCP サーバーを追加します。"
+msgid "Add the InventiveCRM MCP server in Gemini CLI settings."
+msgstr "Gemini CLI の設定で InventiveCRM MCP サーバーを追加します。"
 
 #. js-lingui-id: /OyhlM
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty MCP server to your LibreChat configuration file."
-msgstr "Twenty MCP サーバーを LibreChat の構成ファイルに追加します。"
+msgid "Add the InventiveCRM MCP server to your LibreChat configuration file."
+msgstr "InventiveCRM MCP サーバーを LibreChat の構成ファイルに追加します。"
 
 #. js-lingui-id: K0DXoj
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add the Twenty remote server with LM Studio's install link."
-msgstr "LM Studio のインストールリンクを使って Twenty リモートサーバーを追加します。"
+msgid "Add the InventiveCRM remote server with LM Studio's install link."
+msgstr "LM Studio のインストールリンクを使って InventiveCRM リモートサーバーを追加します。"
 
 #. js-lingui-id: BTFMKE
 #: src/pages/settings/communications/SettingsWorkspaceCommunicationGroupChannelDetail.tsx
-msgid "Add these records at your DNS provider. Twenty checks them automatically."
+msgid "Add these records at your DNS provider. InventiveCRM checks them automatically."
 msgstr "DNSプロバイダーでこれらのレコードを追加してください。Twentyが自動的に確認します。"
 
 #. js-lingui-id: 5+ttxv
@@ -1731,8 +1731,8 @@ msgstr "トピックを追加"
 
 #. js-lingui-id: 4D/zWv
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Add Twenty as a Streamable HTTP extension in Goose."
-msgstr "Goose で Twenty を Streamable HTTP 拡張として追加します。"
+msgid "Add InventiveCRM as a Streamable HTTP extension in Goose."
+msgstr "Goose で InventiveCRM を Streamable HTTP 拡張として追加します。"
 
 #. js-lingui-id: XnwceV
 #: src/pages/settings/applications/components/SettingsApplicationRegistrationRedirectURIsInput.tsx
@@ -3317,8 +3317,8 @@ msgstr "新しく作成されたすべてのワークスペースに、このア
 
 #. js-lingui-id: MHsVk5
 #: src/pages/settings/ai/components/SettingsAiModelTiersPreview.tsx
-msgid "Automatically selected by Twenty for this mode."
-msgstr "このモードでは Twenty により自動的に選択されます。"
+msgid "Automatically selected by InventiveCRM for this mode."
+msgstr "このモードでは InventiveCRM により自動的に選択されます。"
 
 #. js-lingui-id: XFGV21
 #: src/pages/settings/applications/tabs/SettingsApplicationGeneralSection.tsx
@@ -3521,8 +3521,8 @@ msgstr "請求期間"
 
 #. js-lingui-id: xF/NXI
 #: src/modules/settings/billing/hooks/useBillingPortalSession.ts
-msgid "Billing portal session error. Please retry or contact Twenty team"
-msgstr "請求ポータルセッションエラー。再試行するか、Twenty チームに連絡してください"
+msgid "Billing portal session error. Please retry or contact InventiveCRM team"
+msgstr "請求ポータルセッションエラー。再試行するか、InventiveCRM チームに連絡してください"
 
 #. js-lingui-id: 8kIU+G
 #: src/modules/advanced-text-editor/constants/AdvancedTextEditorBlockCatalog.ts
@@ -3714,7 +3714,7 @@ msgstr "提供: {author}"
 
 #. js-lingui-id: 8Pfllj
 #: src/modules/auth/sign-in-up/components/FooterNote.tsx
-msgid "By using Twenty, you agree to the"
+msgid "By using InventiveCRM, you agree to the"
 msgstr "Twentyを利用することにより、以下の事項に同意したものとみなされます。"
 
 #. js-lingui-id: Yx41df
@@ -4258,7 +4258,7 @@ msgstr "新しいメールアドレスを確認するため、受信トレイを
 #. js-lingui-id: SxwQE8
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
 #: src/modules/settings/billing/hooks/useHandleCheckoutSession.ts
-msgid "Checkout session error. Please retry or contact Twenty team"
+msgid "Checkout session error. Please retry or contact InventiveCRM team"
 msgstr "チェックアウトセッションエラー。再試行するか、Twentyチームに連絡してください"
 
 #. js-lingui-id: SviKkE
@@ -4952,13 +4952,13 @@ msgstr "Amazon Q Developer の MCP 設定でリモートサーバーを構成し
 
 #. js-lingui-id: g1/8jH
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cascade."
-msgstr "Twenty MCP サーバーを Cascade で手動設定します。"
+msgid "Configure the InventiveCRM MCP server manually in Cascade."
+msgstr "InventiveCRM MCP サーバーを Cascade で手動設定します。"
 
 #. js-lingui-id: XiyvRh
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Configure the Twenty MCP server manually in Cline."
-msgstr "Twenty MCP サーバーを Cline で手動設定します。"
+msgid "Configure the InventiveCRM MCP server manually in Cline."
+msgstr "InventiveCRM MCP サーバーを Cline で手動設定します。"
 
 #. js-lingui-id: qA9AGQ
 #: src/modules/settings/domains/components/SettingsDomainRecords.tsx
@@ -8569,7 +8569,7 @@ msgstr "プラン切替のキャンセル中にエラーが発生しました。
 
 #. js-lingui-id: QmR+2U
 #: src/modules/settings/billing/hooks/useEndSubscriptionTrialPeriod.ts
-msgid "Error while ending trial period. Please contact Twenty team."
+msgid "Error while ending trial period. Please contact InventiveCRM team."
 msgstr "試用期間の終了中にエラーが発生しました。Twentyチームにお問い合わせください。"
 
 #. js-lingui-id: 5g78zo
@@ -10508,8 +10508,8 @@ msgstr "高"
 
 #. js-lingui-id: 1ETc0T
 #: src/pages/settings/community/SettingsCommunity.tsx
-msgid "Hire a partner to help you implement and customize Twenty."
-msgstr "パートナーに依頼して、Twenty の導入とカスタマイズを支援してもらいましょう。"
+msgid "Hire a partner to help you implement and customize InventiveCRM."
+msgstr "パートナーに依頼して、InventiveCRM の導入とカスタマイズを支援してもらいましょう。"
 
 #. js-lingui-id: i0qMbr
 #: src/modules/navigation/hooks/useMobileNavigationBarItems.ts
@@ -13080,8 +13080,8 @@ msgstr "モデル情報"
 
 #. js-lingui-id: iaurWj
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Model used when you chat with Twenty"
-msgstr "Twenty とチャットするときに使用するモデル"
+msgid "Model used when you chat with InventiveCRM"
+msgstr "InventiveCRM とチャットするときに使用するモデル"
 
 #. js-lingui-id: //nm2/
 #: src/pages/settings/admin-panel/SettingsAdminAiProviderDetail.tsx
@@ -15085,8 +15085,8 @@ msgstr "1 つ以上のフィルターが、無効化または削除されたフ�
 
 #. js-lingui-id: 1WZTTl
 #: src/pages/settings/enterprise/SettingsEnterprise.tsx
-msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install Twenty on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
-msgstr "1 つのサブスクリプションから、1 つの本番インスタンスと、ステージングまたはテスト用インスタンスを 1 つ利用できる組織キーが提供されます。ステージングまたはテスト環境を実行するには、2 台目のサーバーに Twenty をインストールし、同じ組織キーで有効化してから、そのサーバーを開発インスタンスとして登録します。開発インスタンスでは追加の請求なしにプレミアム機能が有効になり、本番シート数にもカウントされません。"
+msgid "One subscription provides one Organization key that powers one production instance and one potential staging or test instance. To run a staging or test environment, install InventiveCRM on a second server, activate it with this same Organization key, then register that server as a development instance. Development instances unlock premium features without extra billing and do not count toward your production seats."
+msgstr "1 つのサブスクリプションから、1 つの本番インスタンスと、ステージングまたはテスト用インスタンスを 1 つ利用できる組織キーが提供されます。ステージングまたはテスト環境を実行するには、2 台目のサーバーに InventiveCRM をインストールし、同じ組織キーで有効化してから、そのサーバーを開発インスタンスとして登録します。開発インスタンスでは追加の請求なしにプレミアム機能が有効になり、本番シート数にもカウントされません。"
 
 #. js-lingui-id: JEtonz
 #: src/modules/settings/event-logs/components/SettingsLogs.tsx
@@ -15181,13 +15181,13 @@ msgstr "リンクとして開く"
 
 #. js-lingui-id: n0vVgf
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Claude with the Twenty connector name and MCP URL prefilled."
-msgstr "Twenty コネクタ名と MCP URL が事前入力された状態で Claude を開きます。"
+msgid "Open Claude with the InventiveCRM connector name and MCP URL prefilled."
+msgstr "InventiveCRM コネクタ名と MCP URL が事前入力された状態で Claude を開きます。"
 
 #. js-lingui-id: +n2jpB
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Cursor's MCP installer with the Twenty remote server config."
-msgstr "Twenty リモートサーバーの設定が事前入力された Cursor の MCP インストーラーを開きます。"
+msgid "Open Cursor's MCP installer with the InventiveCRM remote server config."
+msgstr "InventiveCRM リモートサーバーの設定が事前入力された Cursor の MCP インストーラーを開きます。"
 
 #. js-lingui-id: pZZH4Q
 #: src/modules/auth/sign-in-up/components/EmailVerificationSent.tsx
@@ -15249,13 +15249,13 @@ msgstr "専用ページでレコードを開く"
 
 #. js-lingui-id: q170S2
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Replit with the Twenty remote server config."
-msgstr "Twenty リモートサーバーの設定が事前入力された Replit を開きます。"
+msgid "Open Replit with the InventiveCRM remote server config."
+msgstr "InventiveCRM リモートサーバーの設定が事前入力された Replit を開きます。"
 
 #. js-lingui-id: sBd/cl
 #: src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx
-msgid "Open Twenty's official ChatGPT integration for your workspace."
-msgstr "ワークスペース向けの Twenty 公式 ChatGPT 連携を開きます。"
+msgid "Open InventiveCRM's official ChatGPT integration for your workspace."
+msgstr "ワークスペース向けの InventiveCRM 公式 ChatGPT 連携を開きます。"
 
 #. js-lingui-id: OV5wZZ
 #: src/modules/navigation-menu-item/display/sections/components/NavigationDrawerOpenedSection.tsx
@@ -15606,8 +15606,8 @@ msgstr "ページ名"
 
 #. js-lingui-id: NRvxzv
 #: src/pages/not-found/NotFound.tsx
-msgid "Page Not Found | Twenty"
-msgstr "ページが見つかりません | Twenty"
+msgid "Page Not Found | InventiveCRM"
+msgstr "ページが見つかりません | InventiveCRM"
 
 #. js-lingui-id: oIhFvf
 #: src/modules/side-panel/pages/email-block-settings/components/EmailPageStyleSection.tsx
@@ -19620,8 +19620,8 @@ msgstr "サブスクリプションが有効になりました。"
 #: src/modules/settings/billing/components/AddPaymentMethodForm.tsx
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
 #: src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts
-msgid "Subscription error. Please retry or contact Twenty team"
-msgstr "サブスクリプションエラー。再試行するか、Twenty チームに連絡してください"
+msgid "Subscription error. Please retry or contact InventiveCRM team"
+msgstr "サブスクリプションエラー。再試行するか、InventiveCRM チームに連絡してください"
 
 #. js-lingui-id: FooJUj
 #. placeholder {0}: getTargetPlanLabel(targetPlanKey)
@@ -20063,11 +20063,11 @@ msgstr "Bedrock 用の AWS リージョン"
 #. js-lingui-id: HP7per
 #: src/pages/settings/applications/utils/getStandardApplicationDescription.ts
 msgid ""
-"The base data model every Twenty workspace runs on.\n"
+"The base data model every InventiveCRM workspace runs on.\n"
 "\n"
 "#### What \"foundation\" means\n"
 "\n"
-"Every Twenty workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
+"Every InventiveCRM workspace starts with this set of objects. They define the shape of your CRM, including relationships, activity, and reporting. Everything else, including marketplace apps, AI agents, and custom objects, plugs into them.\n"
 "\n"
 "#### Included objects\n"
 "- **People & Companies**: contact and account records\n"
@@ -20075,11 +20075,11 @@ msgid ""
 "- **Notes & Tasks**: activity and follow-ups\n"
 "- **Workflows & Dashboards**: automation and reporting\n"
 "\n"
-"Remove this app and the rest of Twenty has nothing to hang off.\n"
+"Remove this app and the rest of InventiveCRM has nothing to hang off.\n"
 "\n"
 "#### Build your own app\n"
 "\n"
-"Extend Twenty with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
+"Extend InventiveCRM with your own objects, fields, logic functions, or AI skills. Scaffold a new app in one command:\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20094,11 +20094,11 @@ msgid ""
 "\n"
 "See the [Getting Started guide](https://twenty.com/developers/extend/apps/getting-started) for the full walkthrough, and [Building Apps](https://twenty.com/developers/extend/apps/building) for the `defineApplication` / `defineEntity` APIs."
 msgstr ""
-"すべての Twenty ワークスペースが稼働する基盤となるデータモデル。\n"
+"すべての InventiveCRM ワークスペースが稼働する基盤となるデータモデル。\n"
 "\n"
 "#### 「基盤」の意味\n"
 "\n"
-"すべての Twenty ワークスペースは、この一連のオブジェクトから始まります。これらが、関係性、アクティビティ、レポーティングを含む CRM の構造を定義します。マーケットプレイスのアプリ、AI エージェント、カスタムオブジェクトなど、その他のすべてはこれらに接続されます。\n"
+"すべての InventiveCRM ワークスペースは、この一連のオブジェクトから始まります。これらが、関係性、アクティビティ、レポーティングを含む CRM の構造を定義します。マーケットプレイスのアプリ、AI エージェント、カスタムオブジェクトなど、その他のすべてはこれらに接続されます。\n"
 "\n"
 "#### 含まれるオブジェクト\n"
 "- **人物と企業**: 連絡先およびアカウントのレコード\n"
@@ -20106,11 +20106,11 @@ msgstr ""
 "- **メモとタスク**: アクティビティとフォローアップ\n"
 "- **ワークフローとダッシュボード**: 自動化とレポーティング\n"
 "\n"
-"このアプリを削除すると、Twenty の他のすべてが成り立たなくなります。\n"
+"このアプリを削除すると、InventiveCRM の他のすべてが成り立たなくなります。\n"
 "\n"
 "#### 独自のアプリを構築する\n"
 "\n"
-"独自のオブジェクト、フィールド、ロジック関数、または AI スキルで Twenty を拡張できます。1 つのコマンドで新しいアプリのひな型を作成します:\n"
+"独自のオブジェクト、フィールド、ロジック関数、または AI スキルで InventiveCRM を拡張できます。1 つのコマンドで新しいアプリのひな型を作成します:\n"
 "\n"
 "```bash\n"
 "npx create-twenty-app@latest my-twenty-app\n"
@@ -20239,8 +20239,8 @@ msgstr "お探しのページは存在しないか、削除されました。元
 
 #. js-lingui-id: Ya1wb4
 #: src/pages/settings/legal/SettingsLegalDpaNew.tsx
-msgid "The PDF is pre-signed by Twenty and executed with your legal entity and authorized signatory."
-msgstr "PDF は Twenty によって事前に署名され、お客様の法人および権限のある署名者との間で締結されます。"
+msgid "The PDF is pre-signed by InventiveCRM and executed with your legal entity and authorized signatory."
+msgstr "PDF は InventiveCRM によって事前に署名され、お客様の法人および権限のある署名者との間で締結されます。"
 
 #. js-lingui-id: Ir4tSJ
 #: src/modules/page-layout/widgets/call-recording/utils/getCallRecordingStatusDisplayConfiguration.ts
@@ -21262,12 +21262,12 @@ msgstr "ターコイズ"
 
 #. js-lingui-id: JnaRPe
 #: src/modules/spreadsheet-import/steps/components/MatchColumnsStep/components/ColumnGrid.tsx
-msgid "Twenty fields"
-msgstr "Twenty のフィールド"
+msgid "InventiveCRM fields"
+msgstr "InventiveCRM のフィールド"
 
 #. js-lingui-id: pNo8xt
 #: src/pages/settings/ai/components/SettingsAiModelsTab.tsx
-msgid "Twenty fills each level with the best model that meets your requirements"
+msgid "InventiveCRM fills each level with the best model that meets your requirements"
 msgstr "Twentyは、要件を満たす最適なモデルで各レベルを構成します"
 
 #. js-lingui-id: YIjS4q
@@ -22958,7 +22958,7 @@ msgstr "週間"
 
 #. js-lingui-id: nTuObL
 #: src/pages/auth/SignInUp.tsx
-msgid "Welcome to Twenty"
+msgid "Welcome to InventiveCRM"
 msgstr "Twentyへようこそ"
 
 #. js-lingui-id: t8ZvkC
