@@ -206,3 +206,9 @@ for (const name of [
 console.log(
   `PASS: ${syntaxCount} patched TS/TSX files parse; ${scannedCount} runtime source files audited; no unexpected vendor branding. Full framework typecheck/browser acceptance remain separate gates.`,
 );
+
+const helper = read(
+  'packages/twenty-server/src/engine/core-modules/tool/tools/code-interpreter-tool/twenty-mcp-helper.const.ts',
+);
+assert(helper.includes('class TwentyMCP:'));
+assert(helper.includes('twenty = TwentyMCP()'));
