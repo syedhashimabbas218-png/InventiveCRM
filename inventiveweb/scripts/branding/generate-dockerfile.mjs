@@ -1,0 +1,28 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const lock = JSON.parse(readFileSync(join(root, 'branding/upstream.json'), 'utf8'));
+const upstreamRoot = resolve(process.argv[2] ?? join(root, '.local/twenty-upstream'));
+const original = execFileSync('git', ['show', `${lock.commit}:packages/twenty-docker/twenty/Dockerfile`], { cwd: upstreamRoot, encoding: 'utf8' });
+const marker = '# Target: twenty-aws';
+const end = original.indexOf(marker);
+if (end < 0) throw new Error('Upstream Dockerfile target structure changed. Review before upgrading.');
+const body = original.slice(0, original.lastIndexOf('# ===========================================================================', end));
+const transformed = body.replaceAll('ARG APP_VERSION\n', 'ARG APP_VERSION=2.43.0\n').split('\n').map(line => {
+  if (!line.startsWith('COPY ') || line.includes('--from=')) return line;
+  if (line.endsWith('\\')) throw new Error('New multiline COPY requires review.');
+  const args = line.slice(5).split(/\s+/);
+  const options = args.filter(a => a.startsWith('--'));
+  const paths = args.filter(a => !a.startsWith('--'));
+  const destination = paths.pop();
+  return ['COPY', '--from=inventiveweb-source', ...options, ...paths.map(p => '/source/' + p.replace(/^\.\//, '')), destination].join(' ');
+}).join('\n');
+const base = original.match(/^FROM (\S+) AS front-deps/m)?.[1];
+if (!base) throw new Error('Cannot identify pinned upstream Node image.');
+const args = ['PUBLIC_APP_URL', 'INVENTIVEWEB_WEBSITE_URL', 'INVENTIVEWEB_SUPPORT_URL', 'INVENTIVEWEB_TERMS_URL', 'INVENTIVEWEB_PRIVACY_URL', 'INVENTIVEWEB_DPA_URL'];
+const prelude = `# Generated from Twenty ${lock.tag}, ${lock.commit}.\n# Regenerate with scripts/branding/generate-dockerfile.mjs; keep upstream licences.\nFROM ${base} AS inventiveweb-source\nRUN apk add --no-cache git tar\nRUN git clone --depth 1 --branch ${lock.tag} ${lock.repository} /source && \\\n    test "$(git -C /source rev-parse HEAD)" = "${lock.commit}"\nCOPY branding /inventiveweb-build/branding\nCOPY scripts/branding /inventiveweb-build/scripts/branding\nCOPY apps/inventiveweb /inventiveweb-build/apps/inventiveweb\nCOPY infrastructure/coolify /inventiveweb-build/infrastructure/coolify\n${args.map(a => 'ARG ' + a).join('\n')}\nRUN node /inventiveweb-build/scripts/branding/apply.mjs /source && \\\n    cp -R /inventiveweb-build /source/inventiveweb-build-tools && \\\n    tar --exclude=.git -czf /tmp/inventiveweb-source.tar.gz -C /source .\n\n`;
+const tail = `\n# Self-contained corresponding-source offer matching this image's patched sources.\nCOPY --chown=1000 --from=inventiveweb-source /tmp/inventiveweb-source.tar.gz /app/packages/twenty-server/dist/front/inventiveweb/source.tar.gz\nLABEL org.opencontainers.image.title="InventiveWeb"\nLABEL org.opencontainers.image.description="InventiveWeb branded Twenty workspace"\nLABEL org.opencontainers.image.version="2.43.0-iw.1"\n`;
+writeFileSync(join(root, 'infrastructure/coolify/twenty.Dockerfile'), prelude + transformed + tail);
+console.log('Generated branded Dockerfile from the pinned upstream build stages.');

@@ -1,0 +1,12 @@
+{
+  "name": "InventiveWeb",
+  "company": "Inventive Web Services LLC",
+  "description": "Your customers, conversations and business operations in one workspace.",
+  "appUrl": "https://workspace.example.invalid",
+  "websiteUrl": "https://inventiveweb.studio",
+  "supportUrl": "https://support.example.invalid",
+  "termsUrl": "https://legal.example.invalid/terms",
+  "privacyUrl": "https://legal.example.invalid/privacy",
+  "dpaUrl": "https://legal.example.invalid/dpa",
+  "sourceUrl": "/inventiveweb/source.tar.gz"
+}
