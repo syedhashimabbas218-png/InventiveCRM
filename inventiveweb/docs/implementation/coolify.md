@@ -47,8 +47,8 @@ docker buildx build --load --target twenty \
   --build-arg INVENTIVEWEB_TERMS_URL \
   --build-arg INVENTIVEWEB_PRIVACY_URL \
   --build-arg INVENTIVEWEB_DPA_URL \
-  -t ghcr.io/YOUR_ORG/inventiveweb-twenty:2.43.0-iw.1 .
-docker push ghcr.io/YOUR_ORG/inventiveweb-twenty:2.43.0-iw.1
+  -t ghcr.io/YOUR_ORG/inventiveweb-twenty:2.43.0-iw.2 .
+docker push ghcr.io/YOUR_ORG/inventiveweb-twenty:2.43.0-iw.2
 ```
 
 Save the digest printed by the push. Deploy `ghcr.io/...@sha256:...`, not `latest`.
@@ -144,3 +144,5 @@ Official references:
 - https://docs.twenty.com/developers/self-host/capabilities/setup
 - https://docs.twenty.com/developers/extend/apps/operations/cli
 - https://github.com/twentyhq/twenty/tree/twenty/v2.43.0
+
+White-label coverage, translation behavior and external provider consent-screen setup are described in [white-label.md](white-label.md). Runtime telemetry, hosted support chat and vendor company-icon requests are disabled in this stack.

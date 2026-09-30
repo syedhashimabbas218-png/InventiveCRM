@@ -1,0 +1,362 @@
+[
+  {
+    "path": "packages/twenty-front/src/pages/settings/ai/components/SettingsAiModelsTab.tsx",
+    "before": "Model used when you chat with Twenty",
+    "after": "Model used when you chat with InventiveWeb",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/pages/settings/ai/components/SettingsAiModelsTab.tsx",
+    "before": "Twenty fills each level with the best model that meets your requirements",
+    "after": "InventiveWeb fills each level with the best model that meets your requirements",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/pages/settings/ai/components/SettingsAiModelTiersPreview.tsx",
+    "before": "Automatically selected by Twenty for this mode.",
+    "after": "Automatically selected by InventiveWeb for this mode.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/pages/settings/communications/SettingsWorkspaceCommunicationGroupChannelDetail.tsx",
+    "before": "Add these records at your DNS provider. Twenty checks them automatically.",
+    "after": "Add these records at your DNS provider. InventiveWeb checks them automatically.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/activities/timeline-activities/utils/getTimelineActivityAuthorFullName.ts",
+    "before": "return 'Twenty';",
+    "after": "return 'InventiveWeb';",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/apollo/services/apollo.factory.ts",
+    "before": "loggerLink(() => 'Twenty')",
+    "after": "loggerLink(() => 'InventiveWeb')",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/spreadsheet-import/steps/components/MatchColumnsStep/components/ColumnGrid.tsx",
+    "before": "Twenty fields",
+    "after": "InventiveWeb fields",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/billing/hooks/useBillingPortalSession.ts",
+    "before": "contact Twenty team",
+    "after": "contact InventiveWeb team",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/billing/hooks/useEndSubscriptionTrialPeriod.ts",
+    "before": "contact Twenty team",
+    "after": "contact InventiveWeb team",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/billing/hooks/useSubmitSubscriptionPayment.ts",
+    "before": "contact Twenty team",
+    "after": "contact InventiveWeb team",
+    "count": 2
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/billing/hooks/useHandleCheckoutSession.ts",
+    "before": "contact Twenty team",
+    "after": "contact InventiveWeb team",
+    "count": 2
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/billing/components/AddPaymentMethodForm.tsx",
+    "before": "contact Twenty team",
+    "after": "contact InventiveWeb team",
+    "count": 2
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/mcpSetup.ts",
+    "before": "Access your Twenty workspace through MCP",
+    "after": "Access your InventiveWeb workspace through MCP",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/constants/McpSetup.ts",
+    "before": "name: 'twenty'",
+    "after": "name: 'inventiveweb'",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/constants/McpSetup.ts",
+    "before": "displayName: 'Twenty'",
+    "after": "displayName: 'InventiveWeb'",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/billing/constants/SettingsBillingPlanComparisonRows.ts",
+    "before": "Subdomain (yourco.twenty.com)",
+    "after": "Workspace subdomain",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Open Claude with the Twenty connector name and MCP URL prefilled.",
+    "after": "Open Claude with the InventiveWeb connector name and MCP URL prefilled.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Open Cursor's MCP installer with the Twenty remote server config.",
+    "after": "Open Cursor's MCP installer with the InventiveWeb remote server config.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Add Twenty as a Streamable HTTP extension in Goose.",
+    "after": "Add InventiveWeb as a Streamable HTTP extension in Goose.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Open Replit with the Twenty remote server config.",
+    "after": "Open Replit with the InventiveWeb remote server config.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Add the Twenty remote server with LM Studio's install link.",
+    "after": "Add the InventiveWeb remote server with LM Studio's install link.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Configure the Twenty MCP server manually in Cline.",
+    "after": "Configure the InventiveWeb MCP server manually in Cline.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Add the Twenty MCP server as a remote context server in Zed.",
+    "after": "Add the InventiveWeb MCP server as a remote context server in Zed.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Configure the Twenty MCP server manually in Cascade.",
+    "after": "Configure the InventiveWeb MCP server manually in Cascade.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Add the Twenty MCP server from Raycast's MCP commands or settings.",
+    "after": "Add the InventiveWeb MCP server from Raycast's MCP commands or settings.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Add the Twenty MCP server in Gemini CLI settings.",
+    "after": "Add the InventiveWeb MCP server in Gemini CLI settings.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Add the Twenty MCP server to your LibreChat configuration file.",
+    "after": "Add the InventiveWeb MCP server to your LibreChat configuration file.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-front/src/modules/settings/mcp-and-apis/utils/buildMcpSetupCategories.tsx",
+    "before": "Add the Twenty MCP server from Augment Code settings.",
+    "after": "Add the InventiveWeb MCP server from Augment Code settings.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/frontend/frontend.service.ts",
+    "before": "Unable to load Twenty. Please try again.",
+    "after": "Unable to load InventiveWeb. Please try again.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/two-factor-authentication/two-factor-authentication.service.ts",
+    "before": "`Twenty${workspaceDisplayName",
+    "after": "`InventiveWeb${workspaceDisplayName",
+    "count": 2
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/email-verification/services/email-verification.service.ts",
+    "before": "Welcome to Twenty: Please Confirm Your Email",
+    "after": "Welcome to InventiveWeb: Please Confirm Your Email",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts",
+    "before": "Join your team on Twenty",
+    "after": "Join your team on InventiveWeb",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts",
+    "before": "Your Twenty trial is ending soon",
+    "after": "Your InventiveWeb trial is ending soon",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts",
+    "before": "A heads up before your Twenty trial ends",
+    "after": "A heads up before your InventiveWeb trial ends",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/billing/reminders/services/billing-reminder.service.ts",
+    "before": "Your Twenty plan renews soon",
+    "after": "Your InventiveWeb plan renews soon",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/auth/controllers/oauth-propagator.controller.ts",
+    "before": "is not a valid Twenty domain",
+    "after": "is not a valid InventiveWeb domain",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/metadata-modules/index-metadata/services/index-metadata.service.ts",
+    "before": "System indexes are required for Twenty to work and cannot be deleted.",
+    "after": "System indexes are required for InventiveWeb to work and cannot be deleted.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/application/application.exception.ts",
+    "before": "This app requires a newer version of the Twenty server.",
+    "after": "This app requires a newer version of the InventiveWeb server.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/application/application-registration/application-registration.exception.ts",
+    "before": "This app requires a newer version of the Twenty server.",
+    "after": "This app requires a newer version of the InventiveWeb server.",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/application/application-package/application-version-validation.service.ts",
+    "before": "App requires Twenty server",
+    "after": "App requires InventiveWeb server",
+    "count": 2
+  },
+  {
+    "path": "packages/twenty-server/src/engine/api/mcp/constants/mcp-server-info.const.ts",
+    "before": "Twenty MCP Server",
+    "after": "InventiveWeb MCP Server",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/modules/calendar/calendar-event-creation-manager/drivers/caldav/services/caldav-create-event.service.ts",
+    "before": "//Twenty//Calendar//EN",
+    "after": "//InventiveWeb//Calendar//EN",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/tool/tools/search-help-center-tool/search-help-center-tool.ts",
+    "before": "Search Twenty documentation and help center",
+    "after": "Search InventiveWeb documentation and help center",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/tool/tools/search-help-center-tool/search-help-center-tool.schema.ts",
+    "before": "help articles about Twenty",
+    "after": "help articles about InventiveWeb",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/api/common/common-args-processors/data-arg-processor/validator-utils/validate-links-field-or-throw.util.ts",
+    "before": "like twenty.com",
+    "after": "like example.com",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/api/mcp/utils/build-mcp-server-instructions.util.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 3
+  },
+  {
+    "path": "packages/twenty-server/src/engine/metadata-modules/ai/ai-chat/constants/chat-system-prompts.const.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 7
+  },
+  {
+    "path": "packages/twenty-server/src/engine/metadata-modules/ai/ai-chat/constants/workspace-setup-system-prompt.constant.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 6
+  },
+  {
+    "path": "packages/twenty-server/src/engine/metadata-modules/navigation-menu-item/tools/schemas/navigation-menu-item-scope.schema.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/modules/workflow/workflow-tools/tools/create-complete-workflow.tool.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/workspace-manager/twenty-standard-application/utils/agent-metadata/create-standard-flat-agent-metadata.util.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 3
+  },
+  {
+    "path": "packages/twenty-emails/src/emails/billing-trial-converting.email.tsx",
+    "before": "If Twenty is working for you",
+    "after": "If InventiveWeb is working for you",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-emails/src/emails/clean-suspended-workspace.email.tsx",
+    "before": "give Twenty another try",
+    "after": "give InventiveWeb another try",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/twenty-config/config-variables.ts",
+    "before": "EMAIL_FROM_NAME = 'Felix from Twenty'",
+    "after": "EMAIL_FROM_NAME = 'InventiveWeb'",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/approved-access-domain/services/approved-access-domain.service.ts",
+    "before": "(via Twenty)",
+    "after": "(via InventiveWeb)",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/workspace-invitation/services/workspace-invitation.service.ts",
+    "before": "(via Twenty)",
+    "after": "(via InventiveWeb)",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/metadata-modules/ai/ai-agent/constants/workflow-base-system-prompt.const.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/metadata-modules/ai/ai-agent/constants/agent-run-base-system-prompt.const.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 1
+  },
+  {
+    "path": "packages/twenty-server/src/engine/core-modules/tool/tools/code-interpreter-tool/twenty-mcp-helper.const.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 8
+  },
+  {
+    "path": "packages/twenty-server/src/engine/workspace-manager/twenty-standard-application/utils/skill-metadata/create-standard-flat-skill-metadata.util.ts",
+    "before": "Twenty",
+    "after": "InventiveWeb",
+    "count": 1
+  }
+]

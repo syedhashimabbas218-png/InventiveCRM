@@ -27,3 +27,16 @@ Automated local checks are recorded in verification.md. These runtime gates rema
 
 Feature tests for booking, customer document views, accounting and messaging are added with
 those implementations. None is represented by an empty object or a successful SDK build.
+
+## White-label release checks
+
+- [ ] Use real InventiveWeb workspace/support/terms/privacy/DPA URLs and verify each destination.
+- [ ] Review login, onboarding, workspace menus, settings, help and legal routes in both themes and on mobile.
+- [ ] Confirm favicon, installed PWA and default workspace logo show the supplied artwork.
+- [ ] Check a non-English locale; branded messages currently fall back to reviewed English.
+- [ ] Deliver invite, verification, password-reset and domain-approval emails and inspect sender, subject, logo and links.
+- [ ] Enroll a staging authenticator and verify the InventiveWeb label and successful OTP; verify existing OTP enrollment remains valid.
+- [ ] Check Google/Microsoft consent-screen display name, logo, domains and support/privacy URLs in the operator-owned provider apps.
+- [ ] Confirm no inherited SOC2 badge, vendor demo or upstream ChatGPT app card is presented as an InventiveWeb service.
+- [ ] Confirm source/licence offer remains accessible and matches the deployed image and native-app revision.
+- [ ] Complete full pinned upstream Docker build and framework typechecking before customer rollout.

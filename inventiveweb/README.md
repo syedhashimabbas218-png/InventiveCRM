@@ -28,7 +28,8 @@ npm run verify:manifest
 - Choose a published appointment form for a booking service, under the caller's native
   permissions. A conditional update rejects a concurrently changed form association.
 - Initial module roles and native schemas for appointments, quotes and invoices.
-- Branded core image recipe, corresponding-source archive, Coolify stack and CI workflows.
+- InventiveWeb customer-facing branding across login, settings, emails, API presentation, AI wording, help and legal destinations; pinned image recipe and corresponding-source archive.
+- Coolify stack and native-app/branding CI workflows.
 
 Publishing does not accept customer answers or create appointments. Live Google/Microsoft
 availability, public booking embeds, customer document views, invoices, bookkeeping and
@@ -38,6 +39,7 @@ boundary is implemented. Independent Growth & Reports, Automations and Websites 
 ## Review and deploy
 
 - [Publishing behavior and boundaries](docs/implementation/form-publishing.md)
+- [White-label coverage and boundaries](docs/implementation/white-label.md)
 - [Verification](docs/implementation/verification.md)
 - [Coolify runbook](docs/implementation/coolify.md)
 - [Staging acceptance](docs/implementation/acceptance.md)

@@ -3,6 +3,8 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { extendBranding } from './extended.mjs';
+import { writePublicPages } from './public-pages.mjs';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const upstream = JSON.parse(readFileSync(join(repositoryRoot, 'branding/upstream.json'), 'utf8'));
@@ -27,6 +29,13 @@ if (existsSync(join(root, 'INVENTIVEWEB-BUILD.json'))) throw new Error('This sou
 const changes = new Map();
 const hash = text => createHash('sha256').update(text).digest('hex');
 function change(path, transform) {
+  if (changes.has(path)) {
+    const existing = changes.get(path);
+    const updated = transform(existing.updated);
+    if (updated === existing.updated) throw new Error(`Branding patch did not change ${path}`);
+    changes.set(path, { original: existing.original, updated });
+    return;
+  }
   const original = readFileSync(join(root, path), 'utf8');
   const committed = execFileSync('git', ['show', `HEAD:${path}`], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
   if (original !== committed) throw new Error(`Refusing to overwrite modified upstream file: ${path}`);
@@ -48,7 +57,8 @@ change(`${front}/index.html`, text => text
   .replace('<title>Twenty</title>', `<title>${escapeHtml(brand.name)}</title>`)
   .replaceAll('A modern open-source CRM', escapeHtml(brand.description))
   .replaceAll('https://raw.githubusercontent.com/twentyhq/twenty/main/docs/static/img/social-card.png', `${brand.appUrl.replace(/\/$/, '')}/inventiveweb/logo.png`)
-  .replace('/images/icons/android/android-launchericon-48-48.png', '/inventiveweb/logo.png')
+  .replace('type="image/x-icon"', 'type="image/svg+xml"')
+  .replace('/images/icons/android/android-launchericon-48-48.png', '/inventiveweb/icon.svg')
   .replace('/images/icons/ios/192.png', '/inventiveweb/logo.png'));
 change(`${front}/public/manifest.json`, text => {
   const manifest = JSON.parse(text);
@@ -92,14 +102,21 @@ for (const [path, before, after] of [
 change(`${emails}/emails/send-email-verification-link.email.tsx`, text => text.replaceAll('your Twenty account', 'your InventiveWeb account').replaceAll('account on Twenty!', 'account on InventiveWeb!'));
 change('packages/twenty-docker/twenty/entrypoint.sh', () => readFileSync(join(repositoryRoot, 'infrastructure/coolify/entrypoint.sh'), 'utf8'));
 
+extendBranding({ root, repositoryRoot, brand, change, replaceOnce, changes });
+
 // Preflight every transformation before writing anything. Do not rewrite code identifiers,
 // Enterprise markers, licence text, migrations or authorization logic.
 for (const [path, { updated }] of changes) writeFileSync(join(root, path), updated);
 const publicDir = join(root, front, 'public/inventiveweb');
 mkdirSync(publicDir, { recursive: true });
 copyFileSync(join(repositoryRoot, 'branding/assets/logo.png'), join(publicDir, 'logo.png'));
+writePublicPages({ publicDir, brand, repositoryRoot });
 copyFileSync(join(root, 'LICENSE'), join(publicDir, 'LICENSE.txt'));
 writeFileSync(join(publicDir, 'source.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>InventiveWeb — source and licences</title><body style="font:16px/1.6 system-ui;max-width:760px;margin:60px auto;padding:24px"><h1>Source and licences</h1><p>InventiveWeb is an independently operated, modified version of Twenty. It is not affiliated with or endorsed by Twenty.com PBC.</p><p><a href="${escapeHtml(brand.sourceUrl)}">Download or obtain the complete corresponding source for this deployed version</a></p><p><a href="LICENSE.txt">Upstream licence and application exception</a></p><p>Upstream revision: <code>${upstream.commit}</code>. Branding modifications by ${escapeHtml(brand.company)}. Copyright and licence notices remain with the source. This software is provided without warranty as described in its licence.</p></body></html>\n`);
-writeFileSync(join(root, 'INVENTIVEWEB-BUILD.json'), JSON.stringify({ upstream, branding: brand, development, files: [...changes].map(([path, { original, updated }]) => ({ path, originalSha256: hash(original), modifiedSha256: hash(updated) })) }, null, 2) + '\n');
+const assets = ['logo.png', 'icon.svg', 'help.html', 'source.html', 'LICENSE.txt'].map(name => ({
+  path: `${front}/public/inventiveweb/${name}`,
+  sha256: hash(readFileSync(join(publicDir, name))),
+}));
+writeFileSync(join(root, 'INVENTIVEWEB-BUILD.json'), JSON.stringify({ upstream, branding: brand, development, assets, files: [...changes].map(([path, { original, updated }]) => ({ path, originalSha256: hash(original), modifiedSha256: hash(updated) })) }, null, 2) + '\n');
 console.log(`Applied ${changes.size} reviewed branding changes to Twenty ${upstream.tag}.`);
 console.log(development ? 'DEVELOPMENT ONLY: placeholder URLs were allowed.' : 'Public branding URLs validated.');

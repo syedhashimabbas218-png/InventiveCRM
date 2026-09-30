@@ -8,9 +8,11 @@ These results are local checks, not evidence of a live deployment.
 | Native app `npm test` | PASS: 20 tests | Schema safety, publication/retry/permission behavior and SDK adapter contracts |
 | Native app `npm run pack:app` | PASS | Official Twenty SDK 2.43.0 builds and packages the native component/function/manifest |
 | Native app `npm run verify:manifest` | PASS | Restricted roles, protected object writability and inverse relations in actual build output |
-| Branding application | PASS: 21 targeted changes | Applied to upstream revision below; all anchors preflight before writes |
-| `scripts/branding/verify.mjs` | PASS | Patched hashes, identity assets, source notice and unchanged upstream licence |
-| Patched TS/TSX syntax | PASS: 18 files | TypeScript transpilation diagnostics; not the full upstream typecheck/build |
+| Branding application | PASS: 191 patched files | Applied to upstream revision below; all anchors preflight before writes |
+| `scripts/branding/verify.mjs` | PASS | Patched hashes, five generated assets, source notice and unchanged upstream licence |
+| Patched TS/TSX syntax | PASS: 86 files | TypeScript transpilation diagnostics; not the full upstream typecheck/build |
+| Runtime branding audit | PASS: 15,322 source files | Explicit technical/licence exceptions; not browser rendering |
+| Branding guard regressions | PASS: 9 checks | URL gates, duplicate application, drift and reintroduced vendor branding |
 | Production placeholder rejection | PASS | Missing real PUBLIC_APP_URL rejects before source changes |
 | Dockerfile generation | PASS | Derived from pinned upstream build stages; native source included in source offer |
 | Compose/workflow YAML | PASS | Parses; no published host ports, three persistent volumes, matching server/worker settings |
@@ -38,8 +40,10 @@ installation were not run. No image was published. GitHub write access was verif
 No Contabo/Coolify connection, OAuth consent, calendar/provider request, customer submission,
 email delivery or backup/restore was performed. No customer or remote Twenty workspace was changed.
 
-Full translated branding coverage and remaining settings/legal/commercial screens need
-review. The existing upstream DPA must not be relabeled as an InventiveWeb agreement.
+The expanded customer white-label implementation is documented in [white-label.md](white-label.md).
+Changed brand messages use reviewed English across 102 catalogs pending localization.
+Native-host visual review and external OAuth consent branding remain staging gates.
+Operator Enterprise licensing retains its upstream identity; the DPA templates are not relabeled.
 Server-enforced superadmin integration management is pending; the gateway's MCP denial is
 only a staging safeguard. The initial module roles are not production customer role templates.
 
@@ -47,6 +51,8 @@ Follow [acceptance.md](acceptance.md) to qualify staging before onboarding custo
 
 The previous independent backend passed 23 tests in the earlier increment. It is not part of
 this repository import or these native-app checks. The outer fork reports SDK 2.15.0 and is
-not upgraded by this change. Its full Nx suite was not run: this isolated npm application
+not upgraded by this change. Full Nx frontend lint/typecheck was attempted but Yarn is unavailable locally. Its full Nx suite was not run: this isolated npm application
 does not change any core package. Context7 is not exposed in this session; API contracts were
 checked against the pinned official source and installed SDK types instead.
+
+The native-app GitHub Actions run for PR #1 passed lint, 20 tests, SDK packaging and manifest verification on commit `56ad58c5d9c45a78a4fd44c036cf7bc87fce3a43`. The branding increment adds its own pinned-source CI workflow; consult the PR for the latest run status.

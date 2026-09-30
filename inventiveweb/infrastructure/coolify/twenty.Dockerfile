@@ -15,6 +15,7 @@ ARG INVENTIVEWEB_TERMS_URL
 ARG INVENTIVEWEB_PRIVACY_URL
 ARG INVENTIVEWEB_DPA_URL
 RUN node /inventiveweb-build/scripts/branding/apply.mjs /source && \
+    node /inventiveweb-build/scripts/branding/verify.mjs /source && \
     cp -R /inventiveweb-build /source/inventiveweb-build-tools && \
     tar --exclude=.git -czf /tmp/inventiveweb-source.tar.gz -C /source .
 
@@ -214,4 +215,4 @@ LABEL org.opencontainers.image.description="Twenty image with backend and fronte
 COPY --chown=1000 --from=inventiveweb-source /tmp/inventiveweb-source.tar.gz /app/packages/twenty-server/dist/front/inventiveweb/source.tar.gz
 LABEL org.opencontainers.image.title="InventiveWeb"
 LABEL org.opencontainers.image.description="InventiveWeb branded Twenty workspace"
-LABEL org.opencontainers.image.version="2.43.0-iw.1"
+LABEL org.opencontainers.image.version="2.43.0-iw.2"
