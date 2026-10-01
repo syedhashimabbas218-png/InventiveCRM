@@ -1,0 +1,30 @@
+{
+  "name": "@inventiveweb/workspace",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "description": "InventiveWeb native workspace application",
+  "engines": {
+    "node": "^24.5.0",
+    "twenty": "2.43.0"
+  },
+  "scripts": {
+    "build": "twenty dev:build .",
+    "pack:app": "twenty dev:build . --tarball",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "twenty": "twenty",
+    "verify:manifest": "node scripts/verify-manifest.mjs",
+    "lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "@types/react": "19.2.2",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "twenty-client-sdk": "2.43.0",
+    "twenty-sdk": "2.43.0",
+    "typescript": "5.9.3"
+  }
+}

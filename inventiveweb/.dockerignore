@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/.twenty
+**/dist
+.local
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.log
+**/*.zip
+**/*.bundle
+**/*.tgz
+coverage

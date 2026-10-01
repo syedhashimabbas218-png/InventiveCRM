@@ -1,0 +1,145 @@
+# Operator-only staging stack. Promote after docs/implementation/acceptance.md passes.
+# Coolify domain belongs ONLY to gateway, with internal port :8080. No host ports.
+services:
+  gateway:
+    build:
+      context: ../..
+      dockerfile: infrastructure/coolify/gateway.Dockerfile
+    expose: ["8080"]
+    depends_on:
+      server: {condition: service_healthy}
+    restart: unless-stopped
+  server:
+    image: ${INVENTIVEWEB_IMAGE:?}
+    environment:
+      NODE_ENV: "production"
+      NODE_PORT: "3000"
+      PG_DATABASE_URL: "postgres://postgres:${PG_PASSWORD:?}@db:5432/default"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:?}@redis:6379"
+      SERVER_URL: "${PUBLIC_APP_URL:?}"
+      STORAGE_TYPE: "local"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:?}"
+      APP_SECRET: "${APP_SECRET:?}"
+      IS_MULTIWORKSPACE_ENABLED: "${IS_MULTIWORKSPACE_ENABLED:-false}"
+      DEFAULT_SUBDOMAIN: "${DEFAULT_SUBDOMAIN:-app}"
+      IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS: "true"
+      IS_BILLING_ENABLED: "false"
+      IS_CONFIG_VARIABLES_IN_DB_ENABLED: "false"
+      SIGN_IN_PREFILLED: "false"
+      TELEMETRY_ENABLED: "false"
+      ANALYTICS_ENABLED: "false"
+      ALLOW_REQUESTS_TO_TWENTY_ICONS: "false"
+      SUPPORT_DRIVER: "NONE"
+      EMAIL_FROM_NAME: "InventiveWeb"
+      EMAIL_FROM_ADDRESS: "${EMAIL_FROM_ADDRESS:?}"
+      EMAIL_DRIVER: "SMTP"
+      EMAIL_SMTP_HOST: "${EMAIL_SMTP_HOST:?}"
+      EMAIL_SMTP_PORT: "${EMAIL_SMTP_PORT:-587}"
+      EMAIL_SMTP_USER: "${EMAIL_SMTP_USER:?}"
+      EMAIL_SMTP_PASSWORD: "${EMAIL_SMTP_PASSWORD:?}"
+      CALENDAR_PROVIDER_GOOGLE_ENABLED: "${CALENDAR_PROVIDER_GOOGLE_ENABLED:-false}"
+      MESSAGING_PROVIDER_GMAIL_ENABLED: "false"
+      AUTH_GOOGLE_ENABLED: "false"
+      AUTH_GOOGLE_CLIENT_ID: "${AUTH_GOOGLE_CLIENT_ID:-}"
+      AUTH_GOOGLE_CLIENT_SECRET: "${AUTH_GOOGLE_CLIENT_SECRET:-}"
+      AUTH_GOOGLE_CALLBACK_URL: "${PUBLIC_APP_URL}/auth/google/redirect"
+      AUTH_GOOGLE_APIS_CALLBACK_URL: "${PUBLIC_APP_URL}/auth/google-apis/get-access-token"
+      CALENDAR_PROVIDER_MICROSOFT_ENABLED: "${CALENDAR_PROVIDER_MICROSOFT_ENABLED:-false}"
+      MESSAGING_PROVIDER_MICROSOFT_ENABLED: "false"
+      AUTH_MICROSOFT_ENABLED: "false"
+      AUTH_MICROSOFT_CLIENT_ID: "${AUTH_MICROSOFT_CLIENT_ID:-}"
+      AUTH_MICROSOFT_CLIENT_SECRET: "${AUTH_MICROSOFT_CLIENT_SECRET:-}"
+      AUTH_MICROSOFT_CALLBACK_URL: "${PUBLIC_APP_URL}/auth/microsoft/redirect"
+      AUTH_MICROSOFT_APIS_CALLBACK_URL: "${PUBLIC_APP_URL}/auth/microsoft-apis/get-access-token"
+      DISABLE_DB_MIGRATIONS: "false"
+      DISABLE_CRON_JOBS_REGISTRATION: "false"
+    volumes: ["server-local-data:/app/packages/twenty-server/.local-storage"]
+    expose: ["3000"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 180s
+    restart: unless-stopped
+  worker:
+    image: ${INVENTIVEWEB_IMAGE:?}
+    command: ["yarn", "worker:prod"]
+    environment:
+      NODE_ENV: "production"
+      NODE_PORT: "3000"
+      PG_DATABASE_URL: "postgres://postgres:${PG_PASSWORD:?}@db:5432/default"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:?}@redis:6379"
+      SERVER_URL: "${PUBLIC_APP_URL:?}"
+      STORAGE_TYPE: "local"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:?}"
+      APP_SECRET: "${APP_SECRET:?}"
+      IS_MULTIWORKSPACE_ENABLED: "${IS_MULTIWORKSPACE_ENABLED:-false}"
+      DEFAULT_SUBDOMAIN: "${DEFAULT_SUBDOMAIN:-app}"
+      IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS: "true"
+      IS_BILLING_ENABLED: "false"
+      IS_CONFIG_VARIABLES_IN_DB_ENABLED: "false"
+      SIGN_IN_PREFILLED: "false"
+      TELEMETRY_ENABLED: "false"
+      ANALYTICS_ENABLED: "false"
+      ALLOW_REQUESTS_TO_TWENTY_ICONS: "false"
+      SUPPORT_DRIVER: "NONE"
+      EMAIL_FROM_NAME: "InventiveWeb"
+      EMAIL_FROM_ADDRESS: "${EMAIL_FROM_ADDRESS:?}"
+      EMAIL_DRIVER: "SMTP"
+      EMAIL_SMTP_HOST: "${EMAIL_SMTP_HOST:?}"
+      EMAIL_SMTP_PORT: "${EMAIL_SMTP_PORT:-587}"
+      EMAIL_SMTP_USER: "${EMAIL_SMTP_USER:?}"
+      EMAIL_SMTP_PASSWORD: "${EMAIL_SMTP_PASSWORD:?}"
+      CALENDAR_PROVIDER_GOOGLE_ENABLED: "${CALENDAR_PROVIDER_GOOGLE_ENABLED:-false}"
+      MESSAGING_PROVIDER_GMAIL_ENABLED: "false"
+      AUTH_GOOGLE_ENABLED: "false"
+      AUTH_GOOGLE_CLIENT_ID: "${AUTH_GOOGLE_CLIENT_ID:-}"
+      AUTH_GOOGLE_CLIENT_SECRET: "${AUTH_GOOGLE_CLIENT_SECRET:-}"
+      AUTH_GOOGLE_CALLBACK_URL: "${PUBLIC_APP_URL}/auth/google/redirect"
+      AUTH_GOOGLE_APIS_CALLBACK_URL: "${PUBLIC_APP_URL}/auth/google-apis/get-access-token"
+      CALENDAR_PROVIDER_MICROSOFT_ENABLED: "${CALENDAR_PROVIDER_MICROSOFT_ENABLED:-false}"
+      MESSAGING_PROVIDER_MICROSOFT_ENABLED: "false"
+      AUTH_MICROSOFT_ENABLED: "false"
+      AUTH_MICROSOFT_CLIENT_ID: "${AUTH_MICROSOFT_CLIENT_ID:-}"
+      AUTH_MICROSOFT_CLIENT_SECRET: "${AUTH_MICROSOFT_CLIENT_SECRET:-}"
+      AUTH_MICROSOFT_CALLBACK_URL: "${PUBLIC_APP_URL}/auth/microsoft/redirect"
+      AUTH_MICROSOFT_APIS_CALLBACK_URL: "${PUBLIC_APP_URL}/auth/microsoft-apis/get-access-token"
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
+    volumes: ["server-local-data:/app/packages/twenty-server/.local-storage"]
+    depends_on:
+      server: {condition: service_healthy}
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: default
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?}
+    volumes: ["db-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d default"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:7.4-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    command: ["sh", "-ec", 'exec redis-server --appendonly yes --maxmemory-policy noeviction --requirepass "$${REDIS_PASSWORD}"']
+    volumes: ["redis-data:/data"]
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  db-data:
+  redis-data:
+  server-local-data:
