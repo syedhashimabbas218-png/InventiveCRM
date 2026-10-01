@@ -1,0 +1,65 @@
+name: InventiveWeb container build
+on:
+  pull_request:
+    paths:
+      - "inventiveweb/branding/**"
+      - "inventiveweb/scripts/branding/**"
+      - "inventiveweb/infrastructure/coolify/**"
+      - "inventiveweb/apps/inventiveweb/**"
+      - ".github/workflows/inventiveweb-image-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "inventiveweb/**"
+      - ".github/workflows/inventiveweb-image-check.yml"
+permissions:
+  contents: read
+concurrency:
+  group: inventiveweb-image-check-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: inventiveweb
+      - name: Runner capacity
+        run: |
+          free -h
+          df -h /
+      - uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 1
+      - name: Compile the full branded frontend and server
+        uses: docker/build-push-action@v6
+        with:
+          context: inventiveweb
+          file: inventiveweb/infrastructure/coolify/twenty.Dockerfile
+          target: twenty
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: inventiveweb-validation:${{ github.sha }}
+          cache-from: type=gha,scope=inventiveweb-image-check
+          cache-to: type=gha,mode=min,scope=inventiveweb-image-check
+          build-args: |
+            APP_VERSION=2.43.0
+            PUBLIC_APP_URL=https://workspace.example.com
+            INVENTIVEWEB_WEBSITE_URL=https://www.example.com
+            INVENTIVEWEB_SUPPORT_URL=https://support.example.com
+            INVENTIVEWEB_TERMS_URL=https://legal.example.com/terms
+            INVENTIVEWEB_PRIVACY_URL=https://legal.example.com/privacy
+            INVENTIVEWEB_DPA_URL=https://legal.example.com/dpa
+      - name: Verify compiled image and corresponding source
+        env:
+          VALIDATION_IMAGE: inventiveweb-validation:${{ github.sha }}
+        run: |
+          docker run --rm --network none --entrypoint node \
+            --mount "type=bind,src=${GITHUB_WORKSPACE}/inventiveweb/scripts/branding/check-image.mjs,dst=/checks/check-image.mjs,readonly" \
+            "$VALIDATION_IMAGE" /checks/check-image.mjs
+          docker image inspect "$VALIDATION_IMAGE" --format '{{.Id}}' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Full branded image compiled and artifact checks passed. Validation URLs only; image was not published or deployed. Database startup and browser acceptance are separate gates.' >> "$GITHUB_STEP_SUMMARY"
