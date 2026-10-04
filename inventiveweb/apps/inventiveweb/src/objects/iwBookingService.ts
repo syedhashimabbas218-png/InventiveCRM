@@ -64,6 +64,48 @@ export default defineObject({
       "type": FieldType.TEXT,
       "label": "Description",
       "isNullable": true
+    },
+    {
+      "universalIdentifier": "4cfe2424-0d0d-4822-8f69-e64aaa5c15b9",
+      "name": "assignedStaffIds",
+      "type": FieldType.RAW_JSON,
+      "label": "Assigned staff IDs",
+      "isNullable": true
+    },
+    {
+      "universalIdentifier": "a3369382-f46f-4660-be2a-0565d7047e73",
+      "name": "calendarId",
+      "type": FieldType.TEXT,
+      "label": "Calendar to use",
+      "isNullable": true
+    },
+    {
+      "universalIdentifier": "bc95e7b5-93d3-4dc6-9c22-92ee7655a9a4",
+      "name": "workingHours",
+      "type": FieldType.RAW_JSON,
+      "label": "Working hours",
+      "isNullable": true
+    },
+    {
+      "universalIdentifier": "5db8f473-6260-4e5e-a1f2-1517c5f742b1",
+      "name": "bookingLeadTimeMinutes",
+      "type": FieldType.NUMBER,
+      "label": "Booking lead time minutes",
+      "isNullable": true
+    },
+    {
+      "universalIdentifier": "ec160803-ccc7-41a2-90ab-7029b16c2abc",
+      "name": "bookingMaxDaysAhead",
+      "type": FieldType.NUMBER,
+      "label": "Booking max days ahead",
+      "isNullable": true
+    },
+    {
+      "universalIdentifier": "d8a8c7d4-02e2-4b8f-a6f8-cae94cdab17d",
+      "name": "cancellationPolicy",
+      "type": FieldType.TEXT,
+      "label": "Cancellation policy",
+      "isNullable": true
     }
   ]
 });

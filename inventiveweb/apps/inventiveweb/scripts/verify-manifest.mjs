@@ -28,14 +28,24 @@ for (const role of manifest.roles) {
 const runtimeRole = manifest.roles.find(role => role.universalIdentifier === manifest.application.defaultRoleUniversalIdentifier);
 assert(runtimeRole, 'Application role not registered');
 assert.equal(runtimeRole.canBeAssignedToUsers, false);
-const fields = new Map(manifest.fields.map(field => [field.universalIdentifier, field]));
+const fields = new Map();
+const objectUidsByField = new Map();
+for (const field of manifest.fields) fields.set(field.universalIdentifier, field);
+for (const object of manifest.objects) {
+  for (const field of object.fields) {
+    fields.set(field.universalIdentifier, field);
+    objectUidsByField.set(field.universalIdentifier, object.universalIdentifier);
+  }
+}
 for (const field of fields.values()) {
   if (field.type !== 'RELATION') continue;
   const inverse = fields.get(field.relationTargetFieldMetadataUniversalIdentifier);
   assert(inverse, `Missing inverse for ${field.name}`);
   assert.equal(inverse.relationTargetFieldMetadataUniversalIdentifier, field.universalIdentifier);
-  assert.equal(inverse.objectUniversalIdentifier, field.relationTargetObjectMetadataUniversalIdentifier);
-  assert.equal(inverse.relationTargetObjectMetadataUniversalIdentifier, field.objectUniversalIdentifier);
+  const fieldObjectUid = field.objectUniversalIdentifier ?? objectUidsByField.get(field.universalIdentifier);
+  const inverseObjectUid = inverse.objectUniversalIdentifier ?? objectUidsByField.get(inverse.universalIdentifier);
+  assert.equal(inverse.relationTargetObjectMetadataUniversalIdentifier, fieldObjectUid);
+  assert.equal(inverseObjectUid, field.relationTargetObjectMetadataUniversalIdentifier);
 }
 for (const fn of manifest.logicFunctions) {
   if (fn.httpRouteTriggerSettings) assert.equal(fn.httpRouteTriggerSettings.isAuthRequired, true);
