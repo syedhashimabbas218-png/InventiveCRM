@@ -93,15 +93,23 @@ test('getWorkingHours rejects invalid structure', () => {
   assert.throws(() => getWorkingHours(service({ workingHours: { timeZone: 'Bad', days: [{ day: 1, start: '09:00', end: '17:00' }] } })));
 });
 
+const nextMonday = (hour: number) => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + ((1 + 7 - d.getUTCDay()) % 7 || 7));
+  d.setUTCHours(hour, 0, 0, 0);
+  return d;
+};
+
 test('generateSlots respects working hours and buffers', () => {
   const s = service({ durationMinutes: 60, bufferBeforeMinutes: 10, bufferAfterMinutes: 10 });
-  const from = new Date('2026-10-05T00:00:00Z'); // Monday
-  const to = new Date('2026-10-06T00:00:00Z');
+  const from = nextMonday(0);
+  from.setUTCHours(0, 0, 0, 0);
+  const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
   const slots = generateSlots(s, from, to, []);
   assert.equal(slots.length, 6);
-  assert.equal(slots[0]!.start.toISOString(), '2026-10-05T09:00:00.000Z');
-  assert.equal(slots[0]!.end.toISOString(), '2026-10-05T10:00:00.000Z');
-  const blocked = [{ start: new Date('2026-10-05T09:50:00Z'), end: new Date('2026-10-05T10:20:00Z') }];
+  assert.equal(slots[0]!.start.getUTCHours(), 9);
+  assert.equal(slots[0]!.end.getUTCHours(), 10);
+  const blocked = [{ start: new Date(from.getTime() + 9 * 60 * 60000 + 50 * 60000), end: new Date(from.getTime() + 10 * 60 * 60000 + 20 * 60000) }];
   assert.equal(generateSlots(s, from, to, blocked).length, 4);
 });
 
@@ -115,24 +123,26 @@ test('getAvailability rejects inactive services and lead time', async () => {
 });
 
 test('getAvailability merges provider and existing appointment busy', async () => {
+  const base = nextMonday(0);
+  base.setUTCHours(0, 0, 0, 0);
   const r = repo({
-    busy: [{ start: new Date('2026-10-05T10:00:00Z'), end: new Date('2026-10-05T11:00:00Z') }],
+    busy: [{ start: new Date(base.getTime() + 10 * 60 * 60000), end: new Date(base.getTime() + 11 * 60 * 60000) }],
     existing: [{
       id: 'existing', serviceId: 'svc-1', customerId: 'cust-1',
-      startsAt: '2026-10-05T12:00:00.000Z', endsAt: '2026-10-05T13:00:00.000Z',
+      startsAt: new Date(base.getTime() + 12 * 60 * 60000).toISOString(),
+      endsAt: new Date(base.getTime() + 13 * 60 * 60000).toISOString(),
       timeZone: 'UTC', status: 'CONFIRMED', provider: null, providerEventId: null, answers: {},
     }],
   });
-  const from = new Date('2026-10-05T00:00:00Z');
-  const to = new Date('2026-10-06T00:00:00Z');
-  const { slots } = await getAvailability('svc-1', from, to, r);
-  assert.ok(!slots.some(s => s.start.getTime() === new Date('2026-10-05T10:00:00Z').getTime()));
-  assert.ok(!slots.some(s => s.start.getTime() === new Date('2026-10-05T12:00:00Z').getTime()));
+  const to = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+  const { slots } = await getAvailability('svc-1', base, to, r);
+  assert.ok(!slots.some(s => s.start.getTime() === new Date(base.getTime() + 10 * 60 * 60000).getTime()));
+  assert.ok(!slots.some(s => s.start.getTime() === new Date(base.getTime() + 12 * 60 * 60000).getTime()));
 });
 
 test('bookAppointment writes record and provider event', async () => {
   const r = repo();
-  const slotStart = new Date('2026-10-05T10:00:00Z');
+  const slotStart = nextMonday(10);
   const appt = await bookAppointment({
     serviceId: 'svc-1',
     slotStart: slotStart.toISOString(),
@@ -149,14 +159,14 @@ test('bookAppointment rejects missing actor, bad email, and taken slot', async (
   const r = repo();
   await assert.rejects(bookAppointment({}, { workspaceMemberId: null }, r));
   await assert.rejects(bookAppointment({ serviceId: 'svc-1', slotStart: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), customerId: 'c1', customer: { name: 'X', email: 'bad' }, answers: {} }, { workspaceMemberId: 'm' }, r));
-  const slotStart = new Date('2026-10-05T10:00:00Z');
+  const slotStart = nextMonday(10);
   await bookAppointment({ serviceId: 'svc-1', slotStart: slotStart.toISOString(), customerId: 'c1', customer: { name: 'A', email: 'a@example.com' }, answers: {} }, { workspaceMemberId: 'm' }, r);
   await assert.rejects(bookAppointment({ serviceId: 'svc-1', slotStart: slotStart.toISOString(), customerId: 'c2', customer: { name: 'B', email: 'b@example.com' }, answers: {} }, { workspaceMemberId: 'm' }, r));
 });
 
 test('bookAppointment compensates to REQUESTED when provider fails', async () => {
   const r = repo({ createEventError: true });
-  const slotStart = new Date('2026-10-05T10:00:00Z');
+  const slotStart = nextMonday(10);
   const promise = bookAppointment({
     serviceId: 'svc-1', slotStart: slotStart.toISOString(), customerId: 'c1',
     customer: { name: 'A', email: 'a@example.com' }, answers: {},
@@ -169,7 +179,7 @@ test('bookAppointment compensates to REQUESTED when provider fails', async () =>
 
 test('cancelAppointment deletes provider event and updates status', async () => {
   const r = repo();
-  const slotStart = new Date('2026-10-05T10:00:00Z');
+  const slotStart = nextMonday(10);
   const appt = await bookAppointment({ serviceId: 'svc-1', slotStart: slotStart.toISOString(), customerId: 'c1', customer: { name: 'A', email: 'a@example.com' }, answers: {} }, { workspaceMemberId: 'm' }, r);
   const cancelled = await cancelAppointment({ appointmentId: appt.id }, { workspaceMemberId: 'm' }, r);
   assert.equal(cancelled.status, 'CANCELLED');
@@ -177,9 +187,9 @@ test('cancelAppointment deletes provider event and updates status', async () => 
 
 test('rescheduleAppointment moves the slot and event', async () => {
   const r = repo();
-  const slotStart = new Date('2026-10-05T10:00:00Z');
+  const slotStart = nextMonday(10);
   const appt = await bookAppointment({ serviceId: 'svc-1', slotStart: slotStart.toISOString(), customerId: 'c1', customer: { name: 'A', email: 'a@example.com' }, answers: {} }, { workspaceMemberId: 'm' }, r);
-  const newStart = new Date('2026-10-05T11:00:00Z');
+  const newStart = nextMonday(11);
   const moved = await rescheduleAppointment({ appointmentId: appt.id, newSlotStart: newStart.toISOString() }, { workspaceMemberId: 'm' }, r);
   assert.equal(moved.startsAt, newStart.toISOString());
 });
@@ -191,8 +201,9 @@ test('cross-tenant isolation: calendar belongs to assigned staff', async () => {
     ...r,
     findDefaultCalendar: async (ids) => { requestedIds = ids; return ids.includes('person-1') ? calendar() : null; },
   };
-  const from = new Date('2026-10-05T00:00:00Z');
-  const to = new Date('2026-10-06T00:00:00Z');
+  const from = nextMonday(0);
+  from.setUTCHours(0, 0, 0, 0);
+  const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
   await getAvailability('svc-1', from, to, isolated);
   assert.deepEqual(requestedIds, ['person-1']);
 });
