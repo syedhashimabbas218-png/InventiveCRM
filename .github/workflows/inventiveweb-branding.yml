@@ -1,0 +1,51 @@
+name: InventiveWeb branding
+on:
+  pull_request:
+    paths: ["inventiveweb/**", ".github/workflows/inventiveweb-branding.yml"]
+  push:
+    branches: [main]
+    paths: ["inventiveweb/**", ".github/workflows/inventiveweb-branding.yml"]
+permissions:
+  contents: read
+jobs:
+  verify-branding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: distribution
+      - uses: actions/checkout@v4
+        with:
+          repository: twentyhq/twenty
+          ref: 87339fe7489c3a3c0ea72aad593a2a538357291c
+          path: upstream
+          sparse-checkout: |
+            packages/twenty-front
+            packages/twenty-emails
+            packages/twenty-server/src
+            packages/twenty-shared
+            packages/twenty-ui
+            packages/twenty-docker
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: distribution/inventiveweb/apps/inventiveweb/package-lock.json
+      - run: npm ci
+        working-directory: distribution/inventiveweb/apps/inventiveweb
+      - name: Apply development branding to the pinned source
+        run: node distribution/inventiveweb/scripts/branding/apply.mjs upstream --development
+      - name: Check source, assets, translations and preserved licence
+        run: |
+          node distribution/inventiveweb/scripts/branding/verify.mjs upstream
+          node distribution/inventiveweb/scripts/branding/check-source.mjs upstream
+          node distribution/inventiveweb/scripts/branding/test-pipeline.mjs upstream
+      - name: Check generated Dockerfile matches pinned upstream
+        run: |
+          node distribution/inventiveweb/scripts/branding/generate-dockerfile.mjs upstream
+          git -C distribution diff --exit-code -- inventiveweb/infrastructure/coolify/twenty.Dockerfile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inventiveweb-branding-audit
+          path: upstream/INVENTIVEWEB-BUILD.json
