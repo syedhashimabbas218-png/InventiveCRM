@@ -82,17 +82,9 @@ Statuses:
 | Bookkeeping adapter interface | no | NOT STARTED | n/a | n/a | n/a |
 | Integration credential encryption/rotation | no | NOT STARTED | n/a | n/a | n/a |
 
-## P5 — Conversations and AI
+## P5 — Conversations and AI (out of scope)
 
-| Feature | Existing | Implemented | Tested | Live verified | Blockers |
-|---|---|---|---|---|---|
-| WhatsApp provider connection | no | NOT STARTED | n/a | n/a | no provider credentials |
-| Unified conversation inbox | no | NOT STARTED | n/a | n/a | n/a |
-| CRM contact matching from messages | no | NOT STARTED | n/a | n/a | n/a |
-| Human takeover / assignment | no | NOT STARTED | n/a | n/a | n/a |
-| AI assistant with scoped tools | no | NOT STARTED | n/a | n/a | n/a |
-| AI booking/quote draft actions with human approval | no | NOT STARTED | n/a | n/a | n/a |
-| Webhook verification/dedup/retry | no | NOT STARTED | n/a | n/a | n/a |
+Removed from the current product increment. No WhatsApp, unified inbox, messaging, AI assistant or human-takeover features are implemented. If required later, they will be treated as a separate design phase.
 
 ## P6 — Product completion
 

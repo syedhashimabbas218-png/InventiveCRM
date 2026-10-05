@@ -54,8 +54,7 @@ The original supplied specification is retained unchanged for provenance.
   Google/Microsoft consent screens. A branding patch is not a completed whole-product audit.
 - Calendar free/busy, booking confirmation, rescheduling, cancellations, public booking/embeds.
 - Quote/invoice generation, public document views, sending, payments or bookkeeping sync.
-- WhatsApp, Instagram, Messenger, AI takeover and operational dashboard.
-- Native identity bridge to the earlier platform API. That API is NOT deployed by this stack.
+- Instagram, Messenger, operational dashboard and native identity bridge to the earlier platform API. That API is NOT deployed by this stack.
 - Superadmin-only MCP configuration and Zapier integration management. MCP requests through
   the staging gateway are denied until this is implemented. This does not implement or prove
   the eventual authorization system; native settings/API permissions still need staging review.
@@ -71,7 +70,7 @@ The original supplied specification is retained unchanged for provenance.
 2. Qualify the implemented form publishing and service-to-version selection on staging. Add
    metadata field mappings, live Google/Microsoft availability and reservations, then public embed.
 3. Build quote/invoice business actions and secure customer views, with configurable templates.
-4. Add bookkeeping provider adapters and Conversations. Keep independent products outside Twenty.
+4. Add bookkeeping provider adapters. Keep independent products and any future messaging/AI features outside Twenty.
 
 Native metadata changes, pricing snapshots and reservation/issuance actions must keep a single
 documented authority each. Do not create a second active source of invoice numbers or calendar

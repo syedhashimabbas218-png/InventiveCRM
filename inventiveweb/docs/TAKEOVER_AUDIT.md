@@ -53,7 +53,7 @@
 - Quote/invoice issuance, PDF generation, secure customer views not implemented.
 - MCP superadmin-only configuration and execution not implemented (gateway denies all MCP).
 - Zapier connector not configured.
-- WhatsApp/Conversations and AI assistant not implemented.
+- Conversations and AI are out of scope for this increment.
 - No backup/restore rehearsal.
 - No cross-workspace runtime verification.
 - No complete production RBAC mapping (existing roles are module-only starters).
@@ -70,7 +70,7 @@
 
 - Docker engine and Linux build runner not available in the local environment.
 - No Coolify project, Contabo server access, or DNS/TLS credentials available.
-- No SMTP, Google/Microsoft OAuth app, or WhatsApp provider credentials available.
+- No SMTP or Google/Microsoft OAuth app credentials available.
 - No container registry namespace configured for image publishing.
 - Earlier independent platform API backend is not in this repository import.
 
