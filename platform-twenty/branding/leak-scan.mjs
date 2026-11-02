@@ -47,14 +47,21 @@ const SURFACES = [
       file === 'packages/twenty-front/index.html' ||
       file.startsWith('packages/twenty-front/src/') ||
       file.startsWith('packages/twenty-ui/src/') ||
+      file.startsWith('packages/twenty-shared/src/constants/') ||
       file === 'packages/twenty-server/src/engine/core-modules/frontend/frontend.service.ts',
   },
   { name: 'Rendered pages (server messages)', mode: 'lingui', includes: (file) => file.startsWith('packages/twenty-server/src/') },
 ];
 
+// Links to Twenty's own sites and accounts. Lowercase only, so "Twenty.com PBC" in the About text does not match.
+const TWENTY_URL_PATTERN = /twenty\.com|twentyhq|x\.com\/twentycrm|discord\.com\/invite/g;
+
 // Known occurrences that are not shown to users. Each needs a reason.
 const EXCEPTIONS = [
   { pattern: /^packages\/twenty-ui\/src\/icon\//, reason: 'icon dictionary for developers; not imported by twenty-front' },
+  { pattern: /^packages\/twenty-front\/src\/modules\/onboarding\/constants\/OnboardingNetworkPreviewPeople\.ts$/, reason: 'placeholder avatar photos hosted by Twenty, no Twenty branding' },
+  { pattern: /^packages\/twenty-front\/src\/modules\/settings\/billing\//, reason: 'billing UI, hidden while IS_BILLING_ENABLED is false' },
+  { pattern: /^packages\/twenty-front\/src\/pages\/settings\/developers\/tabs\/SettingsDevelopersCliTab\.tsx$/, reason: "links developers to the docs of Twenty's own CLI (npx twenty)" },
   { pattern: /^packages\/twenty-front\/src\/pages\/settings\/enterprise\//, reason: "describes Twenty's own Enterprise licence; renaming would misstate who sells it" },
 ];
 
@@ -95,7 +102,7 @@ for (const file of listFiles(upstreamDirectory)) {
   if (surfaces.length === 0) continue;
 
   const content = readUpstreamFile(upstreamDirectory, file);
-  if (!/\bTwenty\b/.test(content)) continue;
+  if (!/\bTwenty\b/.test(content) && !/twenty\.com|twentyhq|x\.com\/twentycrm|discord\.com\/invite/.test(content)) continue;
 
   const exclusionReason =
     getProtectedReason(file) ?? EXCEPTIONS.find(({ pattern }) => pattern.test(file))?.reason;
@@ -108,8 +115,19 @@ for (const file of listFiles(upstreamDirectory)) {
   const linguiSpans = getLinguiSpans(content);
   const lineOffsets = lineStartOffsets(content);
   const reported = new Set();
+  // Email templates end with PreviewProps used only by the local email preview server.
+  const previewPropsLine = content.split('\n').findIndex((line) => line.includes('.PreviewProps = {'));
 
   content.split('\n').forEach((line, index) => {
+    const isPreviewOnly = previewPropsLine !== -1 && index >= previewPropsLine;
+    for (const match of line.matchAll(TWENTY_URL_PATTERN)) {
+      if (isPreviewOnly || isInComment(line, match.index) || surfaces.every(({ mode }) => mode === 'lingui')) continue;
+      const key = `${index}`;
+      if (reported.has(key)) continue;
+      reported.add(key);
+      const entry = { surface: surfaces.find(({ mode }) => mode !== 'lingui').name, file, line: index + 1, text: `link to Twenty: ${line.trim().slice(0, 150)}` };
+      (enterprise ? warnings : leaks).push(entry);
+    }
     for (const match of line.matchAll(ANY_TWENTY_PATTERN)) {
       const offset = lineOffsets[index] + match.index;
       const surface = surfaces.find(({ mode }) => {

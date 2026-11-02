@@ -68,6 +68,9 @@ const URL_TARGETS = [
   { file: 'packages/twenty-emails/src/constants/DefaultWorkspaceLogo.ts', find: 'https://twentyhq.github.io/placeholder-images/workspaces/twenty-logo.png' },
   { file: 'packages/twenty-emails/src/components/Logo.tsx', find: 'https://app.twenty.com/images/icons/windows11/Square150x150Logo.scale-100.png' },
   { file: 'packages/twenty-emails/src/emails/clean-suspended-workspace.email.tsx', find: 'href="https://app.twenty.com/"', replaceWith: 'href="{websiteUrl}"' },
+  { file: 'packages/twenty-front/index.html', find: 'https://raw.githubusercontent.com/twentyhq/twenty/main/docs/static/img/social-card.png', replaceWith: '{socialCardUrl}' },
+  { file: 'packages/twenty-shared/src/constants/DocumentationBaseUrl.ts', find: "'https://docs.twenty.com'", replaceWith: "'{documentationUrl}'" },
+  { file: 'packages/twenty-front/src/modules/workflow/workflow-steps/workflow-actions/form-action/components/WorkflowEditActionFormBuilder.tsx', find: "'https://docs.twenty.com/", replaceWith: "'{documentationUrl}/" },
 ];
 
 // Strings where "Twenty" names the company or its licensing, not the product.
@@ -95,7 +98,7 @@ if (options.write && !options.version) {
 const upstreamDirectory = resolve(options.upstream);
 const config = JSON.parse(readFileSync(options.config, 'utf8'));
 
-for (const key of ['productName', 'shortName', 'companyName', 'websiteUrl', 'termsUrl', 'privacyUrl', 'sourceUrl', 'logoUrl', 'logoFile', 'iconFile', 'aboutText']) {
+for (const key of ['productName', 'shortName', 'companyName', 'websiteUrl', 'documentationUrl', 'termsUrl', 'privacyUrl', 'sourceUrl', 'logoUrl', 'socialCardUrl', 'logoFile', 'iconFile', 'aboutText']) {
   if (typeof config[key] !== 'string' || config[key].length === 0) {
     console.error(`brand.config.json: "${key}" is required`);
     process.exit(2);
@@ -277,14 +280,19 @@ try {
     });
 
     for (const target of urlTargets) {
-      const offset = content.indexOf(target.find);
-      if (offset === -1) {
-        report.targetsNotFound.push({ file, contains: target.find });
-        continue;
+      const value = target.replaceWith
+        ? target.replaceWith
+            .replace('{websiteUrl}', config.websiteUrl)
+            .replace('{documentationUrl}', config.documentationUrl)
+            .replace('{socialCardUrl}', config.socialCardUrl)
+        : config.logoUrl;
+      let found = false;
+      for (let offset = content.indexOf(target.find); offset !== -1; offset = content.indexOf(target.find, offset + 1)) {
+        found = true;
+        replacements.push({ offset, length: target.find.length, value });
+        changedLineNumbers.add(content.slice(0, offset).split('\n').length);
       }
-      const value = target.replaceWith ? target.replaceWith.replace('{websiteUrl}', config.websiteUrl) : config.logoUrl;
-    replacements.push({ offset, length: target.find.length, value });
-      changedLineNumbers.add(content.slice(0, offset).split('\n').length);
+      if (!found) report.targetsNotFound.push({ file, contains: target.find });
     }
 
     if (replacements.length === 0) continue;

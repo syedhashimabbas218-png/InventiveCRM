@@ -15,7 +15,7 @@ This repository holds only our patches, scripts and brand config. It does not co
 
 This is a modified version of Twenty. Modified from 2 November 2026 onwards by Brandname Ltd. Each release tag `X.Y.Z-pN` in this repository names the upstream tag `twenty/vX.Y.Z` it was built from; the changes are exactly what `branding/apply.mjs` and `branding/overrides/*.patch` produce, and the `rebrand-report.json` attached to each workflow run lists every changed file and line.
 
-What we change: the product name in user-visible strings and AI prompts, logo URLs, the login and email footers (our terms, privacy and company details, plus the About text), a Settings > General About section, neutral defaults for the navigation link and link-field examples, and removal of the card linking to Twenty's own ChatGPT app.
+What we change: the product name in user-visible strings and AI prompts; the Twenty logo, PWA icons and social card (replaced by our assets); the login and email footers (our terms, privacy and company details, plus the About text); a Settings > General About section; documentation links (to our `documentationUrl`); neutral example values in settings; and removal of content that describes Twenty itself rather than our service: the card linking to Twenty's ChatGPT app, Twenty's SOC2/GDPR badges in onboarding, and the Twenty community, partner and changelog links in Settings > Community.
 
 What we never change: files marked `@license Enterprise`, legal text naming Twenty.com PBC, database code, migrations and upgrade commands, the standard application metadata that is synced into workspaces, package names, import paths, env var names, tests and mocks.
 
@@ -24,10 +24,11 @@ What we never change: files marked `@license Enterprise`, legal text naming Twen
 ```
 branding/
   brand.config.json   product name, URLs, About text, pinned upstream tag
-  assets/             logo and icon sources (not chosen yet)
+  assets/             logo.svg and icon.png (neutral placeholders until a logo is chosen)
   rules.mjs           scan roots, protected paths and matchers shared by both scripts
   apply.mjs           the patch tool (dry run by default)
-  leak-scan.mjs       fails if "Twenty" shows in pages, emails, the PWA manifest or the 2FA label
+  leak-scan.mjs       fails if "Twenty", a Twenty link or a Twenty logo file shows in pages, emails,
+                      the PWA manifest or the 2FA label
   overrides/          small hand patches (*.patch), applied with git apply before the string rules;
                       they read brand values from the BrandConfig.ts files apply.mjs generates
 .github/workflows/rebrand.yml
