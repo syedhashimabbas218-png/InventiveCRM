@@ -52,6 +52,7 @@ const SURFACES = [
 // Known occurrences that are not shown to users. Each needs a reason.
 const EXCEPTIONS = [
   { pattern: /^packages\/twenty-ui\/src\/icon\//, reason: 'icon dictionary for developers; not imported by twenty-front' },
+  { pattern: /^packages\/twenty-front\/src\/pages\/settings\/enterprise\//, reason: "describes Twenty's own Enterprise licence; renaming would misstate who sells it" },
 ];
 
 const { values: options } = parseArgs({

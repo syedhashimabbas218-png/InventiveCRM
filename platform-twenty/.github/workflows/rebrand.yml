@@ -41,7 +41,7 @@ jobs:
           node-version: 22
 
       - name: Apply branding
-        run: node branding/apply.mjs --upstream ./upstream --config branding/brand.config.json --write --report rebrand-report.json
+        run: node branding/apply.mjs --upstream ./upstream --config branding/brand.config.json --write --version ${{ steps.version.outputs.semver }}-p${{ github.run_number }} --report rebrand-report.json
 
       - name: Leak scan
         run: node branding/leak-scan.mjs --upstream ./upstream --config branding/brand.config.json

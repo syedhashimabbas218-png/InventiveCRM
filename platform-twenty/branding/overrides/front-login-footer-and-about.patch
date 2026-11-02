@@ -1,0 +1,95 @@
+diff --git a/packages/twenty-front/src/modules/auth/sign-in-up/components/FooterNote.tsx b/packages/twenty-front/src/modules/auth/sign-in-up/components/FooterNote.tsx
+index a5d32fc4..c032d83b 100644
+--- a/packages/twenty-front/src/modules/auth/sign-in-up/components/FooterNote.tsx
++++ b/packages/twenty-front/src/modules/auth/sign-in-up/components/FooterNote.tsx
+@@ -1,6 +1,7 @@
+ import { styled } from '@linaria/react';
+ import { Trans, useLingui } from '@lingui/react/macro';
+ 
++import { BRAND_CONFIG } from '@/brand/constants/BrandConfig';
+ import { useWorkspaceBypass } from '@/auth/sign-in-up/hooks/useWorkspaceBypass';
+ import { getTwentyWebsiteUrl } from '@/auth/utils/getTwentyWebsiteUrl';
+ import { useIsCurrentLocationOnAWorkspace } from '@/domain-manager/hooks/useIsCurrentLocationOnAWorkspace';
+@@ -83,12 +84,13 @@ export const FooterNote = () => {
+         >
+           <Trans>Privacy Policy</Trans>
+         </a>
+-        .
++        .<div>{BRAND_CONFIG.aboutText}</div>
+       </StyledCopyContainer>
+     );
+   }
+ 
+   return (
++    <>
+     <StyledLinksContainer>
+       {shouldOfferBypass && !shouldUseBypass && (
+         <>
+@@ -114,5 +116,7 @@ export const FooterNote = () => {
+         <Trans>Terms of Service</Trans>
+       </a>
+     </StyledLinksContainer>
++    <StyledCopyContainer>{BRAND_CONFIG.aboutText}</StyledCopyContainer>
++    </>
+   );
+ };
+diff --git a/packages/twenty-front/src/modules/auth/utils/getTwentyWebsiteUrl.ts b/packages/twenty-front/src/modules/auth/utils/getTwentyWebsiteUrl.ts
+index f950fd5f..8c4d7da4 100644
+--- a/packages/twenty-front/src/modules/auth/utils/getTwentyWebsiteUrl.ts
++++ b/packages/twenty-front/src/modules/auth/utils/getTwentyWebsiteUrl.ts
+@@ -1,30 +1,9 @@
+-import {
+-  DOCUMENTATION_DEFAULT_LANGUAGE,
+-  DOCUMENTATION_SUPPORTED_LANGUAGES,
+-  type DocumentationSupportedLanguage,
+-} from 'twenty-shared/constants';
+-
+-const TWENTY_WEBSITE_HREF = 'https://twenty.com';
++import { BRAND_CONFIG } from '@/brand/constants/BrandConfig';
+ 
+ type TwentyWebsitePage = 'terms' | 'privacy-policy';
+ 
+ export const getTwentyWebsiteUrl = (
+-  locale: string,
++  _locale: string,
+   page: TwentyWebsitePage,
+-): string => {
+-  const language = new Intl.Locale(locale).language;
+-
+-  const isLocalizedWebsitePath =
+-    language !== DOCUMENTATION_DEFAULT_LANGUAGE &&
+-    DOCUMENTATION_SUPPORTED_LANGUAGES.some(
+-      (supportedLanguage: DocumentationSupportedLanguage) =>
+-        supportedLanguage === language,
+-    );
+-
+-  const url = new URL(
+-    isLocalizedWebsitePath ? `/${language}/${page}` : `/${page}`,
+-    TWENTY_WEBSITE_HREF,
+-  );
+-
+-  return url.toString();
+-};
++): string =>
++  page === 'terms' ? BRAND_CONFIG.termsUrl : BRAND_CONFIG.privacyUrl;
+diff --git a/packages/twenty-front/src/pages/settings/general/SettingsGeneral.tsx b/packages/twenty-front/src/pages/settings/general/SettingsGeneral.tsx
+index 0210e210..199d7ea4 100644
+--- a/packages/twenty-front/src/pages/settings/general/SettingsGeneral.tsx
++++ b/packages/twenty-front/src/pages/settings/general/SettingsGeneral.tsx
+@@ -1,5 +1,6 @@
+ import { useLingui } from '@lingui/react/macro';
+ 
++import { BRAND_CONFIG } from '@/brand/constants/BrandConfig';
+ import { isMultiWorkspaceEnabledState } from '@/client-config/states/isMultiWorkspaceEnabledState';
+ import { useIsLogConsoleAllowed } from '@/log-console/hooks/useIsLogConsoleAllowed';
+ import { SettingsPageContainer } from '@/settings/components/SettingsPageContainer';
+@@ -92,6 +93,9 @@ export const SettingsGeneral = () => {
+             <SettingsWorkspaceDomainCard />
+           </Section.Root>
+         )}
++        <Section.Root>
++          <Section.Header title={t`About`} description={BRAND_CONFIG.aboutText} />
++        </Section.Root>
+         <Section.Root>
+           <DeleteWorkspace />
+         </Section.Root>

@@ -3,6 +3,8 @@
   "upstreamTag": "twenty/v2.55.0",
   "productName": "Brandname",
   "shortName": "Brandname",
+  "companyName": "Brandname Ltd",
+  "websiteUrl": "https://example.com",
   "supportEmail": "support@example.com",
   "termsUrl": "https://example.com/terms",
   "privacyUrl": "https://example.com/privacy",

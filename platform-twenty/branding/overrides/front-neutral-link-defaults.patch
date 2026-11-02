@@ -1,0 +1,44 @@
+diff --git a/packages/twenty-front/src/modules/navigation-menu-item/edit/hooks/useNavigationMenuItemAddOptions.tsx b/packages/twenty-front/src/modules/navigation-menu-item/edit/hooks/useNavigationMenuItemAddOptions.tsx
+index 93cd5526..1f7bb57b 100644
+--- a/packages/twenty-front/src/modules/navigation-menu-item/edit/hooks/useNavigationMenuItemAddOptions.tsx
++++ b/packages/twenty-front/src/modules/navigation-menu-item/edit/hooks/useNavigationMenuItemAddOptions.tsx
+@@ -1,3 +1,4 @@
++import { BRAND_CONFIG } from '@/brand/constants/BrandConfig';
+ import { type NavigationMenuItemAddStep } from '@/navigation-menu-item/edit/types/NavigationMenuItemAddStep';
+ import { useQuery } from '@apollo/client/react';
+ import { useLingui } from '@lingui/react/macro';
+@@ -171,8 +172,8 @@ export const useNavigationMenuItemAddOptions = ({
+           onClick: () => {
+             addItem({
+               type: NavigationMenuItemType.LINK,
+-              name: 'Twenty',
+-              link: 'https://twenty.com',
++              name: BRAND_CONFIG.productName,
++              link: BRAND_CONFIG.websiteUrl,
+               color: DEFAULT_NAVIGATION_MENU_ITEM_COLOR_LINK,
+             });
+           },
+diff --git a/packages/twenty-front/src/modules/settings/data-model/constants/SettingsCompositeFieldTypeConfigs.ts b/packages/twenty-front/src/modules/settings/data-model/constants/SettingsCompositeFieldTypeConfigs.ts
+index c93357f3..18638464 100644
+--- a/packages/twenty-front/src/modules/settings/data-model/constants/SettingsCompositeFieldTypeConfigs.ts
++++ b/packages/twenty-front/src/modules/settings/data-model/constants/SettingsCompositeFieldTypeConfigs.ts
+@@ -182,14 +182,14 @@ export const SETTINGS_COMPOSITE_FIELD_TYPE_CONFIGS = {
+     ],
+     exampleValues: doNotTranslate([
+       {
+-        primaryLinkUrl: 'twenty.com',
++        primaryLinkUrl: 'example.com',
+         primaryLinkLabel: '',
+-        secondaryLinks: [{ url: 'twenty.com', label: 'Twenty' }],
++        secondaryLinks: [{ url: 'example.com', label: 'Example' }],
+       },
+       {
+-        primaryLinkUrl: 'github.com/twentyhq/twenty',
+-        primaryLinkLabel: 'Twenty Repo',
+-        secondaryLinks: [{ url: 'twenty.com', label: '' }],
++        primaryLinkUrl: 'example.com/docs',
++        primaryLinkLabel: 'Docs',
++        secondaryLinks: [{ url: 'example.com', label: '' }],
+       },
+       {
+         primaryLinkUrl: 'react.dev',

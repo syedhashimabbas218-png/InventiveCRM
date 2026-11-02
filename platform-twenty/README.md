@@ -11,6 +11,14 @@ This repository holds only our patches, scripts and brand config. It does not co
 - Twenty is a trademark of Twenty.com PBC. We do not use the Twenty logo. The only mention of Twenty in the product is the About text in `branding/brand.config.json`.
 - Legal text naming Twenty.com PBC (the DPA files) is left unchanged. Twenty's DPA does not cover self-hosted deployments; clients need our own.
 
+## Modification notice (AGPLv3 section 5a)
+
+This is a modified version of Twenty. Modified from 2 November 2026 onwards by Brandname Ltd. Each release tag `X.Y.Z-pN` in this repository names the upstream tag `twenty/vX.Y.Z` it was built from; the changes are exactly what `branding/apply.mjs` and `branding/overrides/*.patch` produce, and the `rebrand-report.json` attached to each workflow run lists every changed file and line.
+
+What we change: the product name in user-visible strings and AI prompts, logo URLs, the login and email footers (our terms, privacy and company details, plus the About text), a Settings > General About section, neutral defaults for the navigation link and link-field examples, and removal of the card linking to Twenty's own ChatGPT app.
+
+What we never change: files marked `@license Enterprise`, legal text naming Twenty.com PBC, database code, migrations and upgrade commands, the standard application metadata that is synced into workspaces, package names, import paths, env var names, tests and mocks.
+
 ## Layout
 
 ```
@@ -20,7 +28,8 @@ branding/
   rules.mjs           scan roots, protected paths and matchers shared by both scripts
   apply.mjs           the patch tool (dry run by default)
   leak-scan.mjs       fails if "Twenty" shows in pages, emails, the PWA manifest or the 2FA label
-  overrides/          small hand patches (*.patch), applied with git apply
+  overrides/          small hand patches (*.patch), applied with git apply before the string rules;
+                      they read brand values from the BrandConfig.ts files apply.mjs generates
 .github/workflows/rebrand.yml
 ```
 
@@ -35,7 +44,7 @@ node branding/apply.mjs --upstream ./upstream
 ```
 
 ```bash
-node branding/apply.mjs --upstream ./upstream --write --report rebrand-report.json
+node branding/apply.mjs --upstream ./upstream --write --version 2.55.0-p1 --report rebrand-report.json
 ```
 
 ```bash
