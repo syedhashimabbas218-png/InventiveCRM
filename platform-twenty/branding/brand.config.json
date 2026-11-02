@@ -1,0 +1,12 @@
+{
+  "upstreamRepository": "https://github.com/twentyhq/twenty",
+  "upstreamTag": "twenty/v2.55.0",
+  "productName": "Brandname",
+  "shortName": "Brandname",
+  "supportEmail": "support@example.com",
+  "termsUrl": "https://example.com/terms",
+  "privacyUrl": "https://example.com/privacy",
+  "sourceUrl": "https://github.com/OWNER/platform-twenty",
+  "logoUrl": "https://example.com/logo.png",
+  "aboutText": "Built on Twenty, an open-source CRM licensed under AGPLv3. Source code for this version: {sourceUrl}/releases/tag/{version}. Twenty is a trademark of Twenty.com PBC. We are not affiliated with or endorsed by Twenty."
+}

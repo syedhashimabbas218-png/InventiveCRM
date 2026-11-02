@@ -1,0 +1,72 @@
+name: rebrand-and-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: "Twenty release tag to build, for example twenty/v2.55.0"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    # The front build needs about 8 GB of heap; use a larger runner if this one runs out of memory.
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate tag
+        id: version
+        env:
+          UPSTREAM_TAG: ${{ inputs.upstream_tag }}
+        run: |
+          if ! [[ "$UPSTREAM_TAG" =~ ^twenty/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "upstream_tag must look like twenty/v2.55.0, got: $UPSTREAM_TAG" >&2
+            exit 1
+          fi
+          echo "semver=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: twentyhq/twenty
+          ref: refs/tags/${{ inputs.upstream_tag }}
+          path: upstream
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply branding
+        run: node branding/apply.mjs --upstream ./upstream --config branding/brand.config.json --write --report rebrand-report.json
+
+      - name: Leak scan
+        run: node branding/leak-scan.mjs --upstream ./upstream --config branding/brand.config.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rebrand-report
+          path: rebrand-report.json
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./upstream
+          file: ./upstream/packages/twenty-docker/twenty/Dockerfile
+          target: twenty
+          push: true
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.semver }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/platform-twenty:${{ steps.version.outputs.semver }}-p${{ github.run_number }}
