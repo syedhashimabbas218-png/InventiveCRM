@@ -60,10 +60,11 @@ const GENERATED_BRAND_FILES = [
   'packages/twenty-emails/src/constants/BrandConfig.ts',
 ];
 
-const LOGO_TARGETS = [
+const URL_TARGETS = [
   { file: 'packages/twenty-front/src/modules/ui/navigation/navigation-drawer/constants/DefaultWorkspaceLogo.ts', find: 'https://twentyhq.github.io/placeholder-images/workspaces/twenty-logo.png' },
   { file: 'packages/twenty-emails/src/constants/DefaultWorkspaceLogo.ts', find: 'https://twentyhq.github.io/placeholder-images/workspaces/twenty-logo.png' },
   { file: 'packages/twenty-emails/src/components/Logo.tsx', find: 'https://app.twenty.com/images/icons/windows11/Square150x150Logo.scale-100.png' },
+  { file: 'packages/twenty-emails/src/emails/clean-suspended-workspace.email.tsx', find: 'href="https://app.twenty.com/"', replaceWith: 'href="{websiteUrl}"' },
 ];
 
 // Strings where "Twenty" names the company or its licensing, not the product.
@@ -207,8 +208,8 @@ try {
       .map((line, index) => (/\bTwenty\b/.test(line) ? index + 1 : null))
       .filter((lineNumber) => lineNumber !== null);
 
-    const logoTargets = LOGO_TARGETS.filter((target) => target.file === file);
-    if (candidateLineNumbers.length === 0 && logoTargets.length === 0) continue;
+    const urlTargets = URL_TARGETS.filter((target) => target.file === file);
+    if (candidateLineNumbers.length === 0 && urlTargets.length === 0) continue;
 
     if (candidateLineNumbers.length > 0) {
       report.candidateFiles++;
@@ -256,13 +257,14 @@ try {
       }
     });
 
-    for (const target of logoTargets) {
+    for (const target of urlTargets) {
       const offset = content.indexOf(target.find);
       if (offset === -1) {
         report.targetsNotFound.push({ file, contains: target.find });
         continue;
       }
-      replacements.push({ offset, length: target.find.length, value: config.logoUrl });
+      const value = target.replaceWith ? target.replaceWith.replace('{websiteUrl}', config.websiteUrl) : config.logoUrl;
+    replacements.push({ offset, length: target.find.length, value });
       changedLineNumbers.add(content.slice(0, offset).split('\n').length);
     }
 
