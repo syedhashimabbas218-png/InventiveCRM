@@ -10,5 +10,7 @@
   "privacyUrl": "https://example.com/privacy",
   "sourceUrl": "https://github.com/OWNER/platform-twenty",
   "logoUrl": "https://example.com/logo.png",
+  "logoFile": "assets/logo.svg",
+  "iconFile": "assets/icon.png",
   "aboutText": "Built on Twenty, an open-source CRM licensed under AGPLv3. Source code for this version: {sourceUrl}/releases/tag/{version}. Twenty is a trademark of Twenty.com PBC. We are not affiliated with or endorsed by Twenty."
 }

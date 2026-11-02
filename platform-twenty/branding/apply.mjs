@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -9,12 +9,15 @@ import {
   NAME_PATTERN,
   getLinguiSpans,
   getProtectedReason,
+  ICON_DIRECTORY,
+  LOGO_FILE,
   isEnterpriseFile,
   isInComment,
   isInsideSpans,
   isLoggerLine,
   lineStartOffsets,
   listFiles,
+  listIconFiles,
   readUpstreamFile,
 } from './rules.mjs';
 
@@ -92,7 +95,7 @@ if (options.write && !options.version) {
 const upstreamDirectory = resolve(options.upstream);
 const config = JSON.parse(readFileSync(options.config, 'utf8'));
 
-for (const key of ['productName', 'shortName', 'companyName', 'websiteUrl', 'termsUrl', 'privacyUrl', 'sourceUrl', 'logoUrl', 'aboutText']) {
+for (const key of ['productName', 'shortName', 'companyName', 'websiteUrl', 'termsUrl', 'privacyUrl', 'sourceUrl', 'logoUrl', 'logoFile', 'iconFile', 'aboutText']) {
   if (typeof config[key] !== 'string' || config[key].length === 0) {
     console.error(`brand.config.json: "${key}" is required`);
     process.exit(2);
@@ -118,6 +121,7 @@ const report = {
   enterpriseFilesTotal: 0,
   overrides: [],
   generatedFiles: [],
+  replacedAssets: [],
 };
 
 const packageOf = (file) => file.split('/')[1];
@@ -169,6 +173,21 @@ for (const patch of patches) {
   } catch (error) {
     report.overrides.push({ patch, status: 'does not apply', files: touched, error: String(error.stderr ?? error.message).trim() });
   }
+}
+
+const configDirectory = dirname(resolve(options.config));
+const iconFiles = listIconFiles(upstreamDirectory);
+for (const [source, targets] of [
+  [config.logoFile, [LOGO_FILE]],
+  [config.iconFile, iconFiles],
+]) {
+  const sourcePath = resolve(configDirectory, source);
+  if (!existsSync(sourcePath)) {
+    console.error(`brand.config.json: asset not found: ${source}`);
+    process.exit(2);
+  }
+  if (options.write) for (const target of targets) copyFileSync(sourcePath, join(upstreamDirectory, target));
+  report.replacedAssets.push({ source, count: targets.length });
 }
 
 const version = options.version ?? '<version>';
@@ -344,6 +363,7 @@ print();
 print(`TARGETS NOT FOUND (upstream drift): ${report.targetsNotFound.length}`);
 for (const { file, contains } of report.targetsNotFound) print(`  ${file}: ${contains}`);
 print();
+print(`ASSETS REPLACED${options.write ? '' : ' (dry run: not written)'}: ${report.replacedAssets.map(({ source, count }) => `${source} -> ${count} files`).join(', ')} (${LOGO_FILE}, ${ICON_DIRECTORY}/**)`);
 print(`GENERATED FILES${options.write ? '' : ' (dry run: not written)'}: ${report.generatedFiles.join(', ')}`);
 print();
 print(`OVERRIDES${options.write ? '' : ' (dry run: applied for the scan, then reverted)'}: ${report.overrides.length}`);

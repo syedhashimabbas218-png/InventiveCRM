@@ -1,10 +1,13 @@
 #!/usr/bin/env node
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import {
   ANY_TWENTY_PATTERN,
+  LOGO_FILE,
+  listIconFiles,
   getLinguiSpans,
   getProtectedReason,
   isEnterpriseFile,
@@ -139,13 +142,25 @@ if (warnings.length > 0) {
   print();
 }
 
-const surfaceNames = [...new Set(SURFACES.map(({ name }) => name))];
+// Logo files still byte-identical to the upstream tag are Twenty's logo.
+const unchangedLogoFiles = [LOGO_FILE, ...listIconFiles(upstreamDirectory)].filter((file) => {
+  try {
+    execFileSync('git', ['diff', '--quiet', 'HEAD', '--', file], { cwd: upstreamDirectory, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+});
+for (const file of unchangedLogoFiles) leaks.push({ surface: 'Logo files', file, line: 0, text: 'unchanged from upstream (Twenty logo)' });
+
+const surfaceNames = [...new Set([...SURFACES.map(({ name }) => name), 'Logo files'])];
 for (const name of surfaceNames) {
   const surfaceLeaks = leaks.filter((leak) => leak.surface === name);
   print(`${name}: ${surfaceLeaks.length === 0 ? 'clean' : `${surfaceLeaks.length} leaks`}`);
-  for (const { file, line, text } of surfaceLeaks) print(`  ${file}:${line}\n      ${text}`);
+  for (const { file, line, text } of surfaceLeaks.slice(0, 20)) print(`  ${file}:${line}\n      ${text}`);
+  if (surfaceLeaks.length > 20) print(`  ... and ${surfaceLeaks.length - 20} more`);
 }
 print();
-print(leaks.length === 0 ? 'PASS' : `FAIL: ${leaks.length} lines show "Twenty"`);
+print(leaks.length === 0 ? 'PASS' : `FAIL: ${leaks.length} leaks`);
 
 process.exitCode = leaks.length === 0 ? 0 : 1;

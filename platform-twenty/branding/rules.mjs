@@ -3,6 +3,10 @@ import { join, relative } from 'node:path';
 
 export const ENTERPRISE_MARKER = '@license Enterprise';
 
+// Static files that carry the Twenty logo. apply.mjs overwrites them; leak-scan fails if any is unchanged.
+export const LOGO_FILE = 'packages/twenty-front/public/images/integrations/twenty-logo.svg';
+export const ICON_DIRECTORY = 'packages/twenty-front/public/images/icons';
+
 // Packages that end up in the Docker image (see packages/twenty-docker/twenty/Dockerfile).
 export const SCAN_ROOTS = [
   'packages/twenty-front/index.html',
@@ -51,6 +55,19 @@ export const listFiles = (upstreamDirectory) => {
   };
   for (const root of SCAN_ROOTS) walk(join(upstreamDirectory, root));
   return files.sort();
+};
+
+export const listIconFiles = (upstreamDirectory) => {
+  const icons = [];
+  const walk = (path) => {
+    for (const entry of readdirSync(path, { withFileTypes: true })) {
+      const entryPath = join(path, entry.name);
+      if (entry.isDirectory()) walk(entryPath);
+      else if (entry.name.endsWith('.png')) icons.push(relative(upstreamDirectory, entryPath));
+    }
+  };
+  walk(join(upstreamDirectory, ICON_DIRECTORY));
+  return icons.sort();
 };
 
 export const readUpstreamFile = (upstreamDirectory, file) =>
