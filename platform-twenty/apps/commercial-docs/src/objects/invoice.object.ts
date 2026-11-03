@@ -43,6 +43,7 @@ export default defineObject({
     dateField({ universalIdentifier: field.paidDate, name: 'paidDate', label: 'Paid on', icon: 'IconCalendarCheck' }),
     filesField({ universalIdentifier: field.pdf, name: 'pdf', label: 'PDF', icon: 'IconFileTypePdf' }),
     dateTimeField({ universalIdentifier: field.lastSentAt, name: 'lastSentAt', label: 'Last sent to client', icon: 'IconSend' }),
+    textField({ universalIdentifier: field.layoutUsed, name: 'layoutUsed', label: 'Layout used', icon: 'IconTemplate', description: 'Which template was picked for the PDF, and why.' }),
     textField({ universalIdentifier: field.complianceIssues, name: 'complianceIssues', label: 'Issues to fix', icon: 'IconAlertTriangle' }),
     dateTimeField({ universalIdentifier: field.issuedAt, name: 'issuedAt', label: 'Issued at', icon: 'IconSend' }),
     booleanField({ universalIdentifier: field.isRecurring, name: 'isRecurring', label: 'Recurring', icon: 'IconRepeat' }, false),

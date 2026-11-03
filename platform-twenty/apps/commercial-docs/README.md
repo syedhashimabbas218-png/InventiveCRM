@@ -14,6 +14,7 @@ UK quotes, VAT invoices, credit notes and recurring billing for InventiveCRM wor
 | Recurring invoices | Tick Recurring, choose weekly, monthly, quarterly or yearly, every N periods, a first date and an optional end date. A daily job creates each repeat and issues it, so its PDF lands on the client card too |
 | Daily job | Creates due repeats, marks unpaid invoices past their due date Overdue and expires out-of-date quotes. Also callable at `POST /s/billing/daily-run` |
 | Paid | Setting the status to Paid records the payment date and amount |
+| Own templates | **Document templates**: upload the business's own design as a Word file or PDF. It is read and checked automatically, and the right one is picked for each document by fixed rules (no AI). See below |
 | Sending | Issued invoices and sent quotes go to the contact with the PDF, by email, WhatsApp or both (the contact's **Send documents by** field). Each attempt is a **Delivery** on the document with its status. Overdue reminders are optional |
 | AI and workflows | `issue-document` (MCP `app_issue-document`) issues invoices and quotes; `send-document` (MCP `app_send-document`, also `POST /s/documents/send`) sends or re-sends one, or sends a reminder. Both are workflow actions too |
 
@@ -44,6 +45,40 @@ Checked before a document is issued, and printed on it:
 
 Confirm the numbering scheme and the VAT rounding choice with the client's accountant.
 
+## The business's own templates
+
+Open **Document templates**, add one, give it a name and upload the file. Three kinds are supported:
+
+| File | How it is used |
+|---|---|
+| Word (.docx) with merge tags | Tags such as `{documentNumber}` are filled in and LibreOffice (the `docs` service, Gotenberg) turns the result into a PDF. Start from [templates/sample-uk-vat-invoice.docx](templates/sample-uk-vat-invoice.docx) |
+| Fillable PDF form | Fields named after the tags are filled; lines go in `description_1`, `quantity_1`, `unitPrice_1`, `vatRate_1`, `lineNet_1`, then `_2` and so on; the VAT summary goes in `summaryLabels` and `summaryAmounts` |
+| Any other PDF | Used as a letterhead: our standard layout is printed on top, between the header and footer it measures |
+
+**When a template is added** it is read without AI: the Word text, the PDF's text layer, or Tesseract OCR (free, Apache 2.0, runs on our server) when a PDF is a scan. Fixed rules then set:
+
+- **Use for**: the first document word decides (credit note, quote or quotation, invoice); none means any document. Merge tags are ignored, so `{quoteNumber}` on an invoice does not make it a quote
+- **VAT**: "reverse charge" wording, "not VAT registered" wording, or VAT wording and VAT tags; none means either
+- **Status**: Ready only if the template can show everything a UK document of that kind must show (for a VAT invoice: number, date, tax point, seller name, address and VAT number, customer name and address, each line's VAT rate, VAT per rate, total, and the company details footer). Unknown tags (usually typos), broken loops, a PDF with content in the middle of the page and a missing converter all make it **Needs attention**, and the **Check report** says why
+
+Either choice can be set by hand; set it back to **Detect from file** to read it again.
+
+**When a document is issued**, a template is eligible if it is active, Ready, and its type, VAT scheme and client match (a form also needs enough line rows). The most specific wins: a template for that client, then an exact type, then an exact VAT scheme, then the higher **Priority**, then the newest. With none, the built-in UK layout is used. If a template fails at that moment (for example the converter is down) the document is still issued with the built-in layout. **Layout used** on the invoice or quote records which layout was chosen and why.
+
+| Tag | Value |
+|---|---|
+| `documentTitle`, `documentNumber` | VAT INVOICE / INVOICE / CREDIT NOTE / QUOTATION, and its number |
+| `issueDate`, `supplyDate`, `dueDate`, `validUntil` | Date, tax point, payment due, quote valid until |
+| `purchaseOrderNumber`, `quoteNumber`, `creditedInvoiceNumber` | References |
+| `sellerName`, `sellerTradingName`, `sellerAddress`, `sellerVatNumber`, `sellerEmail`, `sellerPhone`, `sellerWebsite` | The business |
+| `customerName`, `customerAddress`, `customerVatNumber` | The client |
+| `{#lines}` `description` `quantity` `unitPrice` `vatRate` `lineNet` `{/lines}` | One table row per line |
+| `{#summaryRows}` `label` `amount` `{/summaryRows}` | Total excluding VAT, VAT per rate, total VAT |
+| `subtotal`, `vatTotal`, `totalLabel`, `total` | Totals |
+| `notices`, `notes`, `paymentDetails`, `legalFooter` | Statutory wording, notes, how to pay, company number and registered office |
+
+Any other section, such as `{#customerVatNumber}VAT no. {customerVatNumber}{/customerVatNumber}`, shows its content only when the value is filled in.
+
 ## Sending
 
 Business profile settings: **Send documents when issued**, **Send overdue reminders**, **Send emails from** (our mail server or the business's own mailbox), **Business mailbox address** and an optional **Email message**.
@@ -66,6 +101,7 @@ SMTP_HOST=mail
 SMTP_PORT=587
 SMTP_SECURITY=NONE
 SMTP_FROM_ADDRESS=invoices@inventiveweb.studio
+DOCUMENT_CONVERTER_URL=http://docs:3000
 WHATSAPP_GATEWAY_URL=https://wa.inventiveweb.studio/messages
 WHATSAPP_GATEWAY_SECRET=<openssl rand -hex 32, shared with the WhatsApp service>
 ```

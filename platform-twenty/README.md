@@ -40,7 +40,8 @@ scripts/
   apply-setup-spec.mjs     apply an AI-written setup spec (objects, fields, views, workflows) over MCP
 setup-specs/            example specs written from client prompts
 deploy/
-  docker-compose.yml  server, worker, Postgres, Redis and our outgoing mail server (Postfix with DKIM) for one instance
+  docker-compose.yml  server, worker, Postgres, Redis, our outgoing mail server (Postfix with DKIM) and the Word-to-PDF
+                      converter (Gotenberg) for one instance
   .env.example        multi-workspace settings; copy to .env and fill in secrets
   ops/                backup, verify-backup (restore drill), upgrade (auto-rollback), restore, smoke-test
   ops.env.example     backup location, retention, offsite copy and smoke-test keys for ops/

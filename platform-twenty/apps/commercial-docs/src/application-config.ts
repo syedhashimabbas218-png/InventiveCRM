@@ -16,6 +16,7 @@ export default defineApplication({
     SMTP_USERNAME: { description: 'Mail server login, if it needs one.' },
     SMTP_PASSWORD: { description: 'Mail server password.', isSecret: true },
     SMTP_FROM_ADDRESS: { description: 'Sender address, e.g. invoices@inventiveweb.studio. The business name is the display name.' },
+    DOCUMENT_CONVERTER_URL: { description: 'Gotenberg (LibreOffice) service that turns filled Word templates into PDFs, e.g. http://docs:3000.' },
     WHATSAPP_GATEWAY_URL: { description: 'Endpoint of the WhatsApp (WABA) service that sends documents.' },
     WHATSAPP_GATEWAY_SECRET: { description: 'Shared secret that signs requests to and callbacks from the WhatsApp service.', isSecret: true },
   },

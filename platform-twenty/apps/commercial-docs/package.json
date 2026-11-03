@@ -1,6 +1,6 @@
 {
   "name": "inventivecrm-commercial-docs",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "InventiveCRM Quotes & Invoices: UK quotes, VAT invoices, credit notes, recurring billing and sending by email or WhatsApp",
@@ -18,8 +18,13 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
+    "docxtemplater": "3.71.1",
     "nodemailer": "10.1.7",
-    "pdf-lib": "1.17.1"
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.4.299",
+    "pizzip": "3.3.0",
+    "tesseract.js-core": "7.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
@@ -27,5 +32,8 @@
     "twenty-sdk": "2.54.3",
     "typescript": "^5.9.3",
     "vitest": "^4.1.12"
+  },
+  "resolutions": {
+    "@napi-rs/canvas": "1.0.11"
   }
 }

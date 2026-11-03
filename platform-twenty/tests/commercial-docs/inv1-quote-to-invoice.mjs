@@ -67,6 +67,9 @@ const issued = await waitFor('issued invoice', async () => {
 assert('issuing numbers the invoice, sets dates and stores the PDF', issued.invoiceNumber === expectedInvoiceNumber && issued.status === 'ISSUED' && issued.pdf?.length === 1 && Boolean(issued.dueDate),
   `${issued.invoiceNumber} ${issued.template} issued ${issued.issueDate} tax point ${issued.supplyDate} due ${issued.dueDate} total £${pounds(issued.total)} ${issued.complianceIssues ?? ''}`);
 
+// The PDF is filed on the client card just after it is stored on the invoice.
+const attachmentNames = (filter, id) => gql(`query($id: UUID!) { attachments(filter: { ${filter}: { eq: $id } }) { edges { node { name } } } }`, { id }).then((data) => data.attachments.edges.map((edge) => edge.node.name));
+await waitFor('invoice PDF on the client card', async () => (await attachmentNames('targetPersonId', createPerson.id)).includes(`Invoice ${expectedInvoiceNumber}.pdf`), 30000).catch(() => null);
 const companyAttachments = (await gql(`query($id: UUID!) { attachments(filter: { targetCompanyId: { eq: $id } }) { edges { node { name } } } }`, { id: createCompany.id })).attachments.edges.map((edge) => edge.node.name);
 const personAttachments = (await gql(`query($id: UUID!) { attachments(filter: { targetPersonId: { eq: $id } }) { edges { node { name } } } }`, { id: createPerson.id })).attachments.edges.map((edge) => edge.node.name);
 assert('quote and invoice PDFs are on the client company card', companyAttachments.includes(`Quote ${expectedQuoteNumber}.pdf`) && companyAttachments.includes(`Invoice ${expectedInvoiceNumber}.pdf`), companyAttachments.join(', '));

@@ -74,6 +74,40 @@ export const DELIVERY_STATUSES = {
 
 export type DeliveryStatus = keyof typeof DELIVERY_STATUSES;
 
+export const TEMPLATE_DOCUMENT_TYPES = {
+  AUTO: { label: 'Detect from file', color: 'gray' },
+  ANY: { label: 'Any document', color: 'gray' },
+  INVOICE: { label: 'Invoice', color: 'blue' },
+  CREDIT_NOTE: { label: 'Credit note', color: 'orange' },
+  QUOTE: { label: 'Quote', color: 'purple' },
+} as const;
+
+export type TemplateDocumentType = keyof typeof TEMPLATE_DOCUMENT_TYPES;
+
+export const TEMPLATE_VAT_SCHEMES = {
+  AUTO: { label: 'Detect from file', color: 'gray' },
+  ANY: { label: 'Any', color: 'gray' },
+  VAT: { label: 'VAT registered', color: 'blue' },
+  NON_VAT: { label: 'Not VAT registered', color: 'green' },
+  REVERSE_CHARGE: { label: 'Domestic reverse charge', color: 'orange' },
+} as const;
+
+export type TemplateVatScheme = keyof typeof TEMPLATE_VAT_SCHEMES;
+
+export const TEMPLATE_FORMATS = {
+  DOCX_MERGE: 'Word document with merge tags',
+  PDF_FORM: 'Fillable PDF form',
+  PDF_LETTERHEAD: 'PDF letterhead (our layout on top)',
+} as const;
+
+export type TemplateFormat = keyof typeof TEMPLATE_FORMATS;
+
+export const TEMPLATE_STATUSES = {
+  CHECKING: { label: 'Checking', color: 'gray' },
+  READY: { label: 'Ready', color: 'green' },
+  NEEDS_ATTENTION: { label: 'Needs attention', color: 'red' },
+} as const;
+
 export const LEGAL_STRUCTURES = {
   SOLE_TRADER: 'Sole trader',
   PARTNERSHIP: 'Partnership',

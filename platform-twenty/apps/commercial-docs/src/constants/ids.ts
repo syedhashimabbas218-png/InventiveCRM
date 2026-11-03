@@ -58,6 +58,7 @@ export const IDS = {
   quote: {
     object: 'a394d22b-8984-411f-920a-4b5d7529e52f',
     fields: {
+      layoutUsed: 'dcc570f8-766d-49b4-b68c-905442466c53',
       deliveries: '8bf3ebd0-b9b1-4268-b8f9-3b80fdfc3f7d',
       lastSentAt: '04258009-c439-490a-82ac-c983d0ee5760',
       name: '48a4abf9-464d-48fb-8141-76d31296df20',
@@ -99,6 +100,7 @@ export const IDS = {
   invoice: {
     object: '816f5c16-1688-40df-992b-370130ca3e7b',
     fields: {
+      layoutUsed: '03a87c0a-955b-4ce1-8c33-dda27879cef7',
       deliveries: '8eca2bfe-3963-432b-970e-972ba32573af',
       lastSentAt: '5dd5a4db-7d17-49d7-9473-14dc3b48c415',
       name: 'cd2a757d-908b-401e-b087-64e670be959d',
@@ -168,8 +170,29 @@ export const IDS = {
       quote: 'b6ee074f-f485-49d5-b5e7-b809f720e5c7',
     },
   },
+  documentTemplate: {
+    object: '77198dd7-97ea-46bf-b314-0be81f049d4e',
+    fields: {
+      name: '217a21ef-ca18-4eb5-bd0f-801112e3a03c',
+      file: '969aaa74-698d-4a4c-88c2-11591316ccdb',
+      documentType: '72737b14-2d36-4bba-9e53-023476b085bc',
+      vatScheme: 'c32fbb9e-926e-47f4-a32d-e00eb1e33365',
+      format: 'cc63801b-da78-45af-946c-3e6b9e8bfb1b',
+      status: '2b226441-f856-4f64-81b2-67804fe64f44',
+      isActive: 'd8eabe7e-4269-4d02-b9f4-53a45d0a86a0',
+      priority: '8af1c9f1-2c0b-4914-bb7a-06da582c4d0d',
+      company: '0841421c-01ff-46f0-864f-26fb0650948d',
+      headerHeightMm: '4bcfd6be-85e4-44a7-8be4-e98900b83901',
+      footerHeightMm: '2f39f0b4-57ae-4e4a-a14d-a92012fb9ce6',
+      lineRows: 'd0681672-4742-4d1f-b9dd-77b5310b56e3',
+      checkReport: '64bfac17-a529-4a97-afd2-230097f5c88f',
+      readBy: '6636209f-b236-4146-86f6-a8b3d14f7e59',
+      checkedAt: '4c3c0218-b3cf-4e35-88eb-04a106c47895',
+    },
+  },
   companyExtension: {
     fields: {
+      documentTemplates: 'd231e665-a1bf-477e-a4f4-1983686ce7fa',
       vatNumber: '8f1fbabb-5a5b-4c5f-afc6-d711f4b8dedf',
       companyRegistrationNumber: '59b0c245-a80c-49bd-91cd-0801b9fee7a9',
       quotes: '1c93340c-ae2a-4ee4-a4a1-a6af525a77de',
@@ -195,12 +218,14 @@ export const IDS = {
     quotes: '1f7d5655-6a33-44bf-b02e-d21864fc729b',
     products: '056c897f-0529-4744-bc99-0bdbde5fe4d0',
     businessProfiles: '7132f381-de41-471c-a00f-f7f76c47f8d7',
+    documentTemplates: 'b8b1c05f-ed96-445f-b61a-1b9891f615e3',
   },
   navigation: {
     invoices: 'e44cd6a2-b1a1-4aff-a757-b35bd5787af3',
     quotes: '84df390a-8e11-417b-baf3-f51cbd8cc899',
     products: '45b801a2-3833-47ba-b383-7828b87fea43',
     businessProfiles: 'fc437bce-69a4-44b4-a777-d28bcdc90473',
+    documentTemplates: 'ed10d885-21e5-42de-9f99-27604481d805',
   },
   logicFunctions: {
     recalculateQuoteLine: '597e1815-4947-4966-8b8c-70b97003603c',
@@ -211,5 +236,7 @@ export const IDS = {
     sendDocumentTool: 'd4e537d3-4e48-4a3f-af06-3ea264af714d',
     whatsappStatus: 'ddb2e03d-87b5-4b91-b2b9-6e61c769b237',
     issueDocumentTool: '3c4fc4ab-102d-44a3-af5a-e1a3162f5bb3',
+    checkNewDocumentTemplate: '570d0f8a-e5f2-4336-9f89-a09529a79c09',
+    checkDocumentTemplate: '1cc2c765-967b-4ac6-87ba-6b2111566103',
   },
 } as const;

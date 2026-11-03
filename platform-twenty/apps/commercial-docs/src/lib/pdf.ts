@@ -26,6 +26,8 @@ export type PdfModel = {
   notes: string | null;
   paymentLines: string[];
   footerLines: string[];
+  // Named values for customer templates (merge tags); the layout above is built from the same values.
+  values: Record<string, string>;
 };
 
 const PAGE = { width: 595.28, height: 841.89, margin: 48 };
@@ -34,7 +36,7 @@ const MUTED = rgb(0.42, 0.42, 0.46);
 const RULE = rgb(0.85, 0.85, 0.87);
 
 // Standard PDF fonts use WinAnsi encoding: map characters it cannot encode to safe equivalents.
-const sanitise = (text: string) =>
+export const sanitise = (text: string) =>
   text
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
@@ -58,20 +60,40 @@ const wrap = (text: string, font: PDFFont, size: number, width: number): string[
   return result;
 };
 
-export const renderPdf = async (model: PdfModel): Promise<Uint8Array> => {
+export const formatQuantity = (quantity: number, unit: string | null) => {
+  const value = Number.isInteger(quantity) ? String(quantity) : quantity.toFixed(2);
+  return unit ? `${value} ${unit}` : value;
+};
+
+export type Letterhead = { bytes: Uint8Array; headerHeightMm: number; footerHeightMm: number };
+
+const millimetres = (value: number) => (value / 25.4) * 72;
+
+export const renderPdf = async (model: PdfModel, letterhead?: Letterhead): Promise<Uint8Array> => {
   const document = await PDFDocument.create();
   document.setTitle(`${model.title} ${model.number}`);
   const regular = await document.embedFont(StandardFonts.Helvetica);
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
+  const [background] = letterhead ? await document.embedPdf(letterhead.bytes, [0]) : [];
+  // Text is drawn from its baseline, so on a letterhead the first line starts a title's height below the header.
+  const top = letterhead ? PAGE.height - millimetres(letterhead.headerHeightMm) - 20 : PAGE.height - PAGE.margin;
+  const footerBase = letterhead ? millimetres(letterhead.footerHeightMm) + 30 : PAGE.margin;
+  const contentBottom = letterhead ? footerBase + 40 + model.footerLines.length * 10 : PAGE.margin + 40;
 
-  let page: PDFPage = document.addPage([PAGE.width, PAGE.height]);
-  let y = PAGE.height - PAGE.margin;
+  const addPage = () => {
+    const added = document.addPage([PAGE.width, PAGE.height]);
+    if (background) added.drawPage(background, { x: 0, y: 0, width: PAGE.width, height: PAGE.height });
+    return added;
+  };
+
+  let page: PDFPage = addPage();
+  let y = top;
   const contentWidth = PAGE.width - PAGE.margin * 2;
 
   const newPageIfNeeded = (height: number) => {
-    if (y - height < PAGE.margin + 40) {
-      page = document.addPage([PAGE.width, PAGE.height]);
-      y = PAGE.height - PAGE.margin;
+    if (y - height < contentBottom) {
+      page = addPage();
+      y = top;
     }
   };
 
@@ -87,7 +109,7 @@ export const renderPdf = async (model: PdfModel): Promise<Uint8Array> => {
   text(model.title, PAGE.margin, { font: bold, size: 20 });
   y -= 18;
   text(model.number, PAGE.margin, { size: 11, color: MUTED });
-  let sellerY = PAGE.height - PAGE.margin;
+  let sellerY = top;
   for (const [index, line] of model.sellerLines.entries()) {
     page.drawText(sanitise(line), {
       x: PAGE.width - PAGE.margin - (index === 0 ? bold : regular).widthOfTextAtSize(sanitise(line), index === 0 ? 11 : 9),
@@ -143,8 +165,7 @@ export const renderPdf = async (model: PdfModel): Promise<Uint8Array> => {
     }
     const rowBottom = y;
     y = rowTop;
-    const quantity = Number.isInteger(line.quantity) ? String(line.quantity) : line.quantity.toFixed(2);
-    text(line.unit ? `${quantity} ${line.unit}` : quantity, 0, { alignRight: columns.quantity });
+    text(formatQuantity(line.quantity, line.unit), 0, { alignRight: columns.quantity });
     text(formatGbp(line.unitPricePence), 0, { alignRight: columns.unitPrice });
     if (model.showVatColumn && line.vatLabel) text(line.vatLabel, 0, { alignRight: columns.vat, size: 8.5 });
     text(formatGbp(line.netPence), 0, { alignRight: columns.amount - 4 });
@@ -191,7 +212,7 @@ export const renderPdf = async (model: PdfModel): Promise<Uint8Array> => {
   // Statutory footer on every page.
   const pages = document.getPages();
   pages.forEach((footerPage, index) => {
-    let footerY = PAGE.margin - 10 + (model.footerLines.length - 1) * 10;
+    let footerY = footerBase - 10 + (model.footerLines.length - 1) * 10;
     for (const line of model.footerLines) {
       const safe = sanitise(line);
       const size = 7.5;
@@ -207,7 +228,7 @@ export const renderPdf = async (model: PdfModel): Promise<Uint8Array> => {
     const pageLabel = `Page ${index + 1} of ${pages.length}`;
     footerPage.drawText(pageLabel, {
       x: PAGE.width - PAGE.margin - regular.widthOfTextAtSize(pageLabel, 7.5),
-      y: PAGE.margin - 26,
+      y: footerBase - 26,
       size: 7.5,
       font: regular,
       color: MUTED,

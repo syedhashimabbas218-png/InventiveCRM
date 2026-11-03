@@ -38,6 +38,19 @@ const sellerLines = (profile: BusinessProfile, { showVat }: { showVat: boolean }
   ];
 };
 
+const partyValues = (profile: BusinessProfile, customer: Customer, showVat: boolean) => ({
+  sellerName: profile.legalName ?? '',
+  sellerTradingName: profile.tradingName || profile.legalName || '',
+  sellerAddress: formatAddress(profile.businessAddress).join('\n'),
+  sellerVatNumber: showVat && profile.vatNumber ? formatVatNumber(profile.vatNumber) : '',
+  sellerEmail: profile.email ?? '',
+  sellerPhone: profile.phone ?? '',
+  sellerWebsite: profile.website ?? '',
+  customerName: customer.name,
+  customerAddress: formatAddress(customer.address).join('\n'),
+  customerVatNumber: customer.vatNumber ? formatVatNumber(customer.vatNumber) : '',
+});
+
 const footerLines = (profile: BusinessProfile) => {
   const lines: string[] = [];
   const isCompany = profile.legalStructure === 'LIMITED_COMPANY' || profile.legalStructure === 'LLP';
@@ -162,6 +175,20 @@ export const buildInvoicePdfModel = ({
     notes,
     paymentLines: isCreditNote ? [] : paymentLines(profile, number, dueDate),
     footerLines: footerLines(profile),
+    values: {
+      ...partyValues(profile, customer, showVat),
+      documentTitle: title,
+      documentNumber: number,
+      issueDate: formatUkDate(issueDate),
+      supplyDate: showVat ? formatUkDate(supplyDate) : '',
+      dueDate: isCreditNote ? '' : formatUkDate(dueDate),
+      validUntil: '',
+      purchaseOrderNumber: purchaseOrderNumber ?? '',
+      quoteNumber: quoteNumber ?? '',
+      creditedInvoiceNumber: creditedInvoiceNumber ?? '',
+      subtotal: formatGbp(totals.subtotalPence),
+      vatTotal: showVat ? formatGbp(totals.vatPence) : '',
+    },
   };
 };
 
@@ -216,5 +243,19 @@ export const buildQuotePdfModel = ({
     notes: [notes, terms].filter(Boolean).join('\n\n') || null,
     paymentLines: [],
     footerLines: footerLines(profile),
+    values: {
+      ...partyValues(profile, customer, showVat),
+      documentTitle: 'QUOTATION',
+      documentNumber: number,
+      issueDate: formatUkDate(issueDate),
+      supplyDate: '',
+      dueDate: '',
+      validUntil: formatUkDate(validUntil),
+      purchaseOrderNumber: '',
+      quoteNumber: number,
+      creditedInvoiceNumber: '',
+      subtotal: formatGbp(totals.subtotalPence),
+      vatTotal: showVat ? formatGbp(totals.vatPence) : '',
+    },
   };
 };

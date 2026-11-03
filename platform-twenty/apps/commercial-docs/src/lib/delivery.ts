@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
 
 import { type DeliveryChannel, type DeliveryStatus } from 'src/constants/enums';
-import { gql, metadata, nodes } from 'src/lib/api';
+import { downloadFile, gql, metadata, nodes } from 'src/lib/api';
 import { type BusinessProfile } from 'src/lib/compliance';
 import { formatUkDate } from 'src/lib/dates';
 import { formatGbp, microsToPence } from 'src/lib/money';
@@ -160,12 +160,6 @@ export const updateDelivery = async (id: string, status: DeliveryStatus, extra: 
   });
 };
 
-const downloadPdf = async (url: string) => {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Could not read the PDF (${response.status})`);
-  return Buffer.from(await response.arrayBuffer());
-};
-
 const sendFromOurServer = async (document: SendableDocument, profile: BusinessProfile, to: string, email: ReturnType<typeof buildEmail>) => {
   const { SMTP_HOST, SMTP_PORT, SMTP_SECURITY, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_ADDRESS } = process.env;
   if (!SMTP_HOST || !SMTP_FROM_ADDRESS) throw new Error('The InventiveCRM mail server is not configured (SMTP_HOST and SMTP_FROM_ADDRESS).');
@@ -184,7 +178,7 @@ const sendFromOurServer = async (document: SendableDocument, profile: BusinessPr
     subject: email.subject,
     text: email.text,
     html: email.html,
-    attachments: document.pdf ? [{ filename: document.pdf.label, content: await downloadPdf(document.pdf.url), contentType: 'application/pdf' }] : [],
+    attachments: document.pdf ? [{ filename: document.pdf.label, content: Buffer.from(await downloadFile(document.pdf.url)), contentType: 'application/pdf' }] : [],
   });
   return { method: 'InventiveCRM mail server', providerMessageId: info.messageId };
 };

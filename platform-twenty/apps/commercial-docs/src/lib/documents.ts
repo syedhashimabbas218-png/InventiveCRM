@@ -5,8 +5,14 @@ import { type Address, type BusinessProfile, type Customer, checkInvoice, checkQ
 import { addDays, nextRecurrenceDate, todayInLondon } from 'src/lib/dates';
 import { computeLineNetPence, computeTotals, computeVatPence, gbp, microsToPence } from 'src/lib/money';
 import { deliverDocument } from 'src/lib/delivery';
-import { renderPdf } from 'src/lib/pdf';
+import { renderDocumentPdf } from 'src/lib/document-layout';
 import { buildInvoicePdfModel, buildQuotePdfModel, type TemplateLine } from 'src/lib/templates';
+
+const VAT_SCHEME_OF_TEMPLATE = {
+  UK_VAT_INVOICE: 'VAT',
+  UK_NON_VAT_INVOICE: 'NON_VAT',
+  UK_REVERSE_CHARGE_INVOICE: 'REVERSE_CHARGE',
+} as const satisfies Record<InvoiceTemplate, string>;
 
 const ATTACHMENT_FILE_FIELD_UNIVERSAL_IDENTIFIER = '20202020-15db-460e-8166-c7b5d87ad4be';
 
@@ -331,7 +337,8 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
     reverseCharge: template === 'UK_REVERSE_CHARGE_INVOICE',
   });
 
-  const bytes = await renderPdf(
+  const companyId = invoice.companyId ?? invoice.person?.company?.id ?? null;
+  const { bytes, layoutUsed } = await renderDocumentPdf(
     buildInvoicePdfModel({
       profile,
       template,
@@ -348,10 +355,10 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
       lines: lines.map(toTemplateLine),
       totals,
     }),
+    { documentType: kind, vatScheme: VAT_SCHEME_OF_TEMPLATE[template], companyId },
   );
   const filename = `${kind === 'CREDIT_NOTE' ? 'Credit note' : 'Invoice'} ${number}.pdf`;
   const invoiceFile = await uploadFile({ bytes, filename, fieldUniversalIdentifier: IDS.invoice.fields.pdf });
-  const companyId = invoice.companyId ?? invoice.person?.company?.id ?? null;
 
   await updateInvoice(invoiceId, {
     invoiceNumber: number,
@@ -365,6 +372,7 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
     vatTotal: gbp(totals.vatPence),
     total: gbp(totals.totalPence),
     pdf: [{ fileId: invoiceFile.id, label: filename }],
+    layoutUsed,
     complianceIssues: '',
     issuedAt: new Date().toISOString(),
   });
@@ -453,7 +461,8 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
   const reserved = quote.quoteNumber ? null : await peekNumber(profile, 'QUOTE');
   const number = quote.quoteNumber || reserved?.number || '';
   const totals = quoteTotals(quote, profile);
-  const bytes = await renderPdf(
+  const quoteCompanyId = quote.companyId ?? quote.person?.company?.id ?? null;
+  const { bytes, layoutUsed } = await renderDocumentPdf(
     buildQuotePdfModel({
       profile,
       number,
@@ -466,6 +475,7 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
       lines: lines.map((line) => ({ ...toTemplateLine(line), vatRate: profile.vatRegistered ? toTemplateLine(line).vatRate : 'NO_VAT' })),
       totals,
     }),
+    { documentType: 'QUOTE', vatScheme: profile.vatRegistered ? 'VAT' : 'NON_VAT', companyId: quoteCompanyId },
   );
   const filename = `Quote ${number}.pdf`;
   const quoteFile = await uploadFile({ bytes, filename, fieldUniversalIdentifier: IDS.quote.fields.pdf });
@@ -478,6 +488,7 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
     vatTotal: gbp(totals.vatPence),
     total: gbp(totals.totalPence),
     pdf: [{ fileId: quoteFile.id, label: filename }],
+    layoutUsed,
     complianceIssues: '',
     sentAt: new Date().toISOString(),
   });
@@ -485,7 +496,7 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
   await attachToClientCard({
     bytes,
     filename,
-    companyId: quote.companyId ?? quote.person?.company?.id ?? null,
+    companyId: quoteCompanyId,
     personId: quote.personId,
   });
   await sendAfterIssue('quote', quoteId, profile);

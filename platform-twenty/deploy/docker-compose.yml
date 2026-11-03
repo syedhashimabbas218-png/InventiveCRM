@@ -83,6 +83,12 @@ services:
       - mail-spool:/var/spool/postfix
     restart: always
 
+  # Turns filled Word templates into PDFs (LibreOffice). No AI, no outside calls; reachable only inside the stack.
+  docs:
+    image: gotenberg/gotenberg:8.38.1-libreoffice
+    command: ["gotenberg", "--api-timeout=60s", "--libreoffice-restart-after=50", "--log-level=warn"]
+    restart: always
+
 volumes:
   db-data:
   server-local-data:

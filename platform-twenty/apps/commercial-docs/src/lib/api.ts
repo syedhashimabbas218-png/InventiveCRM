@@ -70,3 +70,9 @@ export const uploadFile = async ({
 
 export const metadata = <TData>(query: string, variables?: Record<string, unknown>) =>
   request<TData>('metadata', query, variables);
+
+export const downloadFile = async (url: string) => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  if (!response.ok) throw new Error(`Could not read the file (${response.status})`);
+  return new Uint8Array(await response.arrayBuffer());
+};
