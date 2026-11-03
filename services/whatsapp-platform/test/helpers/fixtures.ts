@@ -21,7 +21,7 @@ const createCredential = async (owner: Database, tenantId: string, label: string
   const token = `wa_${randomBytes(24).toString('hex')}`;
   await owner.query(
     'INSERT INTO api_credentials (id, tenant_id, token_sha256, label, actor_types) VALUES ($1, $2, $3, $4, $5)',
-    [newId('wac').replace('wac_', 'cred_'), tenantId, hashApiToken(token), label, actorTypes],
+    [newId('cred'), tenantId, hashApiToken(token), label, actorTypes],
   );
   return token;
 };
