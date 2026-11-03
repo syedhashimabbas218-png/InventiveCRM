@@ -14,7 +14,8 @@ UK quotes, VAT invoices, credit notes and recurring billing for InventiveCRM wor
 | Recurring invoices | Tick Recurring, choose weekly, monthly, quarterly or yearly, every N periods, a first date and an optional end date. A daily job creates each repeat and issues it, so its PDF lands on the client card too |
 | Daily job | Creates due repeats, marks unpaid invoices past their due date Overdue and expires out-of-date quotes. Also callable at `POST /s/billing/daily-run` |
 | Paid | Setting the status to Paid records the payment date and amount |
-| AI and workflows | The `issue-document` function is an AI tool (MCP `app_issue-document`) and a workflow action, so an assistant or a workflow can issue invoices and send quotes |
+| Sending | Issued invoices and sent quotes go to the contact with the PDF, by email, WhatsApp or both (the contact's **Send documents by** field). Each attempt is a **Delivery** on the document with its status. Overdue reminders are optional |
+| AI and workflows | `issue-document` (MCP `app_issue-document`) issues invoices and quotes; `send-document` (MCP `app_send-document`, also `POST /s/documents/send`) sends or re-sends one, or sends a reminder. Both are workflow actions too |
 
 All money is calculated in integer pence. VAT is worked out per rate on the summed net amounts (HMRC allows invoice-level calculation), rounded to the nearest penny or down, as set in the Business profile.
 
@@ -43,13 +44,41 @@ Checked before a document is issued, and printed on it:
 
 Confirm the numbering scheme and the VAT rounding choice with the client's accountant.
 
+## Sending
+
+Business profile settings: **Send documents when issued**, **Send overdue reminders**, **Send emails from** (our mail server or the business's own mailbox), **Business mailbox address** and an optional **Email message**.
+
+| Send email from | How it works |
+|---|---|
+| InventiveCRM mail server (default) | Our Postfix server (`mail` in `deploy/docker-compose.yml`) sends from `SMTP_FROM_ADDRESS` with the business name as sender and the business email as reply-to |
+| Business's own connected mailbox | The mailbox connected in Settings > Accounts (Google, Microsoft or IMAP/SMTP) sends it, so it appears in their Sent folder. It must belong to, or be shared with, the person who issues. Automatic sends with nobody signed in (recurring invoices, reminders, API calls) go through our server instead, and the Delivery says so |
+
+WhatsApp needs a mobile number and **Agreed to WhatsApp messages** on the contact (UK GDPR and Meta both require consent). The app does not talk to Meta: it hands the document to our WhatsApp (WABA) service, which owns the templates and numbers. The contract is in [WHATSAPP_HANDOFF.md](WHATSAPP_HANDOFF.md).
+
+Instance-wide settings are server variables, set once by the owner workspace (values stay on the server):
+
+```bash
+node ../../scripts/set-app-variables.mjs --server https://crm.inventiveweb.studio --key-file owner.key --env-file app-variables.env
+```
+
+```
+SMTP_HOST=mail
+SMTP_PORT=587
+SMTP_SECURITY=NONE
+SMTP_FROM_ADDRESS=invoices@inventiveweb.studio
+WHATSAPP_GATEWAY_URL=https://wa.inventiveweb.studio/messages
+WHATSAPP_GATEWAY_SECRET=<openssl rand -hex 32, shared with the WhatsApp service>
+```
+
+`SMTP_SECURITY` is `TLS`, `STARTTLS` or `NONE` (only inside the private Docker network). `SMTP_USERNAME` and `SMTP_PASSWORD` are optional.
+
 ## Not included yet
 
-Sending documents by email or WhatsApp, payment links, accounting exports (Xero, QuickBooks, FreeAgent), e-signature, stock, multi-currency.
+Payment links, accounting exports (Xero, QuickBooks, FreeAgent), e-signature, stock, multi-currency.
 
 ## Install
 
-Logic functions must be enabled on the server (`LOGIC_FUNCTION_TYPE=LOCAL`). The app needs the `UPLOAD_FILE` permission, which its role declares.
+Logic functions must be enabled on the server (`LOGIC_FUNCTION_TYPE=LOCAL`). The app needs the `UPLOAD_FILE` and `SEND_EMAIL_TOOL` permissions, which its role declares.
 
 From an owner workspace (ours), build and publish privately to the server:
 

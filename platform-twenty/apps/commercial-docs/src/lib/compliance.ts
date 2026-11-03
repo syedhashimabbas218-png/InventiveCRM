@@ -42,6 +42,11 @@ export type BusinessProfile = {
   paymentInstructions: string | null;
   invoiceFooter: string | null;
   includeLatePaymentNotice: boolean | null;
+  sendOnIssue: boolean | null;
+  sendOverdueReminders: boolean | null;
+  emailSendingMethod: 'OUR_SERVER' | 'CLIENT_MAILBOX' | null;
+  clientMailbox: string | null;
+  emailMessage: string | null;
 };
 
 export type Customer = { name: string; address: Address | null; vatNumber: string | null; email: string | null };

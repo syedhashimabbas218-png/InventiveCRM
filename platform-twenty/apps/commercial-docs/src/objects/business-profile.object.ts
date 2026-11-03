@@ -1,6 +1,6 @@
 import { defineObject } from 'twenty-sdk/define';
 
-import { LEGAL_STRUCTURES, REGISTERED_IN, VAT_ROUNDING } from 'src/constants/enums';
+import { EMAIL_SENDING_METHODS, LEGAL_STRUCTURES, REGISTERED_IN, VAT_ROUNDING } from 'src/constants/enums';
 import { IDS } from 'src/constants/ids';
 import {
   addressField,
@@ -53,5 +53,10 @@ export default defineObject({
     textField({ universalIdentifier: field.paymentInstructions, name: 'paymentInstructions', label: 'Payment instructions', icon: 'IconCreditCard' }),
     textField({ universalIdentifier: field.invoiceFooter, name: 'invoiceFooter', label: 'Footer text', icon: 'IconAlignLeft' }),
     booleanField({ universalIdentifier: field.includeLatePaymentNotice, name: 'includeLatePaymentNotice', label: 'Show late payment notice', icon: 'IconAlertTriangle' }, true),
+    booleanField({ universalIdentifier: field.sendOnIssue, name: 'sendOnIssue', label: 'Send documents when issued', icon: 'IconSend', description: "Email and/or WhatsApp each issued invoice and sent quote to the client's preferred channel." }, true),
+    booleanField({ universalIdentifier: field.sendOverdueReminders, name: 'sendOverdueReminders', label: 'Send overdue reminders', icon: 'IconBellRinging' }, false),
+    selectField({ universalIdentifier: field.emailSendingMethod, name: 'emailSendingMethod', label: 'Send emails from', icon: 'IconMailForward' }, EMAIL_SENDING_METHODS, 'OUR_SERVER'),
+    textField({ universalIdentifier: field.clientMailbox, name: 'clientMailbox', label: 'Business mailbox address', icon: 'IconMail', description: 'A mailbox connected in Settings > Accounts and shared with the workspace, used when sending from your own mailbox.' }),
+    textField({ universalIdentifier: field.emailMessage, name: 'emailMessage', label: 'Email message', icon: 'IconMessage', description: 'Optional text added to every document email.' }),
   ],
 });

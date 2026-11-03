@@ -67,3 +67,6 @@ export const uploadFile = async ({
   );
   return completeFileUpload;
 };
+
+export const metadata = <TData>(query: string, variables?: Record<string, unknown>) =>
+  request<TData>('metadata', query, variables);

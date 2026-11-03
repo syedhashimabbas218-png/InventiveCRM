@@ -19,4 +19,11 @@ Install the app in both (see `apps/commercial-docs/README.md`), then run, in ord
 | `node inv2-rules.mjs keys/acme.key acme.localhost` | VAT invoice blocked without customer address, domestic reverse charge, credit note voids the original, recurring invoice created and issued once, overdue, paid |
 | `node inv3-non-vat.mjs keys/glow.key` | sole trader not registered for VAT: no VAT charged, non-VAT template, PDF on the client |
 | `node mcp-invoice.mjs` | an AI assistant creates and issues an invoice over MCP |
+| `node inv4-delivery.mjs keys/acme.key http://acme.localhost:3000 gateway.log user.token office@acmeplumbing.test` | email from our server (Mailpit: sender name, reply-to, PDF, DKIM), WhatsApp hand-off and signed delivered/read callbacks, forged callback refused, no WhatsApp consent, client mailbox sent and not connected, automatic-send fallback, overdue reminder |
 | `node setup-verify.mjs` | after `scripts/apply-setup-spec.mjs` with both specs: custom fields save, workflows create tasks, workspaces stay separate |
+
+`inv4-delivery.mjs` needs, on the test host only:
+
+- Postfix from `deploy/docker-compose.yml` relaying to Mailpit (`RELAYHOST=[127.0.0.1]:1025`, Mailpit API on 8025), and the app's server variables pointing at it (`scripts/set-app-variables.mjs`)
+- `mock-whatsapp-gateway.mjs` running with the same `WHATSAPP_GATEWAY_SECRET` and `LOG_FILE=gateway.log`, with `WHATSAPP_GATEWAY_URL=http://127.0.0.1:8090/messages`
+- an IMAP/SMTP test mailbox (GreenMail, API on 8180) connected in Settings > Accounts by the user whose access token is in `user.token`, and `OUTBOUND_HTTP_ALLOWED_INTERNAL_HOSTS=127.0.0.1` on the server so it may reach it

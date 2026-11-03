@@ -35,10 +35,11 @@ branding/
 apps/commercial-docs/  Quotes & Invoices app (UK quotes, VAT invoices, credit notes, recurring billing)
 scripts/
   provision-workspace.mjs  create a client workspace and its admin API key
+  set-app-variables.mjs    set an app's instance-wide settings (mail server, WhatsApp service) from a KEY=value file
   apply-setup-spec.mjs     apply an AI-written setup spec (objects, fields, views, workflows) over MCP
 setup-specs/            example specs written from client prompts
 deploy/
-  docker-compose.yml  server, worker, Postgres and Redis for one multi-tenant instance
+  docker-compose.yml  server, worker, Postgres, Redis and our outgoing mail server (Postfix with DKIM) for one instance
   .env.example        multi-workspace settings; copy to .env and fill in secrets
 .github/workflows/rebrand.yml
 ```
@@ -73,11 +74,12 @@ One instance hosts every client. Each client gets its own workspace at `<subdoma
 2. Copy `deploy/.env.example` to `deploy/.env`, set `IMAGE` to a built tag and fill in the secrets.
 3. Run `docker compose up -d` in `deploy/`. Migrations run when the server starts.
 4. Sign up first: the first account on a fresh instance becomes server admin. With `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS=true`, only server admins can create workspaces; clients join by invitation.
+5. Keep `LOGIC_FUNCTION_TYPE=LOCAL` (already in `.env.example`) so app functions such as invoice PDFs run.
+6. Mail: the `mail` service sends system emails and documents sent "from our server". Before going live, publish SPF, DKIM (printed in the mail container's log on first start), DMARC and a PTR record for each sender domain, or set `MAIL_RELAYHOST` if the host blocks port 25.
 
 ## Tests
 
 `tests/multitenant/run.sh` signs up a server admin, creates two client workspaces, checks that neither can read, change or delete the other's records (including replayed session cookies and cross-origin requests), invites a client and checks they cannot reach the other workspace, create workspaces or open the admin panel, then crawls every settings page for leftover Twenty text, links and logos.
-5. Set `LOGIC_FUNCTION_TYPE=LOCAL` (already in `.env.example`) so app functions such as invoice PDFs run.
 
 ## Onboarding a client
 

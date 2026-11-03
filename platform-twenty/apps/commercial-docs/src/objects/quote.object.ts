@@ -28,6 +28,7 @@ export default defineObject({
     moneyField({ universalIdentifier: field.vatTotal, name: 'vatTotal', label: 'VAT', icon: 'IconReceiptTax' }),
     moneyField({ universalIdentifier: field.total, name: 'total', label: 'Total', icon: 'IconCurrencyPound' }),
     filesField({ universalIdentifier: field.pdf, name: 'pdf', label: 'PDF', icon: 'IconFileTypePdf' }),
+    dateTimeField({ universalIdentifier: field.lastSentAt, name: 'lastSentAt', label: 'Last sent to client', icon: 'IconSend' }),
     textField({ universalIdentifier: field.complianceIssues, name: 'complianceIssues', label: 'Issues to fix', icon: 'IconAlertTriangle' }),
     dateTimeField({ universalIdentifier: field.sentAt, name: 'sentAt', label: 'Sent at', icon: 'IconSend' }),
   ],

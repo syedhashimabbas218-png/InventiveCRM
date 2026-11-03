@@ -13,6 +13,6 @@ export default defineApplicationRole({
   canDestroyAllObjectRecords: false,
   canBeAssignedToUsers: false,
   canBeAssignedToApiKeys: false,
-  // Generated PDFs are uploaded to the document and to the client's attachments.
-  permissionFlagUniversalIdentifiers: [SystemPermissionFlag.UPLOAD_FILE],
+  // PDFs are uploaded to the document and the client card, and can be sent from the business's connected mailbox.
+  permissionFlagUniversalIdentifiers: [SystemPermissionFlag.UPLOAD_FILE, SystemPermissionFlag.SEND_EMAIL_TOOL],
 });

@@ -4,6 +4,7 @@ import { gql, nodes, uploadFile } from 'src/lib/api';
 import { type Address, type BusinessProfile, type Customer, checkInvoice, checkQuote } from 'src/lib/compliance';
 import { addDays, nextRecurrenceDate, todayInLondon } from 'src/lib/dates';
 import { computeLineNetPence, computeTotals, computeVatPence, gbp, microsToPence } from 'src/lib/money';
+import { deliverDocument } from 'src/lib/delivery';
 import { renderPdf } from 'src/lib/pdf';
 import { buildInvoicePdfModel, buildQuotePdfModel, type TemplateLine } from 'src/lib/templates';
 
@@ -45,6 +46,7 @@ export const loadProfile = async (): Promise<BusinessProfile | null> => {
       vatRegistered vatNumber email phone website bankName bankAccountName sortCode accountNumber iban bic
       invoicePrefix quotePrefix creditNotePrefix nextInvoiceNumber nextQuoteNumber nextCreditNoteNumber numberPadding
       defaultPaymentTermsDays quoteValidityDays vatRounding paymentInstructions invoiceFooter includeLatePaymentNotice
+      sendOnIssue sendOverdueReminders emailSendingMethod clientMailbox emailMessage
     } } }
   }`);
   return nodes(data.businessProfiles)[0] ?? null;
@@ -279,6 +281,16 @@ const attachToClientCard = async ({
   }
 };
 
+// The document is already issued and filed at this point, so a delivery problem must not undo it.
+const sendAfterIssue = async (kind: 'invoice' | 'quote', id: string, profile: BusinessProfile) => {
+  if (profile.sendOnIssue === false) return;
+  try {
+    await deliverDocument({ kind, id, profile });
+  } catch (error) {
+    console.error(`Could not send ${kind} ${id}: ${(error as Error).message}`);
+  }
+};
+
 // Runs when an invoice moves to Issued: checks UK requirements, numbers it, freezes totals,
 // renders the PDF and files it on the invoice and on the client's company and contact records.
 export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean; issues: string[]; number?: string }> => {
@@ -363,6 +375,7 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
     const creditedTotal = microsToPence(invoice.creditedInvoice.total?.amountMicros);
     if (creditedTotal > 0 && totals.totalPence >= creditedTotal) await updateInvoice(invoice.creditedInvoice.id, { status: 'VOID' });
   }
+  await sendAfterIssue('invoice', invoiceId, profile);
   return { issued: true, issues: [], number };
 };
 
@@ -475,6 +488,7 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
     companyId: quote.companyId ?? quote.person?.company?.id ?? null,
     personId: quote.personId,
   });
+  await sendAfterIssue('quote', quoteId, profile);
   return { sent: true, issues: [], number };
 };
 
@@ -583,6 +597,14 @@ export const markOverdueInvoices = async (today: string = todayInLondon()) => {
     `query($today: Date!) { invoices(filter: { status: { in: [ISSUED, PART_PAID] }, kind: { eq: INVOICE }, dueDate: { lt: $today } }, first: 200) { edges { node { id } } } }`,
     { today },
   );
-  for (const invoice of nodes(data.invoices)) await updateInvoice(invoice.id, { status: 'OVERDUE' });
-  return nodes(data.invoices).length;
+  const overdue = nodes(data.invoices);
+  const profile = overdue.length > 0 ? await loadProfile() : null;
+  for (const invoice of overdue) {
+    await updateInvoice(invoice.id, { status: 'OVERDUE' });
+    if (profile?.sendOverdueReminders)
+      await deliverDocument({ kind: 'invoice', id: invoice.id, profile, reminder: true }).catch((error: Error) =>
+        console.error(`Could not send a reminder for invoice ${invoice.id}: ${error.message}`),
+      );
+  }
+  return overdue.length;
 };

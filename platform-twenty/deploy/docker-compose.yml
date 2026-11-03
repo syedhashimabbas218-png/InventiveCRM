@@ -13,6 +13,8 @@ x-app: &app
       condition: service_healthy
     redis:
       condition: service_healthy
+    mail:
+      condition: service_healthy
   restart: always
 
 services:
@@ -63,6 +65,24 @@ services:
       retries: 10
     restart: always
 
+  # Our outgoing mail server: system emails and invoices sent "from our server". Not published outside the stack.
+  mail:
+    image: boky/postfix:v5.1.0-alpine
+    environment:
+      ALLOWED_SENDER_DOMAINS: ${MAIL_SENDER_DOMAINS}
+      POSTFIX_myhostname: ${MAIL_HOSTNAME}
+      DKIM_AUTOGENERATE: "true"
+      RELAYHOST: ${MAIL_RELAYHOST:-}
+      RELAYHOST_USERNAME: ${MAIL_RELAYHOST_USERNAME:-}
+      RELAYHOST_PASSWORD: ${MAIL_RELAYHOST_PASSWORD:-}
+      RELAYHOST_TLS_LEVEL: ${MAIL_RELAYHOST_TLS_LEVEL:-may}
+    volumes:
+      - mail-dkim:/etc/opendkim/keys
+      - mail-spool:/var/spool/postfix
+    restart: always
+
 volumes:
   db-data:
   server-local-data:
+  mail-dkim:
+  mail-spool:

@@ -46,6 +46,34 @@ export const RECURRENCE_FREQUENCIES = {
 
 export type RecurrenceFrequency = keyof typeof RECURRENCE_FREQUENCIES;
 
+export const EMAIL_SENDING_METHODS = {
+  OUR_SERVER: 'InventiveCRM mail server',
+  CLIENT_MAILBOX: "Business's own connected mailbox",
+} as const;
+
+export const DELIVERY_CHANNELS = {
+  EMAIL: { label: 'Email', color: 'blue' },
+  WHATSAPP: { label: 'WhatsApp', color: 'green' },
+} as const;
+
+export type DeliveryChannel = keyof typeof DELIVERY_CHANNELS;
+
+export const PREFERRED_CHANNELS = {
+  EMAIL: 'Email',
+  WHATSAPP: 'WhatsApp',
+  EMAIL_AND_WHATSAPP: 'Email and WhatsApp',
+} as const;
+
+export const DELIVERY_STATUSES = {
+  QUEUED: { label: 'Queued', color: 'gray' },
+  SENT: { label: 'Sent', color: 'blue' },
+  DELIVERED: { label: 'Delivered', color: 'green' },
+  READ: { label: 'Read', color: 'green' },
+  FAILED: { label: 'Failed', color: 'red' },
+} as const;
+
+export type DeliveryStatus = keyof typeof DELIVERY_STATUSES;
+
 export const LEGAL_STRUCTURES = {
   SOLE_TRADER: 'Sole trader',
   PARTNERSHIP: 'Partnership',

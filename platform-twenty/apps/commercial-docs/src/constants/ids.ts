@@ -5,6 +5,11 @@ export const IDS = {
   businessProfile: {
     object: '81f01e05-6024-43c8-b065-9ba676576bc1',
     fields: {
+      emailSendingMethod: 'aa3ff3aa-dc28-4250-ad03-9123b7871018',
+      clientMailbox: 'd229ebc8-6ec7-49a3-9f50-d6ee4ca735df',
+      sendOnIssue: '59d32e89-65ec-4661-a5f6-8786a76643fe',
+      sendOverdueReminders: '8f0f885c-4b4e-4bab-895c-53957ff2982b',
+      emailMessage: '509c820b-25a2-4f3a-addb-8299b810b66e',
       legalName: '842a6471-1b36-4daa-a19c-ef89979f5118',
       tradingName: '6f77e81f-46fb-4248-b8cc-6ccd9bd5a96b',
       legalStructure: '1dfa1150-8cc3-46ba-998d-1d5e310754df',
@@ -53,6 +58,8 @@ export const IDS = {
   quote: {
     object: 'a394d22b-8984-411f-920a-4b5d7529e52f',
     fields: {
+      deliveries: '8bf3ebd0-b9b1-4268-b8f9-3b80fdfc3f7d',
+      lastSentAt: '04258009-c439-490a-82ac-c983d0ee5760',
       name: '48a4abf9-464d-48fb-8141-76d31296df20',
       quoteNumber: 'cd25e9be-0f84-46cb-b201-984f9bc31bbc',
       status: '78df605e-c66e-42f8-a467-5badba807296',
@@ -92,6 +99,8 @@ export const IDS = {
   invoice: {
     object: '816f5c16-1688-40df-992b-370130ca3e7b',
     fields: {
+      deliveries: '8eca2bfe-3963-432b-970e-972ba32573af',
+      lastSentAt: '5dd5a4db-7d17-49d7-9473-14dc3b48c415',
       name: 'cd2a757d-908b-401e-b087-64e670be959d',
       invoiceNumber: 'e2e44f06-c4a5-4369-9ed0-aac19e3f83c9',
       kind: '532b6752-5af5-4d0f-9945-5752dbf2576a',
@@ -143,6 +152,22 @@ export const IDS = {
       product: 'fd026aea-e5af-40d4-ab04-fb464ddf4836',
     },
   },
+  delivery: {
+    object: 'f2d2e11f-1444-498b-8bd6-2c86781b3b5f',
+    fields: {
+      name: 'ab721052-7983-4fb2-af89-51c7c0c13070',
+      channel: 'b0278d0b-a271-495a-a694-42c91df3b85e',
+      method: 'ab7f7f09-ba7a-461f-af53-48b56441a89f',
+      recipient: '44749a57-86a0-4108-9e07-e92cf44bdbe8',
+      status: 'e79c972b-87fa-4629-a1b9-deff531722e1',
+      sentAt: '29a9e08f-0881-4ded-8f99-eb8d11c600d6',
+      statusUpdatedAt: 'b573eba0-5799-4f12-8af8-a179b672bb81',
+      errorMessage: '9846fbf5-97d0-4b9f-9836-82488c9daaee',
+      providerMessageId: '231fa81b-5c98-4eb5-90e3-7c0c26f70ec0',
+      invoice: '611bb750-d27e-4191-9f29-aa3dff3f48bd',
+      quote: 'b6ee074f-f485-49d5-b5e7-b809f720e5c7',
+    },
+  },
   companyExtension: {
     fields: {
       vatNumber: '8f1fbabb-5a5b-4c5f-afc6-d711f4b8dedf',
@@ -153,6 +178,8 @@ export const IDS = {
   },
   personExtension: {
     fields: {
+      preferredChannel: '2b16772e-8a9f-48cc-96d7-5253e99c52ea',
+      whatsappOptIn: '3641aadf-34f1-4a55-a1b7-33d5ac886f09',
       quotes: 'd2a7cb8c-a850-4421-a3e8-e1800e911b35',
       invoices: '4b0a5893-22a1-461d-a2a3-e2af33e6a81c',
     },
@@ -181,6 +208,8 @@ export const IDS = {
     onInvoiceStatusChange: '0bf0850a-e623-4e95-bacf-bd4f64b32118',
     onQuoteStatusChange: '73cd5e38-b688-4396-8fcb-c5836b649ff3',
     dailyBillingRun: 'd1bbdec6-1963-4e15-8e7e-67146d061ecd',
+    sendDocumentTool: 'd4e537d3-4e48-4a3f-af06-3ea264af714d',
+    whatsappStatus: 'ddb2e03d-87b5-4b91-b2b9-6e61c769b237',
     issueDocumentTool: '3c4fc4ab-102d-44a3-af5a-e1a3162f5bb3',
   },
 } as const;
