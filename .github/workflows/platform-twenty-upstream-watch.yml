@@ -1,0 +1,79 @@
+name: platform-twenty upstream watch
+
+# Nothing upgrades on its own. This only tells us when Twenty ships a release and whether our patches still apply.
+on:
+  schedule:
+    - cron: "37 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: platform-twenty
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find the newest upstream release
+        id: tags
+        run: |
+          pinned=$(jq -r .upstreamTag branding/brand.config.json)
+          latest=$(git ls-remote --tags --refs https://github.com/twentyhq/twenty 'refs/tags/twenty/v*' | sed 's#.*refs/tags/##' | sort -V | tail -1)
+          echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if [ "$latest" != "$pinned" ] && [ "$(printf '%s\n%s\n' "$pinned" "$latest" | sort -V | tail -1)" = "$latest" ]; then
+            echo "newer=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.tags.outputs.newer == 'true'
+        with:
+          repository: twentyhq/twenty
+          ref: refs/tags/${{ steps.tags.outputs.latest }}
+          path: platform-twenty/upstream
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.tags.outputs.newer == 'true'
+        with:
+          node-version: 22
+
+      - name: Dry run our branding against it
+        id: dry
+        if: steps.tags.outputs.newer == 'true'
+        run: |
+          if node branding/apply.mjs --upstream ./upstream --config branding/brand.config.json > dry-run.txt 2>&1; then
+            echo "result=Our branding and patches apply cleanly." >> "$GITHUB_OUTPUT"
+          else
+            echo "result=Some branding targets or patches no longer match: fix them before building (see the dry run below)." >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open an issue
+        if: steps.tags.outputs.newer == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.tags.outputs.latest }}
+          PINNED: ${{ steps.tags.outputs.pinned }}
+          RESULT: ${{ steps.dry.outputs.result }}
+        run: |
+          title="Twenty $LATEST is available (we run $PINNED)"
+          if gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length' | grep -qv '^0$'; then
+            exit 0
+          fi
+          {
+            echo "$RESULT"
+            echo
+            echo "Release notes: https://github.com/twentyhq/twenty/releases/tag/$LATEST"
+            echo
+            echo "Follow platform-twenty/UPDATES.md: build, rehearse on staging, then upgrade production."
+            echo
+            echo '```'
+            tail -c 50000 dry-run.txt
+            echo '```'
+          } > body.md
+          gh issue create --title "$title" --body-file body.md

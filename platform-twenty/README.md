@@ -36,12 +36,16 @@ apps/commercial-docs/  Quotes & Invoices app (UK quotes, VAT invoices, credit no
 scripts/
   provision-workspace.mjs  create a client workspace and its admin API key
   set-app-variables.mjs    set an app's instance-wide settings (mail server, WhatsApp service) from a KEY=value file
+  check-app-plan.mjs       blocks an app release that would delete objects or fields (and the client data in them)
   apply-setup-spec.mjs     apply an AI-written setup spec (objects, fields, views, workflows) over MCP
 setup-specs/            example specs written from client prompts
 deploy/
   docker-compose.yml  server, worker, Postgres, Redis and our outgoing mail server (Postfix with DKIM) for one instance
   .env.example        multi-workspace settings; copy to .env and fill in secrets
-.github/workflows/rebrand.yml
+  ops/                backup, verify-backup (restore drill), upgrade (auto-rollback), restore, smoke-test
+  ops.env.example     backup location, retention, offsite copy and smoke-test keys for ops/
+UPDATES.md            update rules: how upgrades, backups and rollback work, and the release checklists
+../.github/workflows/platform-twenty-*.yml   build workflow (manual) and weekly upstream watch, at the repository root where GitHub runs them
 ```
 
 ## Usage
@@ -75,7 +79,10 @@ One instance hosts every client. Each client gets its own workspace at `<subdoma
 3. Run `docker compose up -d` in `deploy/`. Migrations run when the server starts.
 4. Sign up first: the first account on a fresh instance becomes server admin. With `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS=true`, only server admins can create workspaces; clients join by invitation.
 5. Keep `LOGIC_FUNCTION_TYPE=LOCAL` (already in `.env.example`) so app functions such as invoice PDFs run.
-6. Mail: the `mail` service sends system emails and documents sent "from our server". Before going live, publish SPF, DKIM (printed in the mail container's log on first start), DMARC and a PTR record for each sender domain, or set `MAIL_RELAYHOST` if the host blocks port 25.
+6. Copy `deploy/ops.env.example` to `deploy/ops.env`, install the cron lines in `deploy/ops/crontab.example` (nightly backup, monthly restore drill) and set `BACKUP_OFFSITE_COMMAND`. Keep `.env` in the password manager: backups cannot be restored without its `ENCRYPTION_KEY`.
+7. Mail: the `mail` service sends system emails and documents sent "from our server". Before going live, publish SPF, DKIM (printed in the mail container's log on first start), DMARC and a PTR record for each sender domain, or set `MAIL_RELAYHOST` if the host blocks port 25.
+
+Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restore.sh`; read [UPDATES.md](UPDATES.md) first.
 
 ## Tests
 

@@ -27,6 +27,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      # Migrations run before the server listens; a big upgrade can take many minutes.
+      start_period: 20m
 
   worker:
     <<: *app

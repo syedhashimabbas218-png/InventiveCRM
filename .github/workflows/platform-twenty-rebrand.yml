@@ -1,0 +1,114 @@
+name: platform-twenty rebrand and build
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: "Twenty release tag to build, for example twenty/v2.55.0"
+        required: true
+      dry_run:
+        description: "Only check that our branding and patches still apply; build nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: platform-twenty-rebrand
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # The front build needs about 8 GB of heap; use a larger runner if this one runs out of memory.
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: platform-twenty
+    steps:
+      - name: Validate tag
+        id: version
+        env:
+          UPSTREAM_TAG: ${{ inputs.upstream_tag }}
+          RUN_NUMBER: ${{ github.run_number }}
+        working-directory: .
+        run: |
+          if ! [[ "$UPSTREAM_TAG" =~ ^twenty/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "upstream_tag must look like twenty/v2.55.0, got: $UPSTREAM_TAG" >&2
+            exit 1
+          fi
+          echo "semver=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "release=${BASH_REMATCH[1]}-p${RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: twentyhq/twenty
+          ref: refs/tags/${{ inputs.upstream_tag }}
+          path: platform-twenty/upstream
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check branding and patches (dry run)
+        run: node branding/apply.mjs --upstream ./upstream --config branding/brand.config.json --report dry-run-report.json
+
+      - name: Apply branding
+        if: ${{ !inputs.dry_run }}
+        run: node branding/apply.mjs --upstream ./upstream --config branding/brand.config.json --write --version ${{ steps.version.outputs.release }} --report rebrand-report.json
+
+      - name: Leak scan
+        if: ${{ !inputs.dry_run }}
+        run: node branding/leak-scan.mjs --upstream ./upstream --config branding/brand.config.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rebrand-report
+          path: platform-twenty/*-report.json
+
+      - uses: docker/setup-buildx-action@v3
+        if: ${{ !inputs.dry_run }}
+
+      - uses: docker/login-action@v3
+        if: ${{ !inputs.dry_run }}
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        id: image
+        if: ${{ !inputs.dry_run }}
+        with:
+          context: ./platform-twenty/upstream
+          file: ./platform-twenty/upstream/packages/twenty-docker/twenty/Dockerfile
+          target: twenty
+          push: true
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.semver }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/platform-twenty:${{ steps.version.outputs.release }}
+
+      # The in-app source offer links to this release: upstream tag plus this commit's patches reproduce the image.
+      - name: Record the release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ steps.version.outputs.release }}
+          UPSTREAM_TAG: ${{ inputs.upstream_tag }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/platform-twenty
+        run: |
+          gh release create "$RELEASE" rebrand-report.json \
+            --target "$GITHUB_SHA" \
+            --title "InventiveCRM $RELEASE" \
+            --notes "Built from Twenty \`$UPSTREAM_TAG\` with the branding and patches in \`platform-twenty/\` at $GITHUB_SHA.
+
+          Image: \`$IMAGE:$RELEASE\` (\`$DIGEST\`)
+
+          Deploy with \`deploy/ops/upgrade.sh $IMAGE:$RELEASE\` after rehearsing on staging (see platform-twenty/UPDATES.md)."
