@@ -69,6 +69,10 @@ const URL_TARGETS = [
   { file: 'packages/twenty-emails/src/components/Logo.tsx', find: 'https://app.twenty.com/images/icons/windows11/Square150x150Logo.scale-100.png' },
   { file: 'packages/twenty-emails/src/emails/clean-suspended-workspace.email.tsx', find: 'href="https://app.twenty.com/"', replaceWith: 'href="{websiteUrl}"' },
   { file: 'packages/twenty-front/index.html', find: 'https://raw.githubusercontent.com/twentyhq/twenty/main/docs/static/img/social-card.png', replaceWith: '{socialCardUrl}' },
+  // Third-party services run by Twenty that receive company domains; the config decides where they point.
+  { file: 'packages/twenty-shared/src/constants/TwentyIconsBaseUrl.ts', find: "'https://twenty-icons.com'", replaceWith: "'{companyLogoServiceUrl}'" },
+  { file: 'packages/twenty-shared/src/utils/image/getLogoUrlFromDomainName.ts', find: '`https://twenty-icons.com/', replaceWith: '`{companyLogoServiceUrl}/' },
+  { file: 'packages/twenty-shared/src/constants/TwentyCompaniesBaseUrl.ts', find: "'https://twenty-companies.com'", replaceWith: "'{companyEnrichmentServiceUrl}'" },
   { file: 'packages/twenty-shared/src/constants/DocumentationBaseUrl.ts', find: "'https://docs.twenty.com'", replaceWith: "'{documentationUrl}'" },
   { file: 'packages/twenty-front/src/modules/workflow/workflow-steps/workflow-actions/form-action/components/WorkflowEditActionFormBuilder.tsx', find: "'https://docs.twenty.com/", replaceWith: "'{documentationUrl}/" },
 ];
@@ -98,7 +102,7 @@ if (options.write && !options.version) {
 const upstreamDirectory = resolve(options.upstream);
 const config = JSON.parse(readFileSync(options.config, 'utf8'));
 
-for (const key of ['productName', 'shortName', 'companyName', 'websiteUrl', 'documentationUrl', 'termsUrl', 'privacyUrl', 'sourceUrl', 'logoUrl', 'socialCardUrl', 'logoFile', 'iconFile', 'aboutText']) {
+for (const key of ['productName', 'shortName', 'companyName', 'websiteUrl', 'documentationUrl', 'termsUrl', 'privacyUrl', 'sourceUrl', 'logoUrl', 'socialCardUrl', 'companyLogoServiceUrl', 'companyEnrichmentServiceUrl', 'logoFile', 'iconFile', 'aboutText']) {
   if (typeof config[key] !== 'string' || config[key].length === 0) {
     console.error(`brand.config.json: "${key}" is required`);
     process.exit(2);
@@ -299,6 +303,8 @@ try {
             .replace('{websiteUrl}', config.websiteUrl)
             .replace('{documentationUrl}', config.documentationUrl)
             .replace('{socialCardUrl}', config.socialCardUrl)
+            .replace('{companyLogoServiceUrl}', config.companyLogoServiceUrl)
+            .replace('{companyEnrichmentServiceUrl}', config.companyEnrichmentServiceUrl)
         : config.logoUrl;
       let found = false;
       for (let offset = content.indexOf(target.find); offset !== -1; offset = content.indexOf(target.find, offset + 1)) {

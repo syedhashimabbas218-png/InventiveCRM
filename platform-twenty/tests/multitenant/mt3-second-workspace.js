@@ -1,0 +1,23 @@
+const { launch, dump, leaks } = require('./mt-lib');
+(async () => {
+  const browser = await launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  await page.goto('http://app.localhost:3000/welcome?action=create-new-workspace', { waitUntil: 'networkidle' });
+  await page.getByText('Continue with Email').click({ timeout: 15000 }).catch(() => {});
+  await page.getByPlaceholder(/email/i).fill('admin@inventiveweb.test');
+  await page.keyboard.press('Enter');
+  await dump(page, '05a-after-email');
+  await page.getByPlaceholder(/password/i).fill('Admin-Pass-1234!');
+  await page.keyboard.press('Enter');
+  await dump(page, '05-admin-workspace-list');
+  const fields = page.locator('input:visible');
+  await fields.nth(0).fill('Bright Electrical');
+  await fields.nth(1).fill('bright');
+  await page.getByRole('button', { name: /Create workspace/i }).click();
+  for (let wait = 0; wait < 30 && !/bright\.localhost/.test(page.url()); wait++) await page.waitForTimeout(2000);
+  await dump(page, '06-after-second-create', { quiet: true });
+  await context.storageState({ path: 'mt-admin-bright.json' });
+  await browser.close();
+  console.log('LEAKS', JSON.stringify(leaks));
+})().catch((error) => { console.error('FAIL', error.message.split('\n')[0]); process.exit(1); });

@@ -68,3 +68,7 @@ One instance hosts every client. Each client gets its own workspace at `<subdoma
 2. Copy `deploy/.env.example` to `deploy/.env`, set `IMAGE` to a built tag and fill in the secrets.
 3. Run `docker compose up -d` in `deploy/`. Migrations run when the server starts.
 4. Sign up first: the first account on a fresh instance becomes server admin. With `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS=true`, only server admins can create workspaces; clients join by invitation.
+
+## Tests
+
+`tests/multitenant/run.sh` signs up a server admin, creates two client workspaces, checks that neither can read, change or delete the other's records (including replayed session cookies and cross-origin requests), invites a client and checks they cannot reach the other workspace, create workspaces or open the admin panel, then crawls every settings page for leftover Twenty text, links and logos.

@@ -1,0 +1,24 @@
+const { launch, dump, leaks } = require('./mt-lib');
+(async () => {
+  const browser = await launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  await page.goto('http://app.localhost:3000/', { waitUntil: 'networkidle' });
+  await dump(page, '01-app-landing');
+  await page.getByText('Continue with Email').click({ timeout: 15000 }).catch(() => {});
+  await page.getByPlaceholder(/email/i).fill('admin@inventiveweb.test');
+  await page.keyboard.press('Enter');
+  await page.getByPlaceholder(/password/i).fill('Admin-Pass-1234!');
+  await page.keyboard.press('Enter');
+  await dump(page, '02-after-signup');
+  const fields = page.locator('input:visible');
+  console.log('fields', await fields.count());
+  await fields.nth(0).fill('Acme Plumbing');
+  await fields.nth(1).fill('acme');
+  await page.getByRole('button', { name: /Create workspace/i }).click();
+  for (let wait = 0; wait < 60 && /workspace-activation|welcome|create\/workspace/.test(page.url()) && page.url().includes('app.localhost'); wait++) await page.waitForTimeout(2000);
+  await dump(page, '03-after-create');
+  await context.storageState({ path: 'mt-admin.json' });
+  await browser.close();
+  console.log('LEAKS', JSON.stringify(leaks));
+})().catch((error) => { console.error('FAIL', error.message.split('\n')[0]); process.exit(1); });

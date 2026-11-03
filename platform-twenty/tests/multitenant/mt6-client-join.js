@@ -1,0 +1,20 @@
+const { launch, dump, leaks } = require('./mt-lib');
+const link = require('fs').readFileSync('mt-invite-link.txt', 'utf8').trim();
+(async () => {
+  const browser = await launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  await page.goto(link, { waitUntil: 'networkidle' });
+  await dump(page, '07-invite-landing');
+  await page.getByText('Continue with Email').click({ timeout: 15000 }).catch(() => {});
+  const email = page.getByPlaceholder(/email/i);
+  if (await email.isEditable().catch(() => false) && !(await email.inputValue())) await email.fill('client@brightelectrical.test');
+  await page.keyboard.press('Enter');
+  await page.getByPlaceholder(/password/i).fill('Client-Pass-1234!');
+  await page.keyboard.press('Enter');
+  for (let wait = 0; wait < 20 && /invite|welcome/.test(page.url()); wait++) await page.waitForTimeout(1500);
+  await dump(page, '08-client-after-join');
+  await context.storageState({ path: 'mt-client.json' });
+  await browser.close();
+  console.log('LEAKS', JSON.stringify(leaks));
+})().catch((error) => { console.error('FAIL', error.message.split('\n')[0]); process.exit(1); });
