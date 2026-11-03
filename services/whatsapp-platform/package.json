@@ -12,6 +12,7 @@
     "test": "node --import tsx --test --test-concurrency=4 'test/**/*.test.ts'"
   },
   "dependencies": {
+    "fastify": "^5.12.8",
     "pg": "^8.23.1"
   },
   "devDependencies": {

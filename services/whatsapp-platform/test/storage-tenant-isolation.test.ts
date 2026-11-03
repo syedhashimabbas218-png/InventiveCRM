@@ -122,7 +122,12 @@ describe('storage tenant isolation', () => {
       tenantA.phoneNumberId,
     ]);
     assert.deepEqual(result.rows, [
-      { tenant_id: tenantA.tenantId, whatsapp_account_id: tenantA.whatsappAccountId, connection_route: 'B' },
+      {
+        tenant_id: tenantA.tenantId,
+        whatsapp_account_id: tenantA.whatsappAccountId,
+        waba_id: tenantA.wabaId,
+        connection_route: 'B',
+      },
     ]);
   });
 
