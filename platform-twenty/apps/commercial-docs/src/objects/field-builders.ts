@@ -19,7 +19,11 @@ export const dateField = (base: Base) => ({ ...base, type: FieldType.DATE as con
 
 export const dateTimeField = (base: Base) => ({ ...base, type: FieldType.DATE_TIME as const });
 
-export const moneyField = (base: Base) => ({ ...base, type: FieldType.CURRENCY as const });
+export const moneyField = (base: Base) => ({
+  ...base,
+  type: FieldType.CURRENCY as const,
+  universalSettings: { format: 'full' as const, decimals: 2 },
+});
 
 export const addressField = (base: Base) => ({ ...base, type: FieldType.ADDRESS as const });
 
