@@ -1,0 +1,27 @@
+{
+  "name": "inventivecrm-commercial-docs",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "InventiveCRM Quotes & Invoices: UK quotes, VAT invoices, credit notes and recurring billing for Twenty",
+  "engines": {
+    "node": "^24.5.0 || ^26.5.1",
+    "yarn": ">=4.0.2"
+  },
+  "packageManager": "yarn@4.18.1",
+  "scripts": {
+    "twenty": "twenty",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "pdf-lib": "1.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "twenty-client-sdk": "2.55.0",
+    "twenty-sdk": "2.55.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}
