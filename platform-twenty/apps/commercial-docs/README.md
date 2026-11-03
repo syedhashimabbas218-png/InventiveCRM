@@ -104,7 +104,9 @@ printf '%s' "$CLIENT_API_KEY" | npx twenty@2.54.3 auth login --with-token --url 
 npx twenty@2.54.3 app install --universal-identifier 93ae1d55-5c54-4fac-922b-fd9fa4a69ab5 --remote client
 ```
 
-Bump `version` in `package.json` for every publish; installed workspaces with auto-upgrade switch over on their own.
+Bump `version` in `package.json` for every publish. Private installs do not auto-upgrade: run `app install` again in each workspace to move it to the new version.
+
+Never remove an object or field from the app: on upgrade the server deletes whatever the new version no longer declares, with its data, in every workspace. Add fields, or stop using old ones.
 
 ## Develop
 
