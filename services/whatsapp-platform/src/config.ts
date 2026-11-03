@@ -6,6 +6,8 @@ export type Config = {
   graphApiBaseUrl: string;
   graphApiVersion: string;
   debounceSeconds: number;
+  mcpAllowedOrigins: string[];
+  allowInsecureSubscriptionUrls: boolean;
 };
 
 const required = (environment: NodeJS.ProcessEnv, name: string): string => {
@@ -22,4 +24,6 @@ export const loadConfig = (environment: NodeJS.ProcessEnv): Config => ({
   graphApiBaseUrl: required(environment, 'GRAPH_API_BASE_URL'),
   graphApiVersion: environment.GRAPH_API_VERSION ?? 'v26.0',
   debounceSeconds: Number(environment.DEBOUNCE_SECONDS ?? 8),
+  mcpAllowedOrigins: (environment.MCP_ALLOWED_ORIGINS ?? '').split(',').filter(Boolean),
+  allowInsecureSubscriptionUrls: environment.ALLOW_INSECURE_SUBSCRIPTION_URLS === 'true',
 });

@@ -80,7 +80,7 @@ describe('webhook ingest', () => {
     assert.deepEqual(await ownerQuery("SELECT id FROM messages WHERE provider_message_id = 'wamid.unsigned'", []), []);
   });
 
-  it('stores an inbound message, creates the conversation, resolves the CRM person and schedules a turn', async () => {
+  it('stores an inbound message, creates the conversation, resolves the CRM person and schedules the ready-for-reply signal', async () => {
     const id = nextId();
     const response = await post(textMessage({ ...fixtureFor(tenantA), from: CUSTOMER, id, text: 'Do you fix boilers?' }));
     assert.equal(response.statusCode, 200);
@@ -93,11 +93,11 @@ describe('webhook ingest', () => {
     assert.equal(message.body, 'Do you fix boilers?');
     assert.equal(message.state, 'AI_ACTIVE');
     assert.match(message.crm_person_id, /^per_/);
-    const jobs = await ownerQuery("SELECT kind, run_at FROM jobs WHERE tenant_id = $1 AND kind = 'agent.turn'", [tenantA.tenantId]);
+    const jobs = await ownerQuery("SELECT kind, run_at FROM jobs WHERE tenant_id = $1 AND kind = 'conversation.ready'", [tenantA.tenantId]);
     assert.equal(jobs.length, 1);
     // grace_minutes_closed defaults to 0 and no opening hours are set, so only the debounce applies
     assert.equal(new Date(jobs[0].run_at).getTime(), context.now.getTime() + 8_000);
-    assert.equal(context.eventBus.published.at(-1)?.payload.type, 'message.received');
+    assert.equal(context.published.at(-1)?.payload.type, 'message.received');
   });
 
   it('applies the open-hours grace period', async () => {
@@ -128,7 +128,7 @@ describe('webhook ingest', () => {
     const second = await post(textMessage({ ...fixtureFor(tenantA), from: CUSTOMER, id, text: 'one', name: 'Changed Name' }));
     assert.deepEqual(second.json().outcomes, [{ kind: 'duplicate', providerMessageId: id }]);
     assert.equal((await ownerQuery('SELECT 1 FROM messages WHERE provider_message_id = $1', [id])).length, 1);
-    assert.equal((await ownerQuery("SELECT 1 FROM jobs WHERE idempotency_key LIKE 'agent.turn:%' AND payload->>'message_id' IN (SELECT id FROM messages WHERE provider_message_id = $1)", [id])).length, 1);
+    assert.equal((await ownerQuery("SELECT 1 FROM jobs WHERE idempotency_key LIKE 'conversation.ready:%' AND payload->>'message_id' IN (SELECT id FROM messages WHERE provider_message_id = $1)", [id])).length, 1);
   });
 
   it('handles concurrent duplicate deliveries with one stored message and one conversation', async () => {
@@ -202,7 +202,7 @@ describe('webhook ingest', () => {
     assert.equal(conversation.state, 'HUMAN_ACTIVE');
     assert.equal(conversation.claim_id, null);
     assert.equal(new Date(conversation.ai_paused_until).getTime(), context.now.getTime() + 4 * 3600_000);
-    assert.equal(context.eventBus.published.at(-1)?.payload.type, 'conversation.human_takeover');
+    assert.equal(context.published.at(-1)?.payload.type, 'conversation.human_takeover');
   });
 
   it('ignores echoes on route B and C numbers', async () => {
@@ -220,7 +220,7 @@ describe('webhook ingest', () => {
     assert.deepEqual(attachment, { type: 'audio', mime_type: 'audio/ogg; codecs=opus', virus_scan_status: 'pending' });
   });
 
-  it('records STOP as an opt-out without scheduling an agent turn', async () => {
+  it('records STOP as an opt-out without scheduling a ready-for-reply signal', async () => {
     const customer = '447700900444';
     const id = nextId();
     await post(textMessage({ ...fixtureFor(tenantA), from: customer, id, text: 'STOP' }));

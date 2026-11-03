@@ -2,11 +2,11 @@ import { decryptToken, type TokenKey } from '../crypto/token-cipher.ts';
 import { withTenant, type Database, type TenantClient } from '../db/pool.ts';
 import type { Actor, Envelope } from '../envelope/envelope.ts';
 import type { EventBus } from '../interfaces/event-bus.ts';
-import type { OwnerNotifier } from '../interfaces/owner-notifier.ts';
 import type { Clock } from '../shared/clock.ts';
 import { newId } from '../shared/ids.ts';
 import { GraphSendError, type GraphClient, type OutboundMessage } from '../whatsapp/graph-client.ts';
 import { customerServiceWindow } from '../whatsapp/window.ts';
+import { checkTemplateSend } from '../templates/templates.ts';
 import { isAiSendingEnabled, latestInboundMessage } from './ai-guards.ts';
 import { applyHumanTakeover, loadTenantSettings, lockConversation, type ConversationRow } from './conversation-store.ts';
 
@@ -30,30 +30,21 @@ export type SendRefusalReason =
   | 'outcome_unknown'
   | 'idempotency_key_reused'
   | 'template_not_allowed'
-  | 'opted_out'
-  | 'template_cap_reached';
+  | 'opted_out';
 
 export type SendResult =
   | { status: 200; body: { message_id: string; replayed?: true } }
   | { status: 404; body: { reason: 'not_found' } }
-  | { status: 409 | 423 | 429; body: { reason: SendRefusalReason } }
+  | { status: 409 | 423; body: { reason: SendRefusalReason } }
   | { status: 422; body: { reason: 'invalid_payload' | 'outside_window' | 'template_not_allowed'; errors?: string[] } }
   | { status: 502; body: { reason: 'provider_rejected' | 'outcome_unknown' } };
-
-// Extra checks for template sends (library, opt-out, weekly cap). Returns a refusal or undefined.
-export type TemplatePolicy = (
-  client: TenantClient,
-  context: { conversation: ConversationRow; template: NonNullable<SendPayload['template']>; actor: Actor; now: Date },
-) => Promise<SendResult | undefined>;
 
 export type SendDependencies = {
   database: Database;
   clock: Clock;
   graph: GraphClient;
   tokenKeys: readonly TokenKey[];
-  ownerNotifier: OwnerNotifier;
   eventBus: EventBus;
-  templatePolicy: TemplatePolicy;
   sendTimeoutMs: number;
 };
 
@@ -190,7 +181,7 @@ const checkSendAllowed = async (
   }
 
   if (payload.type === 'template' && payload.template) {
-    return deps.templatePolicy(client, { conversation, template: payload.template, actor, now });
+    return checkTemplateSend(client, conversation, payload.template);
   }
   if (!customerServiceWindow(conversation.last_customer_message_at, now).open) {
     return { status: 422, body: { reason: 'outside_window' } };
@@ -257,6 +248,19 @@ const finishAttempt = async (
     ),
   );
 };
+
+const publishOutcomeUnknown = (deps: SendDependencies, envelope: Envelope<unknown>, conversationId: string, detail: string) =>
+  deps.eventBus.publish({
+    tenant_id: envelope.tenant_id,
+    actor: envelope.actor,
+    correlation_id: envelope.correlation_id,
+    idempotency_key: `message.send_outcome_unknown:${envelope.idempotency_key}`,
+    occurred_at: deps.clock().toISOString(),
+    payload: {
+      type: 'message.send_outcome_unknown',
+      data: { conversation_id: conversationId, idempotency_key: envelope.idempotency_key, detail: detail.slice(0, 300) },
+    },
+  });
 
 export const sendMessage = async (deps: SendDependencies, envelope: Envelope<unknown>): Promise<SendResult> => {
   const parsed = parseSendPayload(envelope.payload);
@@ -358,24 +362,14 @@ export const sendMessage = async (deps: SendDependencies, envelope: Envelope<unk
     });
   } catch (error) {
     // Unexpected failure: the attempt stays in_flight, so a retry is refused rather than risking a double send.
-    await deps.ownerNotifier.alert({
-      tenantId,
-      conversationId: payload.conversation_id,
-      kind: 'send_outcome_unknown',
-      message: `Send failed unexpectedly: ${(error as Error).message}`,
-    });
+    await publishOutcomeUnknown(deps, envelope, payload.conversation_id, (error as Error).message);
     return { status: 502, body: { reason: 'outcome_unknown' } };
   }
 
   if (outcome.attempt === 'sent' || outcome.attempt === 'rejected') {
     await finishAttempt(deps, tenantId, key, outcome.attempt, outcome.messageId ?? null);
   } else {
-    await deps.ownerNotifier.alert({
-      tenantId,
-      conversationId: outcome.conversationId,
-      kind: 'send_outcome_unknown',
-      message: 'A message may or may not have been delivered; it will not be retried automatically.',
-    });
+    await publishOutcomeUnknown(deps, envelope, payload.conversation_id, 'provider did not confirm the send');
   }
 
   if (outcome.result.status === 200 && outcome.messageId) {

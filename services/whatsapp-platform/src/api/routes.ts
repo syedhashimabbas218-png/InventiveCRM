@@ -1,101 +1,76 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { Database } from '../db/pool.ts';
-import { withTenant } from '../db/pool.ts';
 import { parseEnvelope, type Envelope } from '../envelope/envelope.ts';
-import { claimConversation, MAX_CLAIM_TTL_SECONDS } from '../conversations/claim.ts';
-import { sendMessage, type SendDependencies } from '../conversations/send.ts';
-import { customerServiceWindow } from '../whatsapp/window.ts';
-import { authenticateBearer, authorizeEnvelope } from './authenticate.ts';
+import {
+  claim,
+  getConversation,
+  getMessages,
+  getSubscriptions,
+  getTemplates,
+  handoff,
+  listConversations,
+  postSubscription,
+  putTemplate,
+  release,
+  removeSubscription,
+  send,
+  type Caller,
+  type OperationDependencies,
+  type OperationResult,
+} from '../operations/operations.ts';
+import { authenticateBearer } from './authenticate.ts';
 
-type ApiDependencies = SendDependencies & { database: Database };
+type Handler = (caller: Caller, request: FastifyRequest) => Promise<OperationResult>;
+type WriteHandler = (caller: Caller, envelope: Envelope<Record<string, unknown>>, request: FastifyRequest) => Promise<OperationResult>;
 
-const authenticatedEnvelope = async (
-  deps: ApiDependencies,
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<Envelope<Record<string, unknown>> | undefined> => {
-  const credential = await authenticateBearer(deps.database, request.headers.authorization);
-  if (!credential) {
-    await reply.code(401).send({ error: 'unauthenticated' });
-    return undefined;
-  }
-  const parsed = parseEnvelope(request.body);
-  if (!parsed.ok) {
-    await reply.code(400).send({ error: 'invalid_envelope', details: parsed.errors });
-    return undefined;
-  }
-  const denied = authorizeEnvelope(credential, parsed.envelope);
-  if (denied) {
-    await reply.code(403).send({ error: denied });
-    return undefined;
-  }
-  return parsed.envelope;
-};
+const parseLimit = (value: unknown): number | undefined => (typeof value === 'string' && /^\d{1,3}$/.test(value) ? Number(value) : undefined);
 
-export const registerApiRoutes = async (app: FastifyInstance, deps: ApiDependencies): Promise<void> => {
-  app.post('/v1/conversations/:id/claim', async (request, reply) => {
-    const envelope = await authenticatedEnvelope(deps, request, reply);
-    if (!envelope) return reply;
-    const { id } = request.params as { id: string };
-    const payload = envelope.payload;
-    const ttl = payload.ttl_seconds;
-    if (
-      payload.claimant !== 'ai' ||
-      !(typeof payload.latest_message_id === 'string' || payload.latest_message_id === null) ||
-      typeof ttl !== 'number' ||
-      !Number.isInteger(ttl) ||
-      ttl < 1 ||
-      ttl > MAX_CLAIM_TTL_SECONDS ||
-      envelope.actor.type === 'user'
-    ) {
-      return reply.code(422).send({ error: 'invalid_claim_request' });
-    }
-    const result = await claimConversation(deps, envelope.tenant_id, {
-      conversationId: id,
-      claimant: 'ai',
-      latestMessageId: payload.latest_message_id,
-      ttlSeconds: ttl,
-    });
-    if (result.claimed) return reply.code(200).send({ claimed: true, claim_id: result.claimId });
-    if (result.reason === 'not_found') return reply.code(404).send({ claimed: false, reason: 'not_found' });
-    return reply.code(409).send({
-      claimed: false,
-      reason: result.reason,
-      ...(result.retryAfterSeconds ? { retry_after_seconds: result.retryAfterSeconds } : {}),
-    });
-  });
+export const registerApiRoutes = async (app: FastifyInstance, deps: OperationDependencies): Promise<void> => {
+  const authenticated = async (request: FastifyRequest, reply: FastifyReply): Promise<Caller | undefined> => {
+    const caller = await authenticateBearer(deps.database, request.headers.authorization);
+    if (!caller) await reply.code(401).send({ error: 'unauthenticated' });
+    return caller;
+  };
 
-  app.post('/v1/messages/send', async (request, reply) => {
-    const envelope = await authenticatedEnvelope(deps, request, reply);
-    if (!envelope) return reply;
-    const result = await sendMessage(deps, envelope);
+  const read = (handler: Handler) => async (request: FastifyRequest, reply: FastifyReply) => {
+    const caller = await authenticated(request, reply);
+    if (!caller) return reply;
+    const result = await handler(caller, request);
     return reply.code(result.status).send(result.body);
-  });
+  };
 
-  app.post('/v1/conversations/:id/state', async (request, reply) => {
-    const envelope = await authenticatedEnvelope(deps, request, reply);
-    if (!envelope) return reply;
-    const { id } = request.params as { id: string };
-    const now = deps.clock();
-    const row = await withTenant(deps.database, envelope.tenant_id, async (client) =>
-      (
-        await client.query(
-          `SELECT id, state, ai_paused_until, last_customer_message_at, last_human_reply_at,
-                  (claim_id IS NOT NULL AND claim_expires_at > $3) AS claimed
-           FROM conversations WHERE tenant_id = $1 AND id = $2`,
-          [envelope.tenant_id, id, now],
-        )
-      ).rows[0],
-    );
-    if (!row) return reply.code(404).send({ reason: 'not_found' });
-    const window = customerServiceWindow(row.last_customer_message_at, now);
-    return {
-      id: row.id,
-      state: row.state,
-      ai_paused_until: row.ai_paused_until,
-      last_human_reply_at: row.last_human_reply_at,
-      claimed: row.claimed,
-      window: { open: window.open, closes_at: window.closesAt },
-    };
-  });
+  // Every write carries the 5.2 envelope.
+  const write = (handler: WriteHandler) => async (request: FastifyRequest, reply: FastifyReply) => {
+    const caller = await authenticated(request, reply);
+    if (!caller) return reply;
+    const parsed = parseEnvelope<Record<string, unknown>>(request.body);
+    if (!parsed.ok) return reply.code(400).send({ error: 'invalid_envelope', details: parsed.errors });
+    const result = await handler(caller, parsed.envelope, request);
+    return reply.code(result.status).send(result.body);
+  };
+
+  const id = (request: FastifyRequest) => (request.params as { id: string }).id;
+
+  app.get(
+    '/v1/conversations',
+    read((caller, request) => {
+      const query = request.query as Record<string, string | undefined>;
+      return listConversations(deps, caller, { awaitingReply: query.awaiting_reply === 'true', limit: parseLimit(query.limit) });
+    }),
+  );
+  app.get('/v1/conversations/:id', read((caller, request) => getConversation(deps, caller, id(request))));
+  app.get(
+    '/v1/conversations/:id/messages',
+    read((caller, request) => getMessages(deps, caller, id(request), parseLimit((request.query as Record<string, string>).limit))),
+  );
+  app.post('/v1/conversations/:id/claim', write((caller, envelope, request) => claim(deps, caller, envelope, id(request))));
+  app.post('/v1/conversations/:id/release', write((caller, envelope, request) => release(deps, caller, envelope, id(request))));
+  app.post('/v1/conversations/:id/handoff', write((caller, envelope, request) => handoff(deps, caller, envelope, id(request))));
+  app.post('/v1/messages/send', write((caller, envelope) => send(deps, caller, envelope)));
+
+  app.get('/v1/templates', read((caller) => getTemplates(deps, caller)));
+  app.post('/v1/templates', write((caller, envelope) => putTemplate(deps, caller, envelope)));
+
+  app.get('/v1/subscriptions', read((caller) => getSubscriptions(deps, caller)));
+  app.post('/v1/subscriptions', write((caller, envelope) => postSubscription(deps, caller, envelope)));
+  app.post('/v1/subscriptions/:id/disable', write((caller, envelope, request) => removeSubscription(deps, caller, envelope, id(request))));
 };

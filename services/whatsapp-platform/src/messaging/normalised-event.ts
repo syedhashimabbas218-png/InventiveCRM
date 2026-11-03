@@ -51,12 +51,23 @@ export type StatusEvent = {
   errors?: unknown[];
 };
 
+export type TemplateStatusEvent = {
+  kind: 'template_status';
+  businessAccountId: string;
+  name: string;
+  language: string;
+  event: string;
+  providerTemplateId?: string;
+  reason?: string;
+  at?: Date;
+};
+
 export type IgnoredEvent = {
   kind: 'ignored';
   reason: string;
 };
 
-export type NormalisedEvent = InboundMessageEvent | EchoEvent | StatusEvent | IgnoredEvent;
+export type NormalisedEvent = InboundMessageEvent | EchoEvent | StatusEvent | TemplateStatusEvent | IgnoredEvent;
 
 // The text the agent treats as the customer's words. Always untrusted.
 export const contentAsText = (content: MessageContent): string => {

@@ -235,7 +235,7 @@ describe('claim and send', () => {
     const retry = await api.aiSend(plumber, conversationId, claimId, 'Hello', { idempotencyKey: 'crash-key' });
     assert.deepEqual(retry.json(), { reason: 'outcome_unknown' });
     assert.equal(context.mockGraph.sends.length - before, 1);
-    assert.equal(context.ownerNotifier.alerts.at(-1)?.kind, 'send_outcome_unknown');
+    assert.equal(context.published.at(-1)?.payload.type, 'message.send_outcome_unknown');
   });
 
   it('provider timeout: the outcome is unknown, the lock is released and nothing is retried', async () => {
@@ -333,7 +333,7 @@ describe('cross-tenant API access', () => {
     assert.equal(claim.statusCode, 404);
     const send = await api.aiSend(dentist, conversationId, 'clm_any', 'leak?');
     assert.equal(send.statusCode, 404);
-    const state = await api.call(`/v1/conversations/${conversationId}/state`, dentist.apiToken, api.envelope(dentist.tenantId, { type: 'system', id: 's' }, {}));
+    const state = await context.app.inject({ method: 'GET', url: `/v1/conversations/${conversationId}`, headers: { authorization: `Bearer ${dentist.apiToken}` } });
     assert.equal(state.statusCode, 404);
   });
 

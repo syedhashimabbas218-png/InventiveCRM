@@ -109,15 +109,8 @@ export type TenantSettingsRow = {
   grace_minutes_open: number;
   grace_minutes_closed: number;
   human_pause_hours: number;
-  max_template_messages_per_customer_per_week: number;
-  ai_disclosure_enabled: boolean;
-  languages: string[];
   timezone: string;
   opening_hours: Record<string, [string, string][]>;
-  customer_messages_per_hour_limit: number;
-  daily_token_budget: number;
-  emergency_message: string | null;
-  handoff_message: string | null;
 };
 
 export const loadTenantSettings = async (client: TenantClient): Promise<TenantSettingsRow> => {

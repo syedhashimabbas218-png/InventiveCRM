@@ -158,9 +158,7 @@ describe('schema rules', () => {
   it('applies the per-client defaults from section 6.4', async () => {
     const result = await withTenant(database.app, tenantA.tenantId, (client) =>
       client.query(
-        `SELECT grace_minutes_open, grace_minutes_closed, human_pause_hours,
-                max_template_messages_per_customer_per_week, ai_disclosure_enabled, languages,
-                customer_messages_per_hour_limit
+        `SELECT grace_minutes_open, grace_minutes_closed, human_pause_hours, timezone
          FROM tenant_settings WHERE tenant_id = $1`,
         [tenantA.tenantId],
       ),
@@ -169,10 +167,7 @@ describe('schema rules', () => {
       grace_minutes_open: 2,
       grace_minutes_closed: 0,
       human_pause_hours: 4,
-      max_template_messages_per_customer_per_week: 2,
-      ai_disclosure_enabled: true,
-      languages: ['en'],
-      customer_messages_per_hour_limit: 40,
+      timezone: 'Europe/London',
     });
   });
 

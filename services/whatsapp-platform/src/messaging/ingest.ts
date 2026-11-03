@@ -19,7 +19,9 @@ import {
   type MessageContent,
   type NormalisedEvent,
   type StatusEvent,
+  type TemplateStatusEvent,
 } from './normalised-event.ts';
+import { applyTemplateStatusEvent, normaliseLanguage } from '../templates/templates.ts';
 import { graceMinutesAt, type OpeningHours } from './opening-hours.ts';
 import { isValidWebhookSignature } from './signature.ts';
 
@@ -43,7 +45,8 @@ export type EventOutcome =
   | { kind: 'ignored'; reason: string }
   | { kind: 'duplicate'; providerMessageId: string }
   | { kind: 'stored'; tenantId: string; conversationId: string; messageId: string; event: NormalisedEvent['kind'] }
-  | { kind: 'status_updated'; tenantId: string; providerMessageId: string; updated: boolean };
+  | { kind: 'status_updated'; tenantId: string; providerMessageId: string; updated: boolean }
+  | { kind: 'template_status_updated'; tenantId: string; name: string; event: string };
 
 export type IngestResult = {
   status: 200 | 400 | 401;
@@ -171,9 +174,9 @@ const processInbound = async (
         ) * 60_000;
       const runAt = new Date(Math.max(event.sentAt.getTime() + graceMs, now.getTime() + deps.debounceSeconds * 1000));
       await enqueueJob(client, {
-        kind: 'agent.turn',
+        kind: 'conversation.ready',
         payload: { conversation_id: conversation.id, message_id: messageId },
-        idempotencyKey: `agent.turn:${messageId}`,
+        idempotencyKey: `conversation.ready:${messageId}`,
         runAt,
       });
     }
@@ -185,7 +188,13 @@ const processInbound = async (
     buildEvent(
       tenantId,
       'message.received',
-      { conversation_id: stored.conversationId, message_id: stored.messageId },
+      {
+        conversation_id: stored.conversationId,
+        message_id: stored.messageId,
+        customer: event.from,
+        profile_name: event.profileName ?? null,
+        content: event.content,
+      },
       `message.received:${stored.messageId}`,
       now,
     ),
@@ -197,7 +206,7 @@ const processInbound = async (
   }
 
   if (!stored.crmPersonId) {
-    // Best effort: the agent turn retries CRM matching if this fails.
+    // Best effort: a failed CRM lookup leaves crm_person_id empty and is retried on the next message.
     try {
       const person = await deps.crm.findOrCreatePersonByPhone(tenantId, event.from, event.profileName);
       await withTenant(deps.database, tenantId, (client) =>
@@ -207,7 +216,7 @@ const processInbound = async (
         ),
       );
     } catch {
-      // left unset; the turn pipeline resolves it
+      // left unset
     }
   }
 
@@ -244,9 +253,15 @@ const processEcho = async (
   return { kind: 'stored', tenantId, conversationId: stored.conversationId, messageId: stored.messageId, event: 'echo' };
 };
 
-const processStatus = async (deps: IngestDependencies, account: ResolvedAccount, event: StatusEvent): Promise<EventOutcome> => {
+const processStatus = async (
+  deps: IngestDependencies,
+  account: ResolvedAccount,
+  event: StatusEvent,
+  now: Date,
+  published: BusinessEvent[],
+): Promise<EventOutcome> => {
   const result = await withTenant(deps.database, account.tenant_id, (client) =>
-    client.query(
+    client.query<{ id: string; conversation_id: string }>(
       `UPDATE messages
        SET status = $3, provider_error = coalesce($4, provider_error)
        WHERE tenant_id = $1 AND channel = 'whatsapp' AND provider_message_id = $2 AND direction = 'outbound'
@@ -255,16 +270,54 @@ const processStatus = async (deps: IngestDependencies, account: ResolvedAccount,
                ELSE status <> 'failed' AND
                     (CASE status WHEN 'pending' THEN 0 WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 9 END)
                     < (CASE $3 WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
-             END`,
+             END
+       RETURNING id, conversation_id`,
       [account.tenant_id, event.providerMessageId, event.status, event.errors ? JSON.stringify(event.errors) : null],
     ),
   );
+  const updated = result.rows[0];
+  if (updated) {
+    published.push(
+      buildEvent(
+        account.tenant_id,
+        'message.status_updated',
+        { conversation_id: updated.conversation_id, message_id: updated.id, status: event.status, errors: event.errors ?? null },
+        `message.status_updated:${updated.id}:${event.status}`,
+        now,
+      ),
+    );
+  }
   return {
     kind: 'status_updated',
     tenantId: account.tenant_id,
     providerMessageId: event.providerMessageId,
     updated: (result.rowCount ?? 0) > 0,
   };
+};
+
+const processTemplateStatus = async (
+  deps: IngestDependencies,
+  event: TemplateStatusEvent,
+  now: Date,
+  published: BusinessEvent[],
+): Promise<EventOutcome> => {
+  const resolved = await deps.database.query<{ tenant_id: string }>('SELECT * FROM resolve_tenant_by_waba_id($1)', [event.businessAccountId]);
+  const tenantId = resolved.rows[0]?.tenant_id;
+  if (!tenantId) return { kind: 'ignored', reason: 'unknown_business_account' };
+  const updated = await withTenant(deps.database, tenantId, (client) =>
+    applyTemplateStatusEvent(client, { name: event.name, language: event.language, event: event.event, providerTemplateId: event.providerTemplateId }, now),
+  );
+  if (!updated) return { kind: 'ignored', reason: 'template_not_registered' };
+  published.push(
+    buildEvent(
+      tenantId,
+      'template.status_updated',
+      { name: event.name, language: normaliseLanguage(event.language), event: event.event, reason: event.reason ?? null },
+      `template.status_updated:${event.name}:${event.language}:${event.event}:${event.at?.getTime() ?? now.getTime()}`,
+      now,
+    ),
+  );
+  return { kind: 'template_status_updated', tenantId, name: event.name, event: event.event };
 };
 
 const processEvent = async (
@@ -274,6 +327,10 @@ const processEvent = async (
   published: BusinessEvent[],
 ): Promise<EventOutcome> => {
   if (event.kind === 'ignored') return event;
+  if (event.kind === 'template_status') {
+    if (event.at && now.getTime() - event.at.getTime() > MAX_EVENT_AGE_MS) return { kind: 'ignored', reason: 'stale_event' };
+    return processTemplateStatus(deps, event, now, published);
+  }
 
   const age = now.getTime() - eventTime(event).getTime();
   if (age > MAX_EVENT_AGE_MS) return { kind: 'ignored', reason: 'stale_event' };
@@ -293,7 +350,7 @@ const processEvent = async (
       case 'echo':
         return await processEcho(deps, account, event, now, published);
       case 'status':
-        return await processStatus(deps, account, event);
+        return await processStatus(deps, account, event, now, published);
     }
   } catch (error) {
     if (error instanceof DuplicateEvent) {

@@ -88,6 +88,29 @@ export const normaliseWebhook = (body: unknown): NormalisedEvent[] => {
     for (const change of asObjects(entry.changes)) {
       const field = asString(change.field) ?? 'unknown';
       const value = isObject(change.value) ? change.value : undefined;
+
+      if (field === 'message_template_status_update') {
+        const name = asString(value?.message_template_name);
+        const language = asString(value?.message_template_language);
+        const event = asString(value?.event);
+        if (!businessAccountId || !name || !language || !event) {
+          events.push({ kind: 'ignored', reason: 'malformed_template_status' });
+          continue;
+        }
+        const templateId = value?.message_template_id;
+        events.push({
+          kind: 'template_status',
+          businessAccountId,
+          name,
+          language,
+          event,
+          providerTemplateId: typeof templateId === 'number' || typeof templateId === 'string' ? String(templateId) : undefined,
+          reason: asString(value?.reason),
+          at: typeof entry.time === 'number' ? new Date(entry.time * 1000) : undefined,
+        });
+        continue;
+      }
+
       const phoneNumberId = asString(isObject(value?.metadata) ? value.metadata.phone_number_id : undefined);
 
       if (!value || !businessAccountId || !phoneNumberId) {

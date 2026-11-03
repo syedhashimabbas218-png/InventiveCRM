@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-export type IdPrefix = 'tnt' | 'cor' | 'cnv' | 'msg' | 'att' | 'wac' | 'job' | 'clm' | 'pa' | 'slot' | 'bkg' | 'cred' | 'kb' | 'pb' | 'turn';
+export type IdPrefix = 'tnt' | 'cor' | 'cnv' | 'msg' | 'att' | 'wac' | 'job' | 'clm' | 'cred' | 'sub' | 'evt';
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
