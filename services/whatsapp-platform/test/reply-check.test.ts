@@ -28,6 +28,17 @@ describe('reply check', () => {
     assert.deepEqual(check('That would be £90.'), ['unapproved_price']);
     assert.deepEqual(check('Roughly fifty quid.'), ['unverifiable_price']);
     assert.deepEqual(check('About $100.'), ['unverifiable_price']);
+    assert.deepEqual(check('Probably around two grand.'), ['unverifiable_price']);
+    assert.deepEqual(check('Usually 2k fitted.'), ['unverifiable_price']);
+    assert.deepEqual(check('A callout costs 120.'), ['unapproved_price']);
+    assert.deepEqual(check('The service price is 85.'), []);
+    assert.deepEqual(check('The service takes 60 minutes and costs £85.'), []);
+  });
+
+  it('blocks a model reply that claims a booking was made', () => {
+    assert.deepEqual(check("You're booked in for Tuesday at 10."), ['unconfirmed_booking_claim']);
+    assert.deepEqual(check('Your booking has been confirmed.'), ['unconfirmed_booking_claim']);
+    assert.deepEqual(check('I can offer Tuesday at 10. Shall I book it?'), []);
   });
 
   it('blocks offers to negotiate but not polite refusals', () => {
@@ -67,6 +78,8 @@ describe('escalation classifier', () => {
     assert.equal(classifyEscalation('I want my money back'), 'refund');
     assert.equal(classifyEscalation('you overcharged me'), 'price_dispute');
     assert.equal(classifyEscalation('I want to make a complaint'), 'complaint');
+    assert.equal(classifyEscalation('ghar mein gas ki boo aa rahi hai'), 'emergency');
+    assert.equal(classifyEscalation('not happy at all with the work'), 'complaint');
     assert.equal(classifyEscalation('Can I book a boiler service?'), undefined);
   });
 });

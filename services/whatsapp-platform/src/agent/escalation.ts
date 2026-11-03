@@ -19,9 +19,13 @@ const EMERGENCY_PATTERNS = [
   /\bunconscious\b/i,
   /\bbleeding\b/i,
   /\bemergency\b/i,
+  // Roman Urdu / Urdu: "gas ki boo" (smell of gas), "aag" and "آگ" (fire), "گیس" (gas). Needs native-speaker review.
+  /\bgas\s+(?:ki\s+)?(?:boo|bu|bo|smell)\b/i,
+  /\baag\b/i,
+  /آگ|گیس/,
 ];
 
-const COMPLAINT_PATTERNS = [/\bcomplain(?:t|ts|ing)?\b/i, /\bunhappy\b/i, /\bterrible\s+(?:service|job|work)\b/i, /\bombudsman\b/i, /\btrading\s+standards\b/i, /\bsolicitor\b/i, /\bsue\b/i];
+const COMPLAINT_PATTERNS = [/\bcomplain(?:t|ts|ing)?\b/i, /\bunhappy\b/i, /\bnot\s+(?:at\s+all\s+)?happy\b/i, /\bworst\b/i, /\bterrible\s+(?:service|job|work)\b/i, /\bombudsman\b/i, /\btrading\s+standards\b/i, /\bsolicitor\b/i, /\bsue\b/i];
 const REFUND_PATTERNS = [/\brefund/i, /\bmoney\s+back\b/i, /\bchargeback\b/i];
 const PRICE_DISPUTE_PATTERNS = [/\bover\s?charged?\b/i, /\brip(?:ped)?\s?-?off\b/i, /\bwrong\s+(?:price|amount|bill|invoice)\b/i, /\bdispute\b/i];
 
