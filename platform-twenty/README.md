@@ -1,6 +1,6 @@
 # platform-twenty
 
-Build pipeline that rebrands [Twenty](https://github.com/twentyhq/twenty) for our managed CRM service.
+Build pipeline that rebrands [Twenty](https://github.com/twentyhq/twenty) as InventiveCRM, the managed CRM service of InventiveWeb.studio.
 
 This repository holds only our patches, scripts and brand config. It does not contain the Twenty source. The workflow checks out a pinned upstream tag at build time, applies the branding and builds the Docker image.
 
@@ -13,7 +13,7 @@ This repository holds only our patches, scripts and brand config. It does not co
 
 ## Modification notice (AGPLv3 section 5a)
 
-This is a modified version of Twenty. Modified from 2 November 2026 onwards by Brandname Ltd. Each release tag `X.Y.Z-pN` in this repository names the upstream tag `twenty/vX.Y.Z` it was built from; the changes are exactly what `branding/apply.mjs` and `branding/overrides/*.patch` produce, and the `rebrand-report.json` attached to each workflow run lists every changed file and line.
+This is a modified version of Twenty. Modified from 2 November 2026 onwards by InventiveWeb.studio. Each release tag `X.Y.Z-pN` in this repository names the upstream tag `twenty/vX.Y.Z` it was built from; the changes are exactly what `branding/apply.mjs` and `branding/overrides/*.patch` produce, and the `rebrand-report.json` attached to each workflow run lists every changed file and line.
 
 What we change: the product name in user-visible strings and AI prompts; the Twenty logo, PWA icons and social card (replaced by our assets); the login and email footers (our terms, privacy and company details, plus the About text); a Settings > General About section; documentation links (to our `documentationUrl`); neutral example values in settings; and removal of content that describes Twenty itself rather than our service: the card linking to Twenty's ChatGPT app, Twenty's SOC2/GDPR badges in onboarding, and the Twenty community, partner and changelog links in Settings > Community.
 
@@ -24,13 +24,17 @@ What we never change: files marked `@license Enterprise`, legal text naming Twen
 ```
 branding/
   brand.config.json   product name, URLs, About text, pinned upstream tag
-  assets/             logo.svg and icon.png (neutral placeholders until a logo is chosen)
+  assets/             logo.svg, icon.png and icons/ (every PWA icon size) generated from the InventiveCRM mark;
+                      logo-256.png and social-card.png must be hosted at the logoUrl and socialCardUrl in the config
   rules.mjs           scan roots, protected paths and matchers shared by both scripts
   apply.mjs           the patch tool (dry run by default)
   leak-scan.mjs       fails if "Twenty", a Twenty link or a Twenty logo file shows in pages, emails,
                       the PWA manifest or the 2FA label
   overrides/          small hand patches (*.patch), applied with git apply before the string rules;
                       they read brand values from the BrandConfig.ts files apply.mjs generates
+deploy/
+  docker-compose.yml  server, worker, Postgres and Redis for one multi-tenant instance
+  .env.example        multi-workspace settings; copy to .env and fill in secrets
 .github/workflows/rebrand.yml
 ```
 
@@ -55,3 +59,12 @@ node branding/leak-scan.mjs --upstream ./upstream
 The dry run prints files and lines it would change, files skipped with the reason, ambiguous matches left for review, targets that no longer match upstream, and whether each override applies. It exits non-zero if a target or override no longer matches.
 
 The product name is the single `productName` value in `brand.config.json`. Upstream tags are named `twenty/vX.Y.Z`; always pin one, never build from a branch.
+
+## Deploy (multi-tenant)
+
+One instance hosts every client. Each client gets its own workspace at `<subdomain>.crm.inventiveweb.studio`; sign-in is at `app.crm.inventiveweb.studio`.
+
+1. Point `crm.inventiveweb.studio` and `*.crm.inventiveweb.studio` at the server and put a TLS proxy in front of port 3000.
+2. Copy `deploy/.env.example` to `deploy/.env`, set `IMAGE` to a built tag and fill in the secrets.
+3. Run `docker compose up -d` in `deploy/`. Migrations run when the server starts.
+4. Sign up first: the first account on a fresh instance becomes server admin. With `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS=true`, only server admins can create workspaces; clients join by invitation.
