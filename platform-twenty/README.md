@@ -33,6 +33,8 @@ branding/
   overrides/          small hand patches (*.patch), applied with git apply before the string rules;
                       they read brand values from the BrandConfig.ts files apply.mjs generates
 apps/commercial-docs/  Quotes & Invoices app (UK quotes, VAT invoices, credit notes, recurring billing)
+apps/scheduling/       Scheduling app (appointment types, availability, team and location-based booking, booking pages
+                       and embeds, Google and Microsoft calendar sync)
 scripts/
   provision-workspace.mjs  create a client workspace and its admin API key
   set-app-variables.mjs    set an app's instance-wide settings (mail server, WhatsApp service) from a KEY=value file
@@ -40,8 +42,8 @@ scripts/
   apply-setup-spec.mjs     apply an AI-written setup spec (objects, fields, views, workflows) over MCP
 setup-specs/            example specs written from client prompts
 deploy/
-  docker-compose.yml  server, worker, Postgres, Redis, our outgoing mail server (Postfix with DKIM) and the Word-to-PDF
-                      converter (Gotenberg) for one instance
+  docker-compose.yml  server, worker, Postgres, Redis, our outgoing mail server (Postfix with DKIM), the Word-to-PDF
+                      converter (Gotenberg) and, with --profile maps, road routing (OSRM) and geocoding (Nominatim)
   .env.example        multi-workspace settings; copy to .env and fill in secrets
   ops/                backup, verify-backup (restore drill), upgrade (auto-rollback), restore, smoke-test
   ops.env.example     backup location, retention, offsite copy and smoke-test keys for ops/
@@ -82,12 +84,17 @@ One instance hosts every client. Each client gets its own workspace at `<subdoma
 5. Keep `LOGIC_FUNCTION_TYPE=LOCAL` (already in `.env.example`) so app functions such as invoice PDFs run.
 6. Copy `deploy/ops.env.example` to `deploy/ops.env`, install the cron lines in `deploy/ops/crontab.example` (nightly backup, monthly restore drill) and set `BACKUP_OFFSITE_COMMAND`. Keep `.env` in the password manager: backups cannot be restored without its `ENCRYPTION_KEY`.
 7. Mail: the `mail` service sends system emails and documents sent "from our server". Before going live, publish SPF, DKIM (printed in the mail container's log on first start), DMARC and a PTR record for each sender domain, or set `MAIL_RELAYHOST` if the host blocks port 25.
+8. Scheduling maps (optional): prepare the map data and start the `maps` profile as described in `apps/scheduling/README.md`.
+
+Keep `APPLICATION_API_RATE_LIMITING_LIMIT` from `.env.example`: Twenty's default of 500 API calls a minute is shared by all workspaces using an app.
 
 Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restore.sh`; read [UPDATES.md](UPDATES.md) first.
 
 ## Tests
 
 `tests/multitenant/run.sh` signs up a server admin, creates two client workspaces, checks that neither can read, change or delete the other's records (including replayed session cookies and cross-origin requests), invites a client and checks they cannot reach the other workspace, create workspaces or open the admin panel, then crawls every settings page for leftover Twenty text, links and logos.
+
+`tests/scheduling/` runs the Scheduling app end to end (37 checks) and in a browser (17 checks) against a real server, with a Google and Microsoft test double. See its README.
 
 ## Onboarding a client
 
@@ -97,7 +104,7 @@ Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restor
    INVENTIVECRM_ADMIN_PASSWORD=... node scripts/provision-workspace.mjs --server https://crm.inventiveweb.studio --email admin@inventiveweb.studio --name "Acme Plumbing" --subdomain acme --key-file acme.key
    ```
 
-2. Install the Quotes & Invoices app in it (see `apps/commercial-docs/README.md`).
+2. Install the Quotes & Invoices app in it (see `apps/commercial-docs/README.md`), and the Scheduling app if the client takes bookings (`apps/scheduling/README.md`).
 3. Set the workspace up from the client's description. Either connect an AI assistant to the workspace's MCP server
    (`https://acme.crm.inventiveweb.studio/mcp`, header `Authorization: Bearer <API key>`) and describe the business, or have the
    assistant write a setup spec like those in `setup-specs/` and apply it:

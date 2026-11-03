@@ -3,11 +3,11 @@ import { defineNavigationMenuItem, NavigationMenuItemType } from 'twenty-sdk/def
 import { IDS } from 'src/constants/ids';
 
 export default defineNavigationMenuItem({
-  universalIdentifier: IDS.navigation.schedules,
+  universalIdentifier: IDS.navigation.availability,
   name: "Availability",
   icon: 'IconCalendarTime',
   position: 5,
   folderUniversalIdentifier: IDS.navigation.folder,
-  type: NavigationMenuItemType.VIEW,
-  viewUniversalIdentifier: IDS.views.schedules,
+  type: NavigationMenuItemType.PAGE_LAYOUT,
+  pageLayoutUniversalIdentifier: IDS.pageLayouts.availability,
 });

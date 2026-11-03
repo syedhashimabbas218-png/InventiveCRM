@@ -78,10 +78,11 @@ export const mock = async (path, body) => {
 };
 
 // The same flow the Connect button starts: transient token, Twenty's app OAuth endpoint, provider consent, callback.
-export const connectCalendar = async ({ token, workspaceUrl, applicationId, providerName, provider, email }) => {
+export const connectCalendar = async ({ token, workspaceUrl, applicationId, providerName, provider, email, reconnectingConnectedAccountId }) => {
   await mock('/admin/next-login', { provider, email });
   const { generateTransientToken } = await apiClient(token, workspaceUrl).metadata(`mutation { generateTransientToken { transientToken { token } } }`);
   const params = new URLSearchParams({ applicationId, providerName, transientToken: generateTransientToken.transientToken.token });
+  if (reconnectingConnectedAccountId) params.set('reconnectingConnectedAccountId', reconnectingConnectedAccountId);
   let url = `${SERVER}/auth/apps/authorize?${params}`;
   const hops = [];
   for (let hop = 0; hop < 6; hop += 1) {
@@ -105,7 +106,7 @@ export const admin = async (workspaceUrl, token, body) => {
   return { status: response.status, body: await response.json().catch(() => null) };
 };
 
-export const mailTo = async (address) => {
+export const mailTo = async (address, since = 0) => {
   const list = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${address}`)}`)).json();
-  return list.messages ?? [];
+  return (list.messages ?? []).filter((message) => Date.parse(message.Created) >= since);
 };

@@ -45,3 +45,14 @@ export const checkFormTicket = (slug: string, ticket: string | undefined, now = 
 export const clientFingerprint = (ip: string) => createHmac('sha256', secret()).update(`client:${ip}`).digest('hex').slice(0, 24);
 
 export const hashKey = (value: string) => createHash('sha256').update(value).digest('hex').slice(0, 40);
+
+// Ten-minute ticket for the staff advisor map, which runs outside Twenty's app frame (it needs a real DOM for the map).
+export const mapTicket = (memberId: string, issuedAt = Date.now()) => `${memberId}.${issuedAt}.${mac(`map:${memberId}:${issuedAt}`)}`;
+
+export const checkMapTicket = (ticket: string, now = Date.now()) => {
+  const [memberId, issued, signature] = ticket.split('.');
+  const issuedAt = Number(issued);
+  if (!memberId || !issuedAt || !signature || now - issuedAt > 10 * 60 * 1000) return false;
+  const expected = Buffer.from(mac(`map:${memberId}:${issuedAt}`));
+  return expected.length === Buffer.from(signature).length && timingSafeEqual(expected, Buffer.from(signature));
+};

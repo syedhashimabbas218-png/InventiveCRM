@@ -89,8 +89,33 @@ services:
     command: ["gotenberg", "--api-timeout=60s", "--libreoffice-restart-after=50", "--log-level=warn"]
     restart: always
 
+  # Road routing and address search for the Scheduling app. Opt in with --profile maps after preparing MAPS_DIR
+  # (apps/scheduling/README.md, "Maps"). Both stay inside the stack.
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v6.0.0
+    profiles: ["maps"]
+    command: ["osrm-routed", "--algorithm", "mld", "--max-table-size", "500", "/data/region.osrm"]
+    volumes:
+      - ${MAPS_DIR:-./maps}:/data:ro
+    restart: always
+
+  geocoder:
+    image: mediagis/nominatim:4.5
+    profiles: ["maps"]
+    environment:
+      PBF_PATH: /data/region.osm.pbf
+      IMPORT_STYLE: address
+      NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD}
+      THREADS: 4
+    volumes:
+      - ${MAPS_DIR:-./maps}/region.osm.pbf:/data/region.osm.pbf:ro
+      - geocoder-data:/var/lib/postgresql/16/main
+    shm_size: 1g
+    restart: always
+
 volumes:
   db-data:
   server-local-data:
   mail-dkim:
   mail-spool:
+  geocoder-data:

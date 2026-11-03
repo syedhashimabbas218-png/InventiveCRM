@@ -144,7 +144,18 @@ const DEFAULT_SETTINGS: SettingsRecord = {
   maxAppointmentTypes: null,
 };
 
-export const loadSettings = async (): Promise<SettingsRecord> => {
+let cachedSettings: { at: number; value: Promise<SettingsRecord> } | null = null;
+
+export const loadSettings = (): Promise<SettingsRecord> => {
+  if (!cachedSettings || Date.now() - cachedSettings.at > 30_000) {
+    const value = fetchSettings();
+    value.catch(() => (cachedSettings = null));
+    cachedSettings = { at: Date.now(), value };
+  }
+  return cachedSettings.value;
+};
+
+const fetchSettings = async (): Promise<SettingsRecord> => {
   const data = await gql<{ schedulingSettingsRecords: Edges<SettingsRecord> }>(`{
     schedulingSettingsRecords(first: 1, orderBy: [{ createdAt: AscNullsFirst }]) { edges { node {
       contactMatching createContacts linkCompanyByEmailDomain defaultTimeZone senderName notifyAdvisors bookingsPerHourPerClient maxAppointmentTypes

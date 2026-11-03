@@ -55,15 +55,19 @@ const AppointmentList = ({ theme, rows, empty }: { theme: Theme; rows: Row[]; em
         <button
           key={row.id}
           onClick={() => openRecord(row.id)}
-          style={{ all: 'unset', cursor: 'pointer', display: 'grid', gridTemplateColumns: '120px 1fr auto', gap: 10, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${theme.line}`, fontSize: 13, color: theme.text }}
+          style={{ all: 'unset', cursor: 'pointer', display: 'grid', gridTemplateColumns: '108px minmax(0, 1fr) auto', gap: 10, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${theme.line}`, fontSize: 13, color: theme.text }}
         >
           <span style={{ color: theme.muted }}>{when(row.startsAt)}</span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: row.appointmentType?.color || theme.accent, marginRight: 8 }} />
-            {row.customerName || row.title} · {row.appointmentType?.name ?? ''}
-            <span style={{ color: theme.muted }}>{row.advisor ? ` · ${row.advisor.name}` : ''}{row.location ? ` · ${row.location}` : ''}</span>
+          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: row.appointmentType?.color || theme.accent, marginRight: 8 }} />
+              {row.customerName || row.title}
+            </span>
+            <span style={{ color: theme.muted, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[row.appointmentType?.name, row.advisor?.name, row.location].filter(Boolean).join(' · ')}
+            </span>
           </span>
-          <span style={{ display: 'flex', gap: 6 }}>
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
             <Pill color={STATUS_COLORS[row.status] ?? theme.muted}>{label(row.status)}</Pill>
             {row.calendarStatus !== 'NOT_CONNECTED' && <Pill color={STATUS_COLORS[row.calendarStatus] ?? theme.muted}>{row.calendarStatus === 'SYNCED' ? 'In calendar' : label(row.calendarStatus)}</Pill>}
           </span>
@@ -125,12 +129,103 @@ const ManualBooking = ({ theme, onDone }: { theme: Theme; onDone: () => void }) 
   );
 };
 
+const FORMATS = [
+  ['VIRTUAL', 'Video call'],
+  ['PHONE', 'Phone call'],
+  ['IN_PERSON_OFFICE', 'At an office'],
+  ['AT_CUSTOMER', "At the customer's address"],
+] as const;
+
+const QuickType = ({ theme, onDone }: { theme: Theme; onDone: () => void }) => {
+  const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
+  const [form, setForm] = useState({ name: '', durationMinutes: '30', meetingFormat: 'VIRTUAL', conferencing: 'GOOGLE_MEET', teamId: '', assignment: 'ROUND_ROBIN', locationMode: 'NEAREST' });
+  const [more, setMore] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    callAdmin<{ teams: { id: string; name: string }[] }>({ action: 'teams' })
+      .then((result) => setTeams(result.teams))
+      .catch(() => setTeams([]));
+  }, []);
+  const input = { font: 'inherit', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${theme.line}`, background: theme.card, color: theme.text } as const;
+  const create = async () => {
+    setBusy(true);
+    try {
+      const result = await callAdmin<{ id: string }>({ action: 'quickType', ...form, durationMinutes: Number(form.durationMinutes) });
+      enqueueSnackbar({ message: 'Draft created. Review it and set the status to Active to publish the booking page.', variant: 'success' });
+      onDone();
+      navigate(AppPath.RecordShowPage, { objectNameSingular: 'appointmentType', objectRecordId: result.id });
+    } catch (error) {
+      enqueueSnackbar({ message: (error as Error).message, variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, alignItems: 'end' }}>
+        <input style={input} placeholder="Name, e.g. Free consultation" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+        <select aria-label="Duration" style={input} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: event.target.value })}>
+          {[15, 20, 30, 45, 60, 90, 120].map((minutes) => (
+            <option key={minutes} value={minutes}>{minutes} minutes</option>
+          ))}
+        </select>
+        <select aria-label="Where" style={input} value={form.meetingFormat} onChange={(event) => setForm({ ...form, meetingFormat: event.target.value })}>
+          {FORMATS.map(([value, name]) => (
+            <option key={value} value={value}>{name}</option>
+          ))}
+        </select>
+        <select aria-label="Who" style={input} value={form.teamId} onChange={(event) => setForm({ ...form, teamId: event.target.value })}>
+          <option value="">Just me</option>
+          {teams.map((team) => (
+            <option key={team.id} value={team.id}>Team: {team.name}</option>
+          ))}
+        </select>
+      </div>
+      {more && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+          {form.meetingFormat === 'VIRTUAL' && (
+            <select aria-label="Video link" style={input} value={form.conferencing} onChange={(event) => setForm({ ...form, conferencing: event.target.value })}>
+              <option value="GOOGLE_MEET">Google Meet link</option>
+              <option value="MICROSOFT_TEAMS">Microsoft Teams link</option>
+              <option value="NONE">No link</option>
+            </select>
+          )}
+          {form.teamId && (
+            <select aria-label="Assignment" style={input} value={form.assignment} onChange={(event) => setForm({ ...form, assignment: event.target.value })}>
+              <option value="ROUND_ROBIN">Round robin</option>
+              <option value="FIRST_AVAILABLE">First available</option>
+              <option value="CUSTOMER_CHOICE">Customer picks the advisor</option>
+              <option value="COLLECTIVE">Everyone attends</option>
+            </select>
+          )}
+          {form.meetingFormat === 'AT_CUSTOMER' && (
+            <select aria-label="Advisor by location" style={input} value={form.locationMode} onChange={(event) => setForm({ ...form, locationMode: event.target.value })}>
+              <option value="NEAREST">Nearest advisor</option>
+              <option value="FASTEST">Shortest drive</option>
+              <option value="WITHIN_RADIUS">Anyone covering the address</option>
+              <option value="TERRITORY">By postcode territory</option>
+              <option value="CUSTOMER_CHOICE">Customer picks on a map</option>
+              <option value="GEOGRAPHIC_ROUND_ROBIN">Round robin among nearby advisors</option>
+            </select>
+          )}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button theme={theme} primary disabled={busy || !form.name.trim()} onClick={create}>{busy ? 'Creating…' : 'Create draft'}</Button>
+        {!more && <Button theme={theme} onClick={() => setMore(true)}>More options</Button>}
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const theme = useTheme();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [scope, setScope] = useState<'mine' | 'team'>('mine');
   const [showManual, setShowManual] = useState(false);
+  const [showQuickType, setShowQuickType] = useState(false);
+  const [mapUrl, setMapUrl] = useState<string | null>(null);
   const [embedFor, setEmbedFor] = useState<string | null>(null);
 
   const load = () =>
@@ -155,6 +250,15 @@ const Dashboard = () => {
     }
   };
 
+  const toggleMap = async () => {
+    if (mapUrl) return setMapUrl(null);
+    try {
+      setMapUrl((await callAdmin<{ url: string }>({ action: 'mapLink' })).url);
+    } catch (mapError) {
+      enqueueSnackbar({ message: (mapError as Error).message, variant: 'error' });
+    }
+  };
+
   const page = { fontFamily: 'Inter, sans-serif', color: theme.text, padding: 16, display: 'flex', flexDirection: 'column' as const, gap: 12, fontSize: 13 };
   if (error) return <div style={page}><p style={{ color: theme.danger }}>Could not load scheduling: {error}</p><Button theme={theme} onClick={load}>Try again</Button></div>;
   if (!data) return <div style={page}><p style={{ color: theme.muted }}>Loading…</p></div>;
@@ -173,7 +277,8 @@ const Dashboard = () => {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {data.advisor?.personalUrl && <Button theme={theme} onClick={() => copy(data.advisor?.personalUrl ?? '', 'Your booking link')}>Copy my booking link</Button>}
-          <Button theme={theme} onClick={() => openList('appointmentTypes')}>Appointment types</Button>
+          <Button theme={theme} onClick={() => setShowQuickType(!showQuickType)}>New appointment type</Button>
+          <Button theme={theme} onClick={toggleMap}>{mapUrl ? 'Hide advisor map' : 'Advisor map'}</Button>
           <Button theme={theme} primary onClick={() => setShowManual(!showManual)}>Schedule an appointment</Button>
         </div>
       </div>
@@ -194,6 +299,24 @@ const Dashboard = () => {
             </span>
           ))}
           {data.failingSyncs > 0 && <span>{data.failingSyncs} appointment(s) could not be written to a calendar. See Calendar sync queue.</span>}
+        </Card>
+      )}
+      {showQuickType && (
+        <Card theme={theme} title="New appointment type">
+          <QuickType theme={theme} onDone={() => setShowQuickType(false)} />
+        </Card>
+      )}
+      {mapUrl && (
+        <Card
+          theme={theme}
+          title="Advisors, offices and service areas"
+          action={
+            <a href={mapUrl} target="_blank" rel="noreferrer" style={{ color: theme.accent, fontSize: 13 }}>
+              Open full screen
+            </a>
+          }
+        >
+          <iframe src={mapUrl} width="100%" height="460" style={{ border: 0, borderRadius: 6 }} />
         </Card>
       )}
       {showManual && (

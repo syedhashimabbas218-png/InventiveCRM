@@ -2,12 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 import { listConnections } from 'twenty-sdk/logic-function';
 
-import { DAY } from 'src/engine/time';
+import { ASSIGNMENTS, CONFERENCING, LOCATION_MODES, MEETING_FORMATS } from 'src/constants/enums';
+import { type TimeWindow, type WeeklyRules } from 'src/engine/availability';
+import { DAY, isValidTimeZone, WEEKDAYS } from 'src/engine/time';
 import { gql, metadata, nodes } from 'src/lib/api';
 import { bookAppointment } from 'src/lib/booking';
 import { loadAdvisorCalendars, updateSetting } from 'src/lib/calendar/connections';
 import { GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME } from 'src/lib/calendar/provider-names';
 import { publicBaseUrl } from 'src/lib/notify';
+import { mapTicket } from 'src/lib/tokens';
 import { ADVISOR_FIELDS, type AdvisorRecord, loadSettings, loadType } from 'src/lib/records';
 
 export class AdminError extends Error {
@@ -67,15 +70,15 @@ const overview = async () => {
   startOfDay.setUTCHours(0, 0, 0, 0);
   const data = await gql<{
     upcoming: { edges: { node: Row }[] };
-    recent: { edges: { node: { name: string; occurredAt: string; actor: string; appointment: { title: string; customerName: string; startsAt: string } | null } }[] };
+    recent: { edges: { node: { name: string; occurredAt: string; actor: string; details: { from?: string } | null; appointment: { title: string; customerName: string; startsAt: string } | null } }[] };
     types: { edges: { node: { id: string; name: string; slug: string; status: string; durationMinutes: number; assignment: string; meetingFormat: string; locationMode: string; ownerId: string | null; team: { name: string } | null } }[] };
     links: { edges: { node: { name: string; slug: string; isActive: boolean; appointmentType: { name: string } | null } }[] };
     failing: { totalCount: number };
   }>(
     `query($from: DateTime!, $to: DateTime!) {
       upcoming: appointments(filter: { and: [{ startsAt: { gte: $from } }, { startsAt: { lt: $to } }], status: { neq: CANCELLED } }, orderBy: [{ startsAt: AscNullsLast }], first: 200) { edges { node { ${ROW} } } }
-      recent: schedulingAuditEvents(filter: { name: { in: ["appointment.created", "appointment.cancelled", "appointment.rescheduled", "advisor.assigned"] } }, orderBy: [{ occurredAt: DescNullsLast }], first: 15) {
-        edges { node { name occurredAt actor appointment { title customerName startsAt } } }
+      recent: schedulingAuditEvents(filter: { name: { in: ["appointment.created", "appointment.cancelled", "appointment.rescheduled", "advisor.assigned"] } }, orderBy: [{ occurredAt: DescNullsLast }], first: 30) {
+        edges { node { name occurredAt actor details appointment { title customerName startsAt } } }
       }
       types: appointmentTypes(orderBy: [{ name: AscNullsLast }], first: 100) { edges { node { id name slug status durationMinutes assignment meetingFormat locationMode ownerId team { name } } } }
       links: bookingLinks(first: 100) { edges { node { name slug isActive appointmentType { name } } } }
@@ -91,7 +94,8 @@ const overview = async () => {
     today: upcoming.filter((row) => Date.parse(row.startsAt) < startOfDay.getTime() + DAY),
     mine: advisor ? upcoming.filter((row) => row.advisor?.id === advisor.id) : [],
     team: upcoming,
-    recent: nodes(data.recent),
+    // Assignment at booking time is part of "booked"; only later reassignments are shown separately.
+    recent: nodes(data.recent).filter((event) => event.name !== 'advisor.assigned' || Boolean(event.details?.from)),
     connections,
     failingSyncs: data.failing.totalCount,
     bookingPages: [
@@ -143,14 +147,20 @@ const connections = async () => {
         const connection = own.find((candidate) => candidate.id === setting.connectionId);
         let available: { id: string; name: string; primary: boolean; canWrite: boolean }[] = [];
         let error = '';
+        let status = setting.status;
         if (adapter) {
           try {
             available = await adapter.listCalendars();
+            // Opening this page re-checks the account, so a reconnect shows as connected straight away.
+            if (status !== 'CONNECTED') {
+              status = 'CONNECTED';
+              await updateSetting(setting.id, { status, lastError: '', lastCheckedAt: new Date().toISOString() });
+            }
           } catch (listError) {
             error = (listError as Error).message;
           }
         }
-        return { ...setting, provider, calendars: available, error, authFailed: Boolean(connection?.authFailedAt) };
+        return { ...setting, status, provider, calendars: available, error, authFailed: Boolean(connection?.authFailedAt) };
       }),
     ),
   };
@@ -214,6 +224,113 @@ const manualBook = async (body: Record<string, unknown>) => {
   return { appointmentId: result.appointmentId, advisorName: result.advisorName, start: new Date(result.start).toISOString() };
 };
 
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$|^24:00$/;
+
+const cleanWindows = (value: unknown): TimeWindow[] =>
+  (Array.isArray(value) ? value : [])
+    .slice(0, 8)
+    .map((window) => ({ start: String((window as TimeWindow).start ?? ''), end: String((window as TimeWindow).end ?? '') }))
+    .filter((window) => {
+      if (!TIME.test(window.start) || !TIME.test(window.end) || window.start === window.end) throw new AdminError(400, `Invalid hours ${window.start} to ${window.end}.`);
+      return true;
+    });
+
+type ScheduleRow = { id: string; name: string; timeZone: string; weeklyHours: WeeklyRules | null; isDefault: boolean; overrides: { edges: { node: { id: string; name: string; startDate: string; endDate: string; kind: string; windows: TimeWindow[] | null } }[] } };
+
+const mySchedule = async () => {
+  const member = await currentMember();
+  const advisor = await myAdvisor(member.id);
+  if (!advisor) throw new AdminError(404, 'Create your advisor profile first.');
+  const scheduleId = advisor.schedule?.id ?? nodes(advisor.schedules)[0]?.id;
+  if (!scheduleId) throw new AdminError(404, 'You have no availability schedule.');
+  const data = await gql<{ availabilitySchedules: { edges: { node: ScheduleRow }[] } }>(
+    `query($id: UUID!) { availabilitySchedules(filter: { id: { eq: $id } }) { edges { node { id name timeZone weeklyHours isDefault overrides(first: 200, orderBy: [{ startDate: AscNullsLast }]) { edges { node { id name startDate endDate kind windows } } } } } } }`,
+    { id: scheduleId },
+  );
+  return { advisor, schedule: nodes(data.availabilitySchedules)[0] };
+};
+
+const availability = async () => {
+  const { advisor, schedule } = await mySchedule();
+  return {
+    advisor: { id: advisor.id, name: advisor.name, dailyLimit: advisor.dailyLimit, weeklyLimit: advisor.weeklyLimit },
+    schedule: { id: schedule.id, name: schedule.name, timeZone: schedule.timeZone || advisor.timeZone, weeklyHours: schedule.weeklyHours ?? {} },
+    overrides: nodes(schedule.overrides).filter((override) => override.endDate >= new Date().toISOString().slice(0, 10)),
+  };
+};
+
+const saveAvailability = async (body: Record<string, unknown>) => {
+  const { advisor, schedule } = await mySchedule();
+  const timeZone = String(body.timeZone ?? schedule.timeZone);
+  if (!isValidTimeZone(timeZone)) throw new AdminError(400, `Unknown time zone ${timeZone}.`);
+  const hours = (body.weeklyHours ?? {}) as Record<string, unknown>;
+  const weeklyHours = Object.fromEntries(WEEKDAYS.map((day) => [day, cleanWindows(hours[day])]).filter(([, windows]) => (windows as TimeWindow[]).length > 0));
+  await gql(`mutation($id: UUID!, $data: AvailabilityScheduleUpdateInput!) { updateAvailabilitySchedule(id: $id, data: $data) { id } }`, { id: schedule.id, data: { timeZone, weeklyHours } });
+  const limit = (value: unknown) => (value === null || value === '' || value === undefined ? null : Math.max(0, Math.floor(Number(value))) || null);
+  await gql(`mutation($id: UUID!, $data: AdvisorUpdateInput!) { updateAdvisor(id: $id, data: $data) { id } }`, { id: advisor.id, data: { timeZone, dailyLimit: limit(body.dailyLimit), weeklyLimit: limit(body.weeklyLimit) } });
+  return { saved: true };
+};
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const addOverride = async (body: Record<string, unknown>) => {
+  const { schedule } = await mySchedule();
+  const startDate = String(body.startDate ?? '');
+  const endDate = String(body.endDate || startDate);
+  if (!DATE.test(startDate) || !DATE.test(endDate) || endDate < startDate) throw new AdminError(400, 'Choose valid dates.');
+  const kind = body.kind === 'CUSTOM_HOURS' ? 'CUSTOM_HOURS' : 'UNAVAILABLE';
+  const windows = cleanWindows(body.windows);
+  if (kind === 'CUSTOM_HOURS' && windows.length === 0) throw new AdminError(400, 'Special hours need at least one time window.');
+  await gql(`mutation($data: AvailabilityOverrideCreateInput!) { createAvailabilityOverride(data: $data) { id } }`, {
+    data: { name: String(body.name || (kind === 'UNAVAILABLE' ? 'Time off' : 'Special hours')).slice(0, 120), startDate, endDate, kind, windows, scheduleId: schedule.id },
+  });
+  return { saved: true };
+};
+
+const removeOverride = async (body: Record<string, unknown>) => {
+  const { schedule } = await mySchedule();
+  const id = String(body.id ?? '');
+  if (!nodes(schedule.overrides).some((override) => override.id === id)) throw new AdminError(404, 'That entry is not on your schedule.');
+  await gql(`mutation($id: UUID!) { deleteAvailabilityOverride(id: $id) { id } }`, { id });
+  return { removed: true };
+};
+
+const pick = (options: Record<string, unknown>, value: unknown, fallback: string) => (typeof value === 'string' && value in options ? value : fallback);
+
+const quickType = async (body: Record<string, unknown>) => {
+  const member = await currentMember();
+  const advisor = await myAdvisor(member.id);
+  const name = String(body.name ?? '').trim().slice(0, 120);
+  if (!name) throw new AdminError(400, 'Give the appointment type a name.');
+  const settings = await loadSettings();
+  if (settings.maxAppointmentTypes) {
+    const { appointmentTypes } = await gql<{ appointmentTypes: { totalCount: number } }>(`{ appointmentTypes { totalCount } }`);
+    if (appointmentTypes.totalCount >= settings.maxAppointmentTypes) throw new AdminError(400, `This workspace allows ${settings.maxAppointmentTypes} appointment types.`);
+  }
+  const teamId = typeof body.teamId === 'string' && body.teamId ? body.teamId : null;
+  const format = pick(MEETING_FORMATS, body.meetingFormat, 'VIRTUAL');
+  const duration = Math.min(480, Math.max(5, Math.round(Number(body.durationMinutes) / 5) * 5 || 30));
+  const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)}-${randomUUID().slice(0, 4)}`;
+  const { createAppointmentType } = await gql<{ createAppointmentType: { id: string } }>(`mutation($data: AppointmentTypeCreateInput!) { createAppointmentType(data: $data) { id } }`, {
+    data: {
+      name,
+      slug,
+      status: 'DRAFT',
+      durationMinutes: duration,
+      incrementMinutes: Math.min(duration, 30),
+      meetingFormat: format,
+      conferencing: format === 'VIRTUAL' ? pick(CONFERENCING, body.conferencing, 'NONE') : 'NONE',
+      assignment: teamId ? pick(ASSIGNMENTS, body.assignment, 'ROUND_ROBIN') : 'ONE_TO_ONE',
+      roundRobinStrategy: 'EQUAL',
+      locationMode: format === 'AT_CUSTOMER' ? pick(LOCATION_MODES, body.locationMode, 'NEAREST') : 'NONE',
+      ownerId: teamId ? null : (advisor?.id ?? null),
+      teamId,
+      timeZone: advisor?.timeZone || settings.defaultTimeZone,
+    },
+  });
+  return { id: createAppointmentType.id, slug };
+};
+
 export const handleAdmin = async (body: Record<string, unknown>) => {
   switch (String(body.action ?? '')) {
     case 'overview':
@@ -226,6 +343,24 @@ export const handleAdmin = async (body: Record<string, unknown>) => {
       return setupAdvisor();
     case 'manualBook':
       return manualBook(body);
+    case 'availability':
+      return availability();
+    case 'saveAvailability':
+      return saveAvailability(body);
+    case 'addOverride':
+      return addOverride(body);
+    case 'removeOverride':
+      return removeOverride(body);
+    case 'quickType':
+      return quickType(body);
+    case 'teams': {
+      const { schedulingTeams } = await gql<{ schedulingTeams: { edges: { node: { id: string; name: string } }[] } }>(`{ schedulingTeams(filter: { isActive: { eq: true } }, first: 100) { edges { node { id name } } } }`);
+      return { teams: nodes(schedulingTeams) };
+    }
+    case 'mapLink': {
+      const member = await currentMember();
+      return { url: `${await publicBaseUrl()}/scheduling/map?ticket=${encodeURIComponent(mapTicket(member.id))}` };
+    }
     case 'testConnection': {
       const member = await currentMember();
       const advisor = await myAdvisor(member.id);

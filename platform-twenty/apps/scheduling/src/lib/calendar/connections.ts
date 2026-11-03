@@ -27,6 +27,20 @@ const SETTING_FIELDS = 'id name connectionId provider accountEmail availabilityC
 
 const PROVIDER_BY_NAME: Record<string, Provider> = { [GOOGLE_PROVIDER_NAME]: 'GOOGLE', [MICROSOFT_PROVIDER_NAME]: 'MICROSOFT' };
 
+// Each function run is a fresh process, so this only spares repeated calls within one run (one per advisor otherwise).
+// Twenty counts an app's API calls across all workspaces against one limit.
+const CONNECTION_CACHE_MS = 30_000;
+let cachedConnections: { at: number; list: Promise<Awaited<ReturnType<typeof listConnections>>> } | null = null;
+
+const allCalendarConnections = () => {
+  if (!cachedConnections || Date.now() - cachedConnections.at > CONNECTION_CACHE_MS) {
+    const list = Promise.all([GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME].map((providerName) => listConnections({ providerName, scope: 'USER' }))).then((lists) => lists.flat());
+    list.catch(() => (cachedConnections = null));
+    cachedConnections = { at: Date.now(), list };
+  }
+  return cachedConnections.list;
+};
+
 export const adapterFor = (provider: Provider, accessToken: string) =>
   provider === 'GOOGLE' ? googleCalendar(accessToken) : microsoftCalendar(accessToken);
 
@@ -38,9 +52,7 @@ export const updateSetting = (id: string, data: Record<string, unknown>) =>
 export const loadAdvisorCalendars = async (advisor: { id: string; workspaceMemberId: string | null }): Promise<AdvisorCalendar[]> => {
   const [connections, settingsData] = await Promise.all([
     advisor.workspaceMemberId
-      ? Promise.all([GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME].map((providerName) => listConnections({ providerName, scope: 'USER' }))).then((lists) =>
-          lists.flat().filter((connection) => connection.workspaceMemberId === advisor.workspaceMemberId),
-        )
+      ? allCalendarConnections().then((list) => list.filter((connection) => connection.workspaceMemberId === advisor.workspaceMemberId))
       : Promise.resolve([]),
     gql<{ calendarSettings: { edges: { node: CalendarSettingRecord }[] } }>(
       `query($advisorId: UUID!) { calendarSettings(filter: { advisorId: { eq: $advisorId } }) { edges { node { ${SETTING_FIELDS} } } } }`,

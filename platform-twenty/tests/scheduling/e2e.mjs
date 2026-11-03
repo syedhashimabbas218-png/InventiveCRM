@@ -2,7 +2,7 @@
 // Usage: node e2e.mjs <state file from setup.mjs> <api key file> [other workspace api key file]
 import { readFileSync } from 'node:fs';
 
-import { admin, apiClient, assert, booking, keyClient, MAILPIT, mailTo, mock, sleep, summary, userToken, waitFor } from './lib.mjs';
+import { admin, apiClient, assert, booking, connectCalendar, keyClient, MAILPIT, mailTo, mock, sleep, summary, userToken, waitFor } from './lib.mjs';
 
 const [stateFile, keyFile, otherKeyFile] = process.argv.slice(2);
 const state = JSON.parse(readFileSync(stateFile, 'utf8'));
@@ -29,7 +29,11 @@ const tickets = {};
 for (const slug of Object.values(types)) tickets[slug] = (await booking(W, { action: 'page', slug }, ip())).body.ticket;
 await sleep(3200);
 
-const slots = async (slug, from, days = 1, extra = {}) => (await booking(W, { action: 'slots', slug, from, days, ...extra }, ip())).body;
+const slots = async (slug, from, days = 1, extra = {}) => {
+  const response = await booking(W, { action: 'slots', slug, from, days, ...extra }, ip());
+  if (response.status !== 200) console.log(`slots ${slug} answered ${response.status}: ${JSON.stringify(response.body).slice(0, 300)}`);
+  return response.body;
+};
 const book = (slug, start, customer, extra = {}) =>
   booking(W, { action: 'book', slug, ticket: tickets[slug], start, customer: { timeZone: 'Europe/London', ...customer }, answers: { topic: 'Pensions' }, idempotencyKey: `${slug}-${start}-${customer.email}`, ...extra }, extra.headers ?? ip());
 const appointmentByEmail = async (email) =>
@@ -37,11 +41,14 @@ const appointmentByEmail = async (email) =>
 const synced = (email) => waitFor(`calendar sync for ${email}`, async () => (await appointmentByEmail(email)).find((appointment) => appointment.calendarStatus === 'SYNCED'), 60000).catch(() => null);
 const events = async (email) => mock(`/admin/events?email=${encodeURIComponent(email)}`);
 const tokenFromEmail = async (address) => {
-  const message = await waitFor(`email to ${address}`, async () => (await mailTo(address))[0], 30000);
+  const message = await waitFor(`email to ${address}`, async () => (await inbox(address))[0], 30000);
   const full = await (await fetch(`${MAILPIT}/api/v1/message/${message.ID}`)).json();
   return { message: full, token: /booking\/manage\/([\w.-]+)/.exec(full.Text)?.[1] ?? null };
 };
 const run = state.run;
+// Reruns reuse the same addresses, so mail checks only look at this run's messages.
+const startedAt = Date.now();
+const inbox = (address) => mailTo(address, startedAt);
 const email = (name) => `${name}.${run}@customers.test`;
 
 // 1-3. One-to-one with a Google advisor; busy time blocks; booking lands in Twenty and Google.
@@ -65,7 +72,7 @@ const again = await book(types.aliceIntro, at(2, '11:00'), { name: 'Ann Customer
 assert('a repeated submit returns the same booking instead of a second one', again.status === 200 && (await appointmentByEmail(ann)).length === 1, `${again.status} ${(await appointmentByEmail(ann)).length} appointments`);
 const { message: confirmation, token: annToken } = await tokenFromEmail(ann);
 assert('the customer gets a confirmation with a calendar invitation and a manage link', /Booked/.test(confirmation.Subject) && confirmation.Attachments.some((file) => /calendar|ics/.test(file.ContentType)) && Boolean(annToken), `${confirmation.Subject} | ${confirmation.Attachments.map((file) => file.ContentType).join(',')}`);
-assert('Alice is told about the new booking', (await mailTo('alice@inventiveweb.test')).some((message) => /New booking/.test(message.Subject)));
+assert('Alice is told about the new booking', (await inbox('alice@inventiveweb.test')).some((message) => /New booking/.test(message.Subject)));
 
 // 4. A different user on Microsoft receives a booking.
 const bo = email('bo');
@@ -103,9 +110,9 @@ assert('two simultaneous round-robin bookings for one slot go to two different a
 const collectiveDay = (await slots(types.collective, at(2, '00:00'))).slots.map((slot) => slot.start.slice(11, 16));
 assert('collective times exclude anyone busy (Alice at 10:00 and 11:00, Bob at 13:00)', !collectiveDay.includes('10:00') && !collectiveDay.includes('11:00') && !collectiveDay.includes('13:00') && collectiveDay.includes('15:00'), collectiveDay.join(' '));
 const cy = email('cy');
-await book(types.collective, at(2, '15:00'), { name: 'Cy Customer', email: cy });
+const cyBooking = await book(types.collective, at(2, '15:00'), { name: 'Cy Customer', email: cy });
 const cyAppointment = await synced(cy);
-assert('a collective meeting holds both advisors and is in both calendars', cyAppointment?.participants.edges.length === 2 && (await events('alice@googlemail.test')).some((event) => event.start === at(2, '15:00')) && (await events('bob@outlook.test')).some((event) => event.start === at(2, '15:00')), `${cyAppointment?.participants.edges.length} participants`);
+assert('a collective meeting holds both advisors and is in both calendars', cyAppointment?.participants.edges.length === 2 && (await events('alice@googlemail.test')).some((event) => event.start === at(2, '15:00')) && (await events('bob@outlook.test')).some((event) => event.start === at(2, '15:00')), `${cyAppointment?.participants.edges.length} participants; booking ${cyBooking.status} ${cyBooking.body?.message ?? ''}`);
 
 // Group sessions fill up to capacity.
 const groupResults = [];
@@ -143,7 +150,7 @@ await sleep(4000);
 const annMoved = (await appointmentByEmail(ann))[0];
 const annGoogle = (await events('alice@googlemail.test')).find((event) => event.id === annEvent?.id);
 assert('the customer can move 30 minutes later, overlapping the old time', manage.canReschedule && newTimes.includes(at(2, '11:30')) && moved.status === 200 && annMoved.startsAt === at(2, '11:30'), `${moved.status} ${moved.body?.message ?? ''} ${annMoved.startsAt}`);
-assert('the Google event moved with it, and the customer was told', annGoogle?.start === at(2, '11:30') && (await waitFor('reschedule email', async () => (await mailTo(ann)).some((message) => /Moved/.test(message.Subject)), 30000).catch(() => false)), annGoogle?.start);
+assert('the Google event moved with it, and the customer was told', annGoogle?.start === at(2, '11:30') && (await waitFor('reschedule email', async () => (await inbox(ann)).some((message) => /Moved/.test(message.Subject)), 30000).catch(() => false)), annGoogle?.start);
 const fake = await booking(W, { action: 'manage', token: `${annMoved.id}.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA` }, ip());
 assert('a guessed manage link is refused', fake.status === 404);
 
@@ -151,7 +158,7 @@ assert('a guessed manage link is refused', fake.status === 404);
 await apiClient(bobToken, W).gql(`mutation($id: UUID!) { updateAppointment(id: $id, data: { status: CANCELLED, cancelReason: "Advisor unwell" }) { id } }`, { id: boAppointment.id });
 const boCancelled = await waitFor('cancellation handled', async () => ((await events('bob@outlook.test')).find((event) => event.id === graphEvent.id)?.status === 'deleted' ? true : null), 60000).catch(() => false);
 const freeAgain = (await slots(types.bobConsult, at(2, '00:00'))).slots.some((slot) => slot.start === at(2, '13:00'));
-assert('an advisor cancelling in Twenty removes the Outlook event, frees the slot and emails the customer', boCancelled && freeAgain && (await waitFor('cancel email', async () => (await mailTo(bo)).some((message) => /Cancelled/.test(message.Subject)), 30000).catch(() => false)));
+assert('an advisor cancelling in Twenty removes the Outlook event, frees the slot and emails the customer', boCancelled && freeAgain && (await waitFor('cancel email', async () => (await inbox(bo)).some((message) => /Cancelled/.test(message.Subject)), 30000).catch(() => false)));
 
 // 12. A disconnected calendar is not ignored.
 await mock('/admin/revoke', { email: 'bob@outlook.test' });
@@ -159,6 +166,12 @@ const whileRevoked = (await slots(types.bobConsult, at(7, '00:00'))).slots.lengt
 const bobConnections = (await admin(W, bobToken, { action: 'connections' })).body.connections;
 await mock('/admin/revoke', { email: 'bob@outlook.test', revoked: false });
 assert('when Bob revokes access, his times are withdrawn rather than offered blind, and the connection is flagged', whileRevoked === 0 && bobConnections.some((connection) => connection.status === 'NEEDS_RECONNECT' || connection.status === 'ERROR'), `${whileRevoked} slots, ${bobConnections.map((c) => c.status).join(',')}`);
+const stillFlagged = (await admin(W, bobToken, { action: 'connections' })).body.connections;
+await connectCalendar({ token: bobToken, workspaceUrl: W, applicationId: state.applicationId, providerName: 'microsoft-calendar', provider: 'microsoft', email: 'bob@outlook.test', reconnectingConnectedAccountId: stillFlagged[0]?.connectionId });
+await slots(types.bobConsult, at(7, '00:00'));
+const reconnected = (await admin(W, bobToken, { action: 'connections' })).body.connections;
+const afterReconnect = (await slots(types.bobConsult, at(7, '00:00'))).slots.length;
+assert('the connection stays flagged until Bob reconnects, then his times come back', stillFlagged.every((connection) => connection.status !== 'CONNECTED') && reconnected.length === 1 && reconnected[0].status === 'CONNECTED' && afterReconnect > 0, `before ${stillFlagged.map((c) => c.status)}, after ${reconnected.map((c) => c.status)} with ${afterReconnect} slots`);
 
 // Provider outage during a calendar write: retried by the sync job, no duplicates.
 const fi = email('fi');
@@ -185,13 +198,13 @@ assert('an event moved directly in Google is moved back to the booked time and l
 // Time zones: a New York customer sees New York times in their email.
 const gi = email('gi');
 await book(types.aliceIntro, at(9, '14:00'), { name: 'Gi Customer', email: gi, timeZone: 'America/New_York' });
-const giMail = await waitFor('NY email', async () => (await mailTo(gi))[0], 30000).catch(() => null);
+const giMail = await waitFor('NY email', async () => (await inbox(gi))[0], 30000).catch(() => null);
 assert('a customer in New York gets times in their own zone', /09:00 to 09:30 \(America\/New_York\)/.test(giMail?.Subject ?? '') || /09:00/.test(giMail?.Snippet ?? ''), giMail?.Subject);
 
 // Reminders at the configured intervals.
 await api.gql(`mutation($slug: String!) { updateAppointmentTypes(filter: { slug: { eq: $slug } }, data: { reminderMinutes: "20000,60" }) { id } }`, { slug: types.aliceIntro });
 await fetch(`${W}/s/scheduling/reminders-now`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' }, body: '{}' });
-assert('reminders go out at the first due interval, once', (await mailTo(gi)).filter((message) => /Reminder/.test(message.Subject)).length === 1);
+assert('reminders go out at the first due interval, once', (await inbox(gi)).filter((message) => /Reminder/.test(message.Subject)).length === 1);
 
 // Public booking is rate limited per client and protected against instant bot posts.
 const same = { 'x-forwarded-for': '10.99.99.99' };
