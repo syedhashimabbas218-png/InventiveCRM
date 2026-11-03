@@ -134,7 +134,7 @@ const Connections = () => {
         <h2 style={{ margin: 0, fontSize: 18 }}>Calendar connections</h2>
         <p style={{ color: theme.muted, margin: '4px 0 0' }}>
           Connect Google, Microsoft or both. Busy times from the calendars you tick block bookings; event details are never read or shown to
-          customers. Without a connection, only bookings in Twenty block your time.
+          customers. Without a connection, only bookings in the CRM block your time.
         </p>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>

@@ -20,6 +20,9 @@ const gql = async (query, variables = {}) => {
   const response = await fetch('http://localhost:3000/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify({ query, variables }) });
   return (await response.json()).data;
 };
+// Clients must never see the upstream product name: pages and emails are collected and checked at the end.
+const seen = [];
+const collect = async (label, page) => seen.push([label, await page.locator('body').innerText()]);
 const shot = (page, name) => page.screenshot({ path: join(out, `${name}.png`), fullPage: true });
 
 // A different-origin "customer website" that embeds the booking widget three ways.
@@ -27,8 +30,8 @@ const site = createServer((request, response) => {
   const slug = new URL(request.url, 'http://x').searchParams.get('slug');
   response.writeHead(200, { 'Content-Type': 'text/html' });
   response.end(`<!doctype html><html><head><meta charset="utf-8"><title>Acme Plumbing</title><style>body{font-family:sans-serif;margin:0;padding:24px;background:#f4f1ea}</style></head>
-<body><h1>Acme Plumbing &amp; Heating</h1><p>Book a visit below, or <a href="#" data-twenty-booking-popup="${slug}" id="popup">open the booking window</a>.</p>
-<div data-twenty-booking="${slug}" id="inline" style="background:#fff;border-radius:12px"></div>
+<body><h1>Acme Plumbing &amp; Heating</h1><p>Book a visit below, or <a href="#" data-crm-booking-popup="${slug}" id="popup">open the booking window</a>.</p>
+<div data-crm-booking="${slug}" id="inline" style="background:#fff;border-radius:12px"></div>
 <script src="${W}/s/booking/embed.js" data-floating="${slug}" data-label="Book a call" async></script></body></html>`);
 });
 
@@ -56,6 +59,7 @@ const site = createServer((request, response) => {
   await page.click('#sub');
   await page.waitForSelector('h2.ok', { timeout: 60000 });
   await shot(page, '04-booking-confirmed');
+  await collect('booking page', page);
   const manageHref = await page.locator('a.btn').getAttribute('href');
   assert('a customer books through the page in a browser and is given a manage link', /\/booking\/manage\//.test(manageHref ?? ''), await page.locator('h2.ok').innerText());
   void nextMonth;
@@ -64,6 +68,7 @@ const site = createServer((request, response) => {
   await page.goto(manageHref, { waitUntil: 'networkidle' });
   await page.waitForSelector('#rs', { timeout: 30000 });
   await shot(page, '05-manage');
+  await collect('manage page', page);
   assert('the manage page offers reschedule and cancel', (await page.locator('#rs').count()) === 1 && (await page.locator('#cx').count()) === 1);
 
   // Phone layout.
@@ -110,7 +115,7 @@ const site = createServer((request, response) => {
   await inline.locator('h2.ok').waitFor({ timeout: 60000 });
   const embedded = (await gql(`query($email: String!) { appointments(filter: { customerEmail: { eq: $email } }) { edges { node { source } } } }`, { email: `embed.${state.run}@customers.test` })).appointments.edges[0]?.node;
   assert('a booking made inside the widget is recorded as coming from the website embed', embedded?.source === 'EMBED', embedded?.source);
-  await host.click('#twenty-booking-float');
+  await host.click('#crm-booking-float');
   await host.frameLocator('iframe >> nth=1').locator('.cal').waitFor({ timeout: 30000 });
   await shot(host, '10-embed-popup');
   assert('the floating button opens the booking popup', true);
@@ -132,18 +137,21 @@ const site = createServer((request, response) => {
   await app.keyboard.press('Enter');
   await app.getByPlaceholder(/password/i).fill('Admin-Pass-1234!');
   await app.keyboard.press('Enter');
-  await app.waitForTimeout(7000);
-  await app.getByText('Scheduling', { exact: true }).first().click({ timeout: 15000 }).catch(() => {});
-  await app.waitForTimeout(1500);
-  await app.getByText('Overview', { exact: true }).first().click({ timeout: 15000 });
+  const schedulingFolder = app.getByText('Scheduling', { exact: true }).first();
+  await schedulingFolder.waitFor({ timeout: 60000 });
+  const overviewItem = app.getByText('Overview', { exact: true }).first();
+  if (!(await overviewItem.isVisible())) await schedulingFolder.click();
+  await overviewItem.click({ timeout: 15000 });
   await app.waitForTimeout(9000);
   await shot(app, '11-twenty-scheduling-overview');
   const overview = await app.locator('body').innerText();
+  seen.push(['overview', overview]);
   assert('the Scheduling overview renders inside Twenty with live data', /Booking pages/.test(overview) && /Upcoming/.test(overview), overview.slice(0, 120).replace(/\n/g, ' '));
   await app.getByText('Calendar connections', { exact: true }).first().click({ timeout: 15000 });
   await app.waitForTimeout(8000);
   await shot(app, '12-twenty-calendar-connections');
   const connectionsText = await app.locator('body').innerText();
+  seen.push(['calendar connections', connectionsText]);
   assert('the Calendar connections page lists the Google account and its calendars', /alice@googlemail.test/.test(connectionsText) && /Calendars that block my availability/.test(connectionsText));
   await app.getByText(/^Appointment calendar/).first().click({ timeout: 15000 });
   await app.waitForTimeout(6000);
@@ -157,6 +165,7 @@ const site = createServer((request, response) => {
   await app.getByText('Weekly hours', { exact: true }).waitFor({ timeout: 30000 });
   await app.waitForTimeout(1500);
   await shot(app, '14-twenty-availability');
+  await collect('availability', app);
   const reason = `Browser day off ${state.run}`;
   await app.getByPlaceholder('Reason (optional)').fill(reason);
   await app.getByLabel('First day').fill('2027-03-01');
@@ -204,6 +213,11 @@ const site = createServer((request, response) => {
   const created = (await gql(`query($name: String!) { appointmentTypes(filter: { name: { eq: $name } }) { edges { node { id status meetingFormat locationMode } } } }`, { name: typeName })).appointmentTypes.edges[0]?.node;
   assert('a new appointment type is created as a draft from the overview and opens on its record page', created?.status === 'DRAFT' && created.meetingFormat === 'AT_CUSTOMER' && created.locationMode === 'WITHIN_RADIUS', JSON.stringify(created));
   if (created) await gql(`mutation($id: UUID!) { destroyAppointmentType(id: $id) { id } }`, { id: created.id });
+
+  const mailbox = await (await fetch(`http://127.0.0.1:8025/api/v1/search?query=${encodeURIComponent(`to:browser.${state.run}@customers.test`)}`)).json();
+  for (const message of mailbox.messages ?? []) seen.push([`email "${message.Subject}"`, (await (await fetch(`http://127.0.0.1:8025/api/v1/message/${message.ID}`)).json()).Text]);
+  const leaks = seen.filter(([, text]) => /\bTwenty\b/.test(text)).map(([label]) => label);
+  assert('no page or email a client or customer sees names the upstream product', seen.length >= 6 && leaks.length === 0, `${seen.length} checked${leaks.length ? `; found in ${leaks.join(', ')}` : ''}`);
 
   await browser.close();
   site.close();

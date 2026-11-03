@@ -20,7 +20,7 @@ const handler = async (event: RoutePayload<Record<string, unknown>>) => {
 export default defineLogicFunction({
   universalIdentifier: IDS.logicFunctions.schedulingAdmin,
   name: 'scheduling-admin',
-  description: 'Data for the Scheduling pages in Twenty: overview, calendar connections, advisor setup and manual booking.',
+  description: 'Data for the Scheduling pages: overview, calendar connections, advisor setup and manual booking.',
   timeoutSeconds: 120,
   httpRouteTriggerSettings: { path: '/scheduling/admin', httpMethod: 'POST', isAuthRequired: true },
   handler,

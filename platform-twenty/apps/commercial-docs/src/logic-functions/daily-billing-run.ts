@@ -1,7 +1,7 @@
 import { defineLogicFunction } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
-import { gql, nodes } from 'src/lib/api';
+import { gql, nodes, runAsApplication } from 'src/lib/api';
 import { todayInLondon } from 'src/lib/dates';
 import { markOverdueInvoices, runRecurringInvoices } from 'src/lib/documents';
 
@@ -30,5 +30,5 @@ export default defineLogicFunction({
   timeoutSeconds: 120,
   cronTriggerSettings: { pattern: '0 6 * * *' },
   httpRouteTriggerSettings: { path: '/billing/daily-run', httpMethod: 'POST', isAuthRequired: true },
-  handler,
+  handler: runAsApplication(handler),
 });

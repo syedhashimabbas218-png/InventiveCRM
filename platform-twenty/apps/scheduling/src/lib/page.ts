@@ -40,7 +40,7 @@ if(embed)document.body.classList.add('embed');
 var S={tz:Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/London',month:null,date:null,slots:[],location:null,advisor:null,page:null,key:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())};
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function post(body){return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok){var e=new Error(j.message||'Error');e.code=j.error;throw e}return j})})}
-function height(){if(embed&&window.parent!==window)window.parent.postMessage({type:'twenty-booking:height',height:document.documentElement.scrollHeight},'*')}
+function height(){if(embed&&window.parent!==window)window.parent.postMessage({type:'crm-booking:height',height:document.documentElement.scrollHeight},'*')}
 new MutationObserver(height).observe(document.body,{subtree:true,childList:true,attributes:true});window.addEventListener('resize',height);
 function fmt(iso,opts){return new Intl.DateTimeFormat('en-GB',Object.assign({timeZone:S.tz},opts)).format(new Date(iso))}
 function dayKey(iso){return fmt(iso,{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-')}
@@ -127,7 +127,7 @@ function formStep(start){var t=S.page.type,pre=S.page.presets||{answers:{}};
   .then(function(r){done(r)}).catch(function(e){btn.disabled=false;btn.textContent='Book';fail(e);if(e.code==='SLOT_TAKEN'){S.key=String(Math.random()).slice(2)+Date.now();setTimeout(function(){S.date=null;loadMonth()},1800)}})};height()}
 function done(r){root.innerHTML='<h2 class="ok">'+(r.status==='PENDING'?'Request sent':'You are booked')+'</h2><p>'+esc(fmt(r.start,{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' ('+esc(S.tz)+')'+(r.advisorName?' with '+esc(r.advisorName):'')+'</p>'+
  (r.confirmationMessage?'<p>'+esc(r.confirmationMessage)+'</p>':'')+'<p class="muted">A confirmation email with a calendar invitation is on its way.</p><p><a class="btn" href="'+esc(r.manageUrl)+'" target="_top">Reschedule or cancel</a></p>';
- if(embed&&window.parent!==window)window.parent.postMessage({type:'twenty-booking:booked'},'*');height()}
+ if(embed&&window.parent!==window)window.parent.postMessage({type:'crm-booking:booked'},'*');height()}
 
 // ---- manage page
 function manage(){post({action:'manage',token:C.token}).then(function(a){S.tz=a.timeZone||S.tz;S.page={type:{name:a.typeName,durationMinutes:Math.round((new Date(a.end)-new Date(a.start))/6e4),meetingFormat:'',color:'#1961ED',description:''},map:{}};S.manage=a;
@@ -165,19 +165,19 @@ function src(slug,extra){return BASE+'/book/'+encodeURIComponent(slug)+'?embed=1
 function frame(slug,minHeight){var f=document.createElement('iframe');f.src=src(slug);f.title='Booking';f.loading='lazy';f.style.cssText='width:100%;border:0;min-height:'+(minHeight||620)+'px;display:block';f.setAttribute('allow','geolocation');return f}
 window.addEventListener('message',function(e){if(e.origin!==ORIGIN||!e.data||typeof e.data.type!=='string')return;
  Array.prototype.forEach.call(document.querySelectorAll('iframe'),function(f){if(f.contentWindow!==e.source)return;
-  if(e.data.type==='twenty-booking:height'&&typeof e.data.height==='number')f.style.height=Math.min(Math.max(e.data.height,400),2400)+'px';
-  if(e.data.type==='twenty-booking:booked')f.dispatchEvent(new CustomEvent('twenty-booking:booked',{bubbles:true}))})});
-function inline(){Array.prototype.forEach.call(document.querySelectorAll('[data-twenty-booking]'),function(el){if(el.dataset.twentyBookingReady)return;el.dataset.twentyBookingReady='1';el.appendChild(frame(el.getAttribute('data-twenty-booking'),el.getAttribute('data-min-height')))})}
+  if(e.data.type==='crm-booking:height'&&typeof e.data.height==='number')f.style.height=Math.min(Math.max(e.data.height,400),2400)+'px';
+  if(e.data.type==='crm-booking:booked')f.dispatchEvent(new CustomEvent('crm-booking:booked',{bubbles:true}))})});
+function inline(){Array.prototype.forEach.call(document.querySelectorAll('[data-crm-booking]'),function(el){if(el.dataset.crmBookingReady)return;el.dataset.crmBookingReady='1';el.appendChild(frame(el.getAttribute('data-crm-booking'),el.getAttribute('data-min-height')))})}
 function popup(slug){var shade=document.createElement('div');shade.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px';
  var box=document.createElement('div');box.style.cssText='background:#fff;border-radius:12px;width:100%;max-width:1000px;max-height:92vh;overflow:auto;position:relative';
  var close=document.createElement('button');close.textContent='×';close.setAttribute('aria-label','Close');close.style.cssText='position:absolute;top:6px;right:10px;font-size:24px;border:0;background:none;cursor:pointer;z-index:1';
  close.onclick=function(){shade.remove()};shade.onclick=function(e){if(e.target===shade)shade.remove()};document.addEventListener('keydown',function k(e){if(e.key==='Escape'){shade.remove();document.removeEventListener('keydown',k)}});
  box.appendChild(close);box.appendChild(frame(slug,560));shade.appendChild(box);document.body.appendChild(shade)}
-function popups(){Array.prototype.forEach.call(document.querySelectorAll('[data-twenty-booking-popup]'),function(el){if(el.dataset.twentyBookingReady)return;el.dataset.twentyBookingReady='1';el.addEventListener('click',function(e){e.preventDefault();popup(el.getAttribute('data-twenty-booking-popup'))})})}
-function floating(){var slug=current&&current.getAttribute('data-floating');if(!slug||document.getElementById('twenty-booking-float'))return;var b=document.createElement('button');b.id='twenty-booking-float';
+function popups(){Array.prototype.forEach.call(document.querySelectorAll('[data-crm-booking-popup]'),function(el){if(el.dataset.crmBookingReady)return;el.dataset.crmBookingReady='1';el.addEventListener('click',function(e){e.preventDefault();popup(el.getAttribute('data-crm-booking-popup'))})})}
+function floating(){var slug=current&&current.getAttribute('data-floating');if(!slug||document.getElementById('crm-booking-float'))return;var b=document.createElement('button');b.id='crm-booking-float';
  b.textContent=current.getAttribute('data-label')||'Book an appointment';b.style.cssText='position:fixed;right:20px;bottom:20px;z-index:2147483645;border:0;border-radius:999px;padding:12px 18px;font:600 14px sans-serif;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2);background:'+(current.getAttribute('data-color')||'#1961ED');
  b.onclick=function(){popup(slug)};document.body.appendChild(b)}
 function init(){inline();popups();floating()}
-window.TwentyBooking={open:popup,refresh:init};
+window.CrmBooking={open:popup,refresh:init};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();`;

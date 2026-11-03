@@ -1,7 +1,7 @@
 import { type DatabaseEventPayload, defineLogicFunction } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
-import { gql } from 'src/lib/api';
+import { gql, runAsApplication } from 'src/lib/api';
 import { todayInLondon } from 'src/lib/dates';
 import { issueInvoice } from 'src/lib/documents';
 
@@ -44,5 +44,5 @@ export default defineLogicFunction({
   description: 'Issuing an invoice runs the UK checks, numbers it, renders the PDF and files it on the client card. Paid records the payment date.',
   timeoutSeconds: 60,
   databaseEventTriggerSettings: { eventName: 'invoice.updated', updatedFields: ['status'] },
-  handler,
+  handler: runAsApplication(handler),
 });

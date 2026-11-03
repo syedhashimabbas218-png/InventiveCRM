@@ -3,10 +3,11 @@ import { defineLogicFunction } from 'twenty-sdk/define';
 import { IDS } from 'src/constants/ids';
 import { DAY } from 'src/engine/time';
 import { gql, nodes } from 'src/lib/api';
+import { inBackground } from 'src/lib/lifecycle';
 import { purgeOldCounters } from 'src/lib/rate-limit';
 
 // Appointments still open a day after they ended are marked Completed; advisors can change one to No-show.
-const handler = async () => {
+const run = async () => {
   const now = Date.now();
   await purgeOldCounters(now - 2 * DAY);
   const data = await gql<{ appointments: { edges: { node: { id: string } }[] } }>(
@@ -17,6 +18,8 @@ const handler = async () => {
     await gql(`mutation($id: UUID!) { updateAppointment(id: $id, data: { status: COMPLETED }) { id } }`, { id: appointment.id });
   return { completed: nodes(data.appointments).length };
 };
+
+const handler = () => inBackground('housekeeping-job', run);
 
 export default defineLogicFunction({
   universalIdentifier: IDS.logicFunctions.housekeepingJob,

@@ -57,7 +57,7 @@ To roll back by hand later (for example a problem found the next day): `deploy/o
 
 The same steps for Quotes & Invoices (`apps/commercial-docs`, id `93ae1d55-5c54-4fac-922b-fd9fa4a69ab5`) and Scheduling (`apps/scheduling`, id `54c65493-4e80-4efa-824a-456671383c86`).
 
-1. Bump `version` in the app's `package.json`; run `yarn test` and `yarn typecheck`.
+1. Bump `version` in the app's `package.json`; run `yarn install --immutable`, `yarn test` and `yarn typecheck`. Each app commits its `yarn.lock` (the CLI will not build without one) and pins every dependency exactly. Yarn 4.18 refuses packages published in the last few days, so a brand-new SDK release can only be used once Yarn accepts it.
 2. `npx twenty@2.54.3 app plan --remote owner --json | node ../../scripts/check-app-plan.mjs`: must report 0 to destroy.
 3. `npx twenty@2.54.3 app publish --private --remote owner`.
 4. `app install --universal-identifier <app id>` in our workspace, check, then one client, then the rest.

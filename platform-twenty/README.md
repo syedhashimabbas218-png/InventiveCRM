@@ -94,7 +94,7 @@ Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restor
 
 `tests/multitenant/run.sh` signs up a server admin, creates two client workspaces, checks that neither can read, change or delete the other's records (including replayed session cookies and cross-origin requests), invites a client and checks they cannot reach the other workspace, create workspaces or open the admin panel, then crawls every settings page for leftover Twenty text, links and logos.
 
-`tests/scheduling/` runs the Scheduling app end to end (37 checks) and in a browser (17 checks) against a real server, with a Google and Microsoft test double. See its README.
+`tests/scheduling/` runs the Scheduling app end to end (37 checks), in a browser (17 checks) and with a restricted member role (2 checks) against a real server, with a Google and Microsoft test double. See its README.
 
 ## Onboarding a client
 

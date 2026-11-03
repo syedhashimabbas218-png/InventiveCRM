@@ -65,6 +65,8 @@ Each provider write goes through the **Calendar sync** outbox. Retries back off 
 
 Manage links are HMAC-signed over a per-appointment nonce, so they cannot be guessed and changing the nonce revokes them. Booking forms carry a signed ticket: submissions under 3 seconds or older than a day are refused, as is a filled honeypot field. Requests are limited per client address (hashed, never stored raw): bookings per hour come from Scheduling settings (default 10), page, slot, address and manage calls per minute. Repeated submits with the same idempotency key return the same booking. Customers only ever see their own appointment.
 
+Whose access each call uses follows the SDK's model. Pages in Twenty and their admin route act as the signed-in person (their role intersected with the app's), so nobody can do more through the app than their role allows. Follow-up work on a record change and the scheduled jobs act as the app (`TWENTY_APP_APPLICATION_ACCESS_TOKEN`), so freeing time, calendar sync and emails still happen when the person who cancelled cannot permanently delete records themselves. Public booking routes have nobody behind them and act as the app.
+
 Embeds run in an iframe from the workspace URL. If an appointment type lists allowed domains, the widget refuses other sites, and bookings from other origins are rejected server-side.
 
 ### Contacts

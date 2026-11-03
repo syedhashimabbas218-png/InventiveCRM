@@ -1,8 +1,19 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 // Thin GraphQL client over the token and URL the platform injects into logic functions.
 // Raw queries keep the app independent of the generated typed client, which changes with each workspace schema.
+const applicationAccess = new AsyncLocalStorage<boolean>();
+
+// Same as the SDK's runAs: 'application', for background work (record-change follow-ups, the daily run): numbering,
+// PDFs and filing must not depend on the role of whoever triggered it. Twenty has already checked their own change.
+export const runAsApplication =
+  <TArgs extends unknown[], TResult>(handler: (...args: TArgs) => Promise<TResult>) =>
+  (...args: TArgs) =>
+    applicationAccess.run(true, () => handler(...args));
+
 const getEnvironment = () => {
   const url = process.env.TWENTY_API_URL;
-  const token = process.env.TWENTY_APP_ACCESS_TOKEN ?? process.env.TWENTY_API_KEY;
+  const token = (applicationAccess.getStore() ? process.env.TWENTY_APP_APPLICATION_ACCESS_TOKEN : undefined) ?? process.env.TWENTY_APP_ACCESS_TOKEN ?? process.env.TWENTY_API_KEY;
   if (!url || !token) throw new Error('TWENTY_API_URL and an access token must be set');
   return { url, token };
 };

@@ -1,7 +1,7 @@
 import { heldInterval } from 'src/engine/availability';
 import { reservationKeys } from 'src/engine/slots';
 import { MINUTE } from 'src/engine/time';
-import { gql, nodes } from 'src/lib/api';
+import { asApplication, gql, nodes } from 'src/lib/api';
 import { type AppointmentRecord, loadAppointment, releaseReservations, updateAppointment } from 'src/lib/booking';
 import { buildIcs, formatWhen, manageUrl, sendMail } from 'src/lib/notify';
 import { loadSettings, TYPE_FIELDS } from 'src/lib/records';
@@ -193,7 +193,7 @@ export const onAppointmentCreated = async (id: string) => {
   await safely(id, 'customer confirmation', () => notifyCustomer(appointment as AppointmentRecord, appointment?.status === 'PENDING' ? 'requested' : 'confirmed'));
   await safely(id, 'advisor notification', () =>
     notifyAdvisors(appointment as AppointmentRecord, `New booking: ${appointment?.appointmentType?.name ?? 'appointment'}`, [
-      appointment?.status === 'PENDING' ? 'A booking is waiting for your approval (set it to Confirmed in Twenty).' : 'You have a new booking.',
+      appointment?.status === 'PENDING' ? 'A booking is waiting for your approval (set it to Confirmed in the CRM).' : 'You have a new booking.',
     ]),
   );
   await updateAppointment(id, { notifiedStartsAt: appointment.startsAt });
@@ -267,3 +267,14 @@ export const recordSystemError = (source: string, error: unknown) =>
   gql(`mutation($data: SchedulingAuditEventCreateInput!) { createSchedulingAuditEvent(data: $data) { id } }`, {
     data: { name: 'system.error', actor: source, occurredAt: new Date().toISOString(), details: { message: (error as Error).message?.slice(0, 1000), stack: (error as Error).stack?.slice(0, 4000) } },
   }).catch(() => undefined);
+
+// Background failures are kept as audit events so they show in the CRM, not only in `twenty app logs`.
+export const inBackground = <TResult>(source: string, work: () => Promise<TResult>) =>
+  asApplication(async () => {
+    try {
+      return await work();
+    } catch (error) {
+      await recordSystemError(source, error);
+      throw error;
+    }
+  });

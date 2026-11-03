@@ -81,13 +81,8 @@ const ManualBooking = ({ theme, onDone }: { theme: Theme; onDone: () => void }) 
   const [form, setForm] = useState({ appointmentTypeId: '', start: '', name: '', email: '', phone: '' });
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    fetch(`${process.env.TWENTY_API_URL}/graphql`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.TWENTY_APP_ACCESS_TOKEN ?? ''}` },
-      body: JSON.stringify({ query: '{ appointmentTypes(filter: { status: { neq: DISABLED } }, first: 100) { edges { node { id name } } } }' }),
-    })
-      .then((response) => response.json())
-      .then((payload) => setTypes((payload.data?.appointmentTypes?.edges ?? []).map((edge: { node: { id: string; name: string } }) => edge.node)))
+    callAdmin<{ types: { id: string; name: string }[] }>({ action: 'bookableTypes' })
+      .then((result) => setTypes(result.types))
       .catch(() => setTypes([]));
   }, []);
   const input = { font: 'inherit', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${theme.line}`, background: theme.card, color: theme.text } as const;
@@ -349,7 +344,7 @@ const Dashboard = () => {
         </Card>
         <Card theme={theme} title="Calendar connections" action={<Button theme={theme} onClick={() => navigate(AppPath.RecordIndexPage, { objectNamePlural: 'calendarSettings' })}>Manage</Button>}>
           {data.connections.length === 0 ? (
-            <span style={{ color: theme.muted }}>No calendar connected: only Twenty bookings block your time. Connect Google or Microsoft under Scheduling, Calendar connections.</span>
+            <span style={{ color: theme.muted }}>No calendar connected: only bookings made here block your time. Connect Google or Microsoft under Scheduling, Calendar connections.</span>
           ) : (
             data.connections.map((connection) => (
               <div key={connection.id} style={{ display: 'flex', justifyContent: 'space-between' }}>

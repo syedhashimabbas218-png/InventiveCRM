@@ -1,16 +1,17 @@
 import { type CSSProperties, type ReactNode } from 'react';
+import { RestApiClient, RestApiClientError } from 'twenty-client-sdk/rest';
 import { useColorScheme } from 'twenty-sdk/front-component';
 
-// Calls the app's authenticated route with the signed-in user's token, so Twenty permissions apply.
+const appRoutes = new RestApiClient();
+
+// Acts as the signed-in user, so Twenty permissions apply; the SDK client renews the short-lived page token.
 export const callAdmin = async <TData,>(body: Record<string, unknown>): Promise<TData> => {
-  const response = await fetch(`${process.env.TWENTY_API_URL}/s/scheduling/admin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.TWENTY_APP_ACCESS_TOKEN ?? ''}` },
-    body: JSON.stringify(body),
-  });
-  const payload = (await response.json().catch(() => ({}))) as TData & { error?: string };
-  if (!response.ok) throw new Error(payload.error ?? `Request failed (${response.status})`);
-  return payload;
+  try {
+    return await appRoutes.post<TData>('/s/scheduling/admin', body);
+  } catch (error) {
+    const message = error instanceof RestApiClientError ? (error.body as { error?: string } | undefined)?.error : undefined;
+    throw new Error(message ?? (error as Error).message);
+  }
 };
 
 export const useTheme = () => {

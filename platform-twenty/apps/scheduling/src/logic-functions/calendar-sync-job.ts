@@ -2,11 +2,12 @@ import { defineLogicFunction } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
 import { loadAppointment } from 'src/lib/booking';
+import { inBackground } from 'src/lib/lifecycle';
 import { TYPE_FIELDS } from 'src/lib/records';
 import { dueSyncRows, reconcileRow, syncAppointment, upcomingSyncedRows } from 'src/lib/sync';
 
 // Retries calendar writes that failed and checks upcoming events for edits made directly in Google or Outlook.
-const handler = async () => {
+const run = async () => {
   const now = Date.now();
   const retried: string[] = [];
   for (const appointmentId of [...new Set((await dueSyncRows(now)).map((row) => row.appointmentId).filter(Boolean) as string[])]) {
@@ -34,6 +35,8 @@ const handler = async () => {
   }
   return { retried: retried.length, reconciled };
 };
+
+const handler = () => inBackground('calendar-sync-job', run);
 
 export default defineLogicFunction({
   universalIdentifier: IDS.logicFunctions.calendarSyncJob,

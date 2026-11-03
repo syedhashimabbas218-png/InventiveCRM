@@ -4,7 +4,7 @@ import { IDS } from 'src/constants/ids';
 import { MINUTE } from 'src/engine/time';
 import { gql, nodes } from 'src/lib/api';
 import { loadAppointment, updateAppointment } from 'src/lib/booking';
-import { audit, notifyCustomer } from 'src/lib/lifecycle';
+import { audit, inBackground, notifyCustomer } from 'src/lib/lifecycle';
 import { TYPE_FIELDS } from 'src/lib/records';
 
 const intervals = (value: string | null | undefined) =>
@@ -14,7 +14,7 @@ const intervals = (value: string | null | undefined) =>
     .filter((minutes) => Number.isFinite(minutes) && minutes > 0);
 
 // Each interval is sent once; if several fall due together (for example after downtime) only the nearest is sent.
-const handler = async () => {
+const run = async () => {
   const now = Date.now();
   const data = await gql<{ appointments: { edges: { node: { id: string; startsAt: string; remindersSent: string; appointmentType: { reminderMinutes: string } | null } }[] } }>(
     `query($from: DateTime!, $to: DateTime!) { appointments(filter: { status: { in: [CONFIRMED, RESCHEDULED] }, and: [{ startsAt: { gt: $from } }, { startsAt: { lt: $to } }] }, first: 500) { edges { node { id startsAt remindersSent appointmentType { reminderMinutes } } } } }`,
@@ -39,6 +39,8 @@ const handler = async () => {
   }
   return { sent };
 };
+
+const handler = () => inBackground('reminders-job', run);
 
 export default defineLogicFunction({
   universalIdentifier: IDS.logicFunctions.remindersJob,

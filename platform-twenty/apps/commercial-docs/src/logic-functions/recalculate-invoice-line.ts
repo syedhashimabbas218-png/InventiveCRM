@@ -1,6 +1,7 @@
 import { type DatabaseEventPayload, defineLogicFunction } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
+import { runAsApplication } from 'src/lib/api';
 import { refreshLine } from 'src/lib/documents';
 
 type LineEvent = { recordId: string; properties: { before?: { invoiceId?: string | null }; after?: { invoiceId?: string | null } } };
@@ -19,5 +20,5 @@ export default defineLogicFunction({
   description: 'Fills invoice lines from the price list and keeps line and invoice totals up to date.',
   timeoutSeconds: 30,
   databaseEventTriggerSettings: { eventName: 'invoiceLine.*' },
-  handler,
+  handler: runAsApplication(handler),
 });

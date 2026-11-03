@@ -1,9 +1,9 @@
 import { type DatabaseEventPayload, defineLogicFunction } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
-import { onAppointmentCreated } from 'src/lib/lifecycle';
+import { inBackground, onAppointmentCreated } from 'src/lib/lifecycle';
 
-const handler = async (payload: DatabaseEventPayload<{ recordId: string }>) => onAppointmentCreated(payload.recordId);
+const handler = (payload: DatabaseEventPayload<{ recordId: string }>) => inBackground('on-appointment-created', () => onAppointmentCreated(payload.recordId));
 
 export default defineLogicFunction({
   universalIdentifier: IDS.logicFunctions.onAppointmentCreated,

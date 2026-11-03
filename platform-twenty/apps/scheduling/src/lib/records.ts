@@ -1,7 +1,7 @@
 import { type Assignment, type Conferencing, type MeetingFormat } from 'src/constants/enums';
 import { type AvailabilityOverride, type WeeklyRules } from 'src/engine/availability';
 import { type LocationMode } from 'src/engine/geo';
-import { gql, nodes } from 'src/lib/api';
+import { cachedForRun, gql, nodes } from 'src/lib/api';
 
 type Edges<TNode> = { edges: { node: TNode }[] };
 
@@ -144,16 +144,7 @@ const DEFAULT_SETTINGS: SettingsRecord = {
   maxAppointmentTypes: null,
 };
 
-let cachedSettings: { at: number; value: Promise<SettingsRecord> } | null = null;
-
-export const loadSettings = (): Promise<SettingsRecord> => {
-  if (!cachedSettings || Date.now() - cachedSettings.at > 30_000) {
-    const value = fetchSettings();
-    value.catch(() => (cachedSettings = null));
-    cachedSettings = { at: Date.now(), value };
-  }
-  return cachedSettings.value;
-};
+export const loadSettings = cachedForRun((): Promise<SettingsRecord> => fetchSettings());
 
 const fetchSettings = async (): Promise<SettingsRecord> => {
   const data = await gql<{ schedulingSettingsRecords: Edges<SettingsRecord> }>(`{

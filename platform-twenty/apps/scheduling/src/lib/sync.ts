@@ -156,10 +156,10 @@ export const syncAppointment = async (appointment: AppointmentRecord) => {
           text: [
             `Hello ${advisor.name},`,
             '',
-            `The appointment with ${appointment.customerName} on ${formatWhen(Date.parse(appointment.startsAt), Date.parse(appointment.endsAt), appointment.advisor?.timeZone || 'UTC')} is booked in Twenty, but writing it to ${target.setting.name} failed:`,
+            `The appointment with ${appointment.customerName} on ${formatWhen(Date.parse(appointment.startsAt), Date.parse(appointment.endsAt), appointment.advisor?.timeZone || 'UTC')} is booked in the CRM, but writing it to ${target.setting.name} failed:`,
             (error as Error).message,
             '',
-            error instanceof CalendarAuthError ? 'Reconnect the calendar in Scheduling > Calendar connections; the booking will be retried.' : 'It will not be retried automatically. Check the Calendar sync queue in Twenty.',
+            error instanceof CalendarAuthError ? 'Reconnect the calendar in Scheduling > Calendar connections; the booking will be retried.' : 'It will not be retried automatically. Check Scheduling > Calendar sync queue in the CRM.',
           ].join('\n'),
         }).catch(() => undefined);
       outcomes.push(gaveUp ? 'FAILED' : 'PENDING');
@@ -193,7 +193,7 @@ export const reconcileRow = async (row: SyncRow, appointment: AppointmentRecord)
   if (!state.exists || state.cancelled) {
     await gql(`mutation($id: UUID!, $data: CalendarSyncUpdateInput!) { updateCalendarSync(id: $id, data: $data) { id } }`, {
       id: row.id,
-      data: { status: 'GAVE_UP', lastError: 'Deleted in the calendar app. The appointment is still booked in Twenty.', externalEventId: '' },
+      data: { status: 'GAVE_UP', lastError: 'Deleted in the calendar app. The appointment is still booked in the CRM.', externalEventId: '' },
     });
     await gql(`mutation($id: UUID!, $data: AppointmentUpdateInput!) { updateAppointment(id: $id, data: $data) { id } }`, { id: appointment.id, data: { calendarStatus: 'CHANGED_EXTERNALLY' } });
     return 'deleted-externally';

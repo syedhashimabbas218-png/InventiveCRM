@@ -2,7 +2,7 @@ import { listConnections, reportConnectionAuthFailure } from 'twenty-sdk/logic-f
 
 import { type Provider } from 'src/constants/enums';
 import { type Interval } from 'src/engine/availability';
-import { gql, nodes } from 'src/lib/api';
+import { cachedForRun, gql, nodes } from 'src/lib/api';
 import { googleCalendar } from 'src/lib/calendar/google';
 import { microsoftCalendar } from 'src/lib/calendar/microsoft';
 import { GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME } from 'src/lib/calendar/provider-names';
@@ -27,19 +27,10 @@ const SETTING_FIELDS = 'id name connectionId provider accountEmail availabilityC
 
 const PROVIDER_BY_NAME: Record<string, Provider> = { [GOOGLE_PROVIDER_NAME]: 'GOOGLE', [MICROSOFT_PROVIDER_NAME]: 'MICROSOFT' };
 
-// Each function run is a fresh process, so this only spares repeated calls within one run (one per advisor otherwise).
-// Twenty counts an app's API calls across all workspaces against one limit.
-const CONNECTION_CACHE_MS = 30_000;
-let cachedConnections: { at: number; list: Promise<Awaited<ReturnType<typeof listConnections>>> } | null = null;
-
-const allCalendarConnections = () => {
-  if (!cachedConnections || Date.now() - cachedConnections.at > CONNECTION_CACHE_MS) {
-    const list = Promise.all([GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME].map((providerName) => listConnections({ providerName, scope: 'USER' }))).then((lists) => lists.flat());
-    list.catch(() => (cachedConnections = null));
-    cachedConnections = { at: Date.now(), list };
-  }
-  return cachedConnections.list;
-};
+// One list per run instead of one per advisor: Twenty counts an app's API calls across all workspaces against one limit.
+const allCalendarConnections = cachedForRun(() =>
+  Promise.all([GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME].map((providerName) => listConnections({ providerName, scope: 'USER' }))).then((lists) => lists.flat()),
+);
 
 export const adapterFor = (provider: Provider, accessToken: string) =>
   provider === 'GOOGLE' ? googleCalendar(accessToken) : microsoftCalendar(accessToken);

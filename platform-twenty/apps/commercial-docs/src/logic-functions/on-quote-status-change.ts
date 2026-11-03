@@ -1,7 +1,7 @@
 import { type DatabaseEventPayload, defineLogicFunction } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
-import { gql } from 'src/lib/api';
+import { gql, runAsApplication } from 'src/lib/api';
 import { convertQuoteToInvoice, sendQuote } from 'src/lib/documents';
 
 type StatusEvent = { recordId: string; properties: { before?: { status?: string | null }; after?: { status?: string | null } } };
@@ -29,5 +29,5 @@ export default defineLogicFunction({
   description: 'Sending a quote numbers it and files the PDF on the client card. Accepting it creates a draft invoice with the same lines.',
   timeoutSeconds: 60,
   databaseEventTriggerSettings: { eventName: 'quote.updated', updatedFields: ['status'] },
-  handler,
+  handler: runAsApplication(handler),
 });

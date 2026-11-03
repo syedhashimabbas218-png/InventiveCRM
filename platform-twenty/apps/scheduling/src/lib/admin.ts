@@ -56,8 +56,8 @@ type Row = {
 const ROW = 'id title status startsAt endsAt customerName meetingFormat location calendarStatus advisor { id name } appointmentType { name color }';
 
 const embedSnippets = (base: string, slug: string) => ({
-  inline: `<div data-twenty-booking="${slug}"></div>\n<script src="${base}/booking/embed.js" async></script>`,
-  popup: `<a href="${base}/book/${slug}" data-twenty-booking-popup="${slug}">Book an appointment</a>\n<script src="${base}/booking/embed.js" async></script>`,
+  inline: `<div data-crm-booking="${slug}"></div>\n<script src="${base}/booking/embed.js" async></script>`,
+  popup: `<a href="${base}/book/${slug}" data-crm-booking-popup="${slug}">Book an appointment</a>\n<script src="${base}/booking/embed.js" async></script>`,
   floating: `<script src="${base}/booking/embed.js" data-floating="${slug}" data-label="Book an appointment" async></script>`,
 });
 
@@ -353,12 +353,22 @@ export const handleAdmin = async (body: Record<string, unknown>) => {
       return removeOverride(body);
     case 'quickType':
       return quickType(body);
+    case 'bookableTypes': {
+      const { appointmentTypes } = await gql<{ appointmentTypes: { edges: { node: { id: string; name: string } }[] } }>(
+        `{ appointmentTypes(filter: { status: { neq: DISABLED } }, orderBy: [{ name: AscNullsLast }], first: 100) { edges { node { id name } } } }`,
+      );
+      return { types: nodes(appointmentTypes) };
+    }
     case 'teams': {
       const { schedulingTeams } = await gql<{ schedulingTeams: { edges: { node: { id: string; name: string } }[] } }>(`{ schedulingTeams(filter: { isActive: { eq: true } }, first: 100) { edges { node { id name } } } }`);
       return { teams: nodes(schedulingTeams) };
     }
     case 'mapLink': {
       const member = await currentMember();
+      // The map page reads with the app's access, so check the person's own access before handing out a ticket.
+      await gql(`{ advisors(first: 1) { totalCount } offices(first: 1) { totalCount } }`).catch(() => {
+        throw new AdminError(403, 'Your role cannot see advisors and offices.');
+      });
       return { url: `${await publicBaseUrl()}/scheduling/map?ticket=${encodeURIComponent(mapTicket(member.id))}` };
     }
     case 'testConnection': {

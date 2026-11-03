@@ -1,20 +1,16 @@
 import nodemailer from 'nodemailer';
 
-import { metadata } from 'src/lib/api';
+import { cachedForRun, metadata } from 'src/lib/api';
 import { type AppointmentRecord } from 'src/lib/booking';
 import { manageToken } from 'src/lib/tokens';
 
-let cachedBaseUrl: string | null = null;
-
 // Public pages live on the workspace's own address: <workspace URL>/s/...
-export const publicBaseUrl = async () => {
-  if (cachedBaseUrl) return cachedBaseUrl;
+export const publicBaseUrl = cachedForRun(async () => {
   const { currentWorkspace } = await metadata<{ currentWorkspace: { workspaceUrls: { customUrl: string | null; subdomainUrl: string } } }>(
     `{ currentWorkspace { workspaceUrls { customUrl subdomainUrl } } }`,
   );
-  cachedBaseUrl = `${(currentWorkspace.workspaceUrls.customUrl || currentWorkspace.workspaceUrls.subdomainUrl).replace(/\/$/, '')}/s`;
-  return cachedBaseUrl;
-};
+  return `${(currentWorkspace.workspaceUrls.customUrl || currentWorkspace.workspaceUrls.subdomainUrl).replace(/\/$/, '')}/s`;
+});
 
 export const manageUrl = async (appointment: { id: string; manageNonce: string }) => `${await publicBaseUrl()}/booking/manage/${manageToken(appointment.id, appointment.manageNonce)}`;
 

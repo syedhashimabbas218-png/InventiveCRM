@@ -1,6 +1,7 @@
 import { type DatabaseEventPayload, defineLogicFunction } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
+import { runAsApplication } from 'src/lib/api';
 import { checkTemplate } from 'src/lib/document-layout';
 
 type TemplateEvent = {
@@ -23,5 +24,5 @@ export default defineLogicFunction({
   description: 'Reads a changed document template (OCR for scans), classifies it with keyword rules and checks it against UK requirements.',
   timeoutSeconds: 120,
   databaseEventTriggerSettings: { eventName: 'documentTemplate.updated', updatedFields: ['file', 'documentType', 'vatScheme'] },
-  handler,
+  handler: runAsApplication(handler),
 });
