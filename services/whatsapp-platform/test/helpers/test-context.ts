@@ -1,36 +1,62 @@
-import Fastify, { type FastifyInstance } from 'fastify';
-import { registerWebhookRoutes } from '../../src/messaging/webhook-routes.ts';
+import { randomBytes } from 'node:crypto';
+import type { FastifyInstance } from 'fastify';
+import { buildApp } from '../../src/app/build-app.ts';
+import type { TemplatePolicy } from '../../src/conversations/send.ts';
+import type { TokenKey } from '../../src/crypto/token-cipher.ts';
+import { MockGraphServer } from '../../src/dev/mock-graph-server.ts';
 import { InMemoryCrm } from '../../src/stubs/in-memory-crm.ts';
 import { InMemoryEventBus } from '../../src/stubs/in-memory-event-bus.ts';
+import { InMemoryOwnerNotifier } from '../../src/stubs/in-memory-owner-notifier.ts';
+import { createGraphClient, type GraphClient } from '../../src/whatsapp/graph-client.ts';
+import { seedTenant, type SeededTenant } from './fixtures.ts';
 import { createTestDatabase, type TestDatabase } from './test-database.ts';
 
 export const TEST_APP_SECRET = 'test-app-secret-not-real';
 export const TEST_VERIFY_TOKEN = 'test-verify-token';
+export const SEND_TIMEOUT_MS = 500;
 
 export type TestContext = {
   database: TestDatabase;
   app: FastifyInstance;
   eventBus: InMemoryEventBus;
   crm: InMemoryCrm;
+  ownerNotifier: InMemoryOwnerNotifier;
+  mockGraph: MockGraphServer;
+  graph: GraphClient;
+  tokenKey: TokenKey;
   now: Date;
   setNow: (date: Date) => void;
+  advance: (milliseconds: number) => void;
+  seedTenant: (name: string, options?: { route?: 'A' | 'B' | 'C' }) => Promise<SeededTenant>;
   close: () => Promise<void>;
 };
 
-export const createTestContext = async (): Promise<TestContext> => {
+export const createTestContext = async (
+  options: { templatePolicy?: TemplatePolicy; wrapGraph?: (graph: GraphClient) => GraphClient } = {},
+): Promise<TestContext> => {
   const database = await createTestDatabase();
   const eventBus = new InMemoryEventBus();
   const crm = new InMemoryCrm();
+  const ownerNotifier = new InMemoryOwnerNotifier();
+  const mockGraph = new MockGraphServer();
+  const graphUrl = await mockGraph.start();
+  const tokenKey: TokenKey = { id: 'test-key', key: randomBytes(32) };
+  const realGraph = createGraphClient({ baseUrl: graphUrl, version: 'v26.0', timeoutMs: SEND_TIMEOUT_MS });
+  const graph = options.wrapGraph ? options.wrapGraph(realGraph) : realGraph;
   const state = { now: new Date('2026-11-03T10:00:00Z') };
-  const app = Fastify();
-  await registerWebhookRoutes(app, {
+  const app = await buildApp({
     database: database.app,
     eventBus,
     crm,
+    ownerNotifier,
+    graph,
+    tokenKeys: [tokenKey],
     clock: () => state.now,
     appSecret: TEST_APP_SECRET,
     verifyToken: TEST_VERIFY_TOKEN,
     debounceSeconds: 8,
+    sendTimeoutMs: SEND_TIMEOUT_MS,
+    templatePolicy: options.templatePolicy ?? (async () => ({ status: 422, body: { reason: 'template_not_allowed' } })),
   });
   await app.ready();
   return {
@@ -38,14 +64,27 @@ export const createTestContext = async (): Promise<TestContext> => {
     app,
     eventBus,
     crm,
+    ownerNotifier,
+    mockGraph,
+    graph,
+    tokenKey,
     get now() {
       return state.now;
     },
     setNow: (date) => {
       state.now = date;
     },
+    advance: (milliseconds) => {
+      state.now = new Date(state.now.getTime() + milliseconds);
+    },
+    seedTenant: async (name, seedOptions = {}) => {
+      const tenant = await seedTenant(database.owner, name, { ...seedOptions, tokenKey });
+      mockGraph.registerNumber(tenant.phoneNumberId, tenant.accessToken);
+      return tenant;
+    },
     close: async () => {
       await app.close();
+      await mockGraph.stop();
       await database.drop();
     },
   };

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { withTenant } from '../src/db/pool.ts';
 import { signWebhookBody } from '../src/messaging/signature.ts';
-import { seedTenant, type SeededTenant } from './helpers/fixtures.ts';
+import type { SeededTenant } from './helpers/fixtures.ts';
 import { createTestContext, TEST_APP_SECRET, TEST_VERIFY_TOKEN, type TestContext } from './helpers/test-context.ts';
 import { messageEcho, statusUpdate, textMessage, voiceNote } from './helpers/webhook-fixtures.ts';
 
@@ -39,9 +39,9 @@ const ownerQuery = async (sql: string, values: unknown[]) => (await context.data
 describe('webhook ingest', () => {
   before(async () => {
     context = await createTestContext();
-    tenantA = await seedTenant(context.database.owner, 'Ahmed Plumbing');
-    tenantB = await seedTenant(context.database.owner, 'Bright Dental');
-    coexistence = await seedTenant(context.database.owner, 'Coexist Cafe', { route: 'A' });
+    tenantA = await context.seedTenant('Ahmed Plumbing');
+    tenantB = await context.seedTenant('Bright Dental');
+    coexistence = await context.seedTenant('Coexist Cafe', { route: 'A' });
   });
 
   beforeEach(() => {

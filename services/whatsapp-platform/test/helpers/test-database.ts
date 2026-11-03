@@ -10,6 +10,7 @@ const ROLE_SETUP_LOCK = 724_001;
 export type TestDatabase = {
   name: string;
   ownerUrl: string;
+  appUrl: string;
   app: Database;
   owner: Database;
   drop: () => Promise<void>;
@@ -51,12 +52,14 @@ export const createTestDatabase = async (): Promise<TestDatabase> => {
   const ownerUrl = withUrlDatabase(ADMIN_URL, name);
   await runMigrations(ownerUrl);
 
-  const app = createDatabase(withUrlDatabase(ADMIN_URL, name, 'wa_app', APP_ROLE_PASSWORD));
+  const appUrl = withUrlDatabase(ADMIN_URL, name, 'wa_app', APP_ROLE_PASSWORD);
+  const app = createDatabase(appUrl);
   const owner = createDatabase(ownerUrl);
 
   return {
     name,
     ownerUrl,
+    appUrl,
     app,
     owner,
     drop: async () => {
