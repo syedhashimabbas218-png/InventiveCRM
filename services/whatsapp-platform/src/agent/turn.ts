@@ -15,6 +15,7 @@ import { classifyEscalation, DEFAULT_EMERGENCY_MESSAGE, DEFAULT_HANDOFF_MESSAGE,
 import type { ChatMessage, ModelAdapter, ModelTool } from './model/types.ts';
 import { buildRules, buildSystemPrompt } from './prompt.ts';
 import { checkReply, normalisePhoneDigits, type ReplyProblem } from './reply-check.ts';
+import { customerServiceWindow } from '../whatsapp/window.ts';
 
 export type AgentDependencies = {
   database: Database;
@@ -128,12 +129,20 @@ type TurnContext = {
   businessNumber: string;
   hasSentAiMessage: boolean;
   upcomingBookings: { id: string; starts_at: Date }[];
+  windowClosesAt: Date | null;
 };
 
 const loadTurnContext = async (deps: AgentDependencies, client: TenantClient, conversationId: string, now: Date): Promise<TurnContext | undefined> => {
   const conversation = (
-    await client.query<{ customer_identity: string; crm_person_id: string | null; business_name: string; business_number: string }>(
-      `SELECT c.customer_identity, c.crm_person_id, t.name AS business_name, a.display_phone_number AS business_number
+    await client.query<{
+      customer_identity: string;
+      crm_person_id: string | null;
+      business_name: string;
+      business_number: string;
+      last_customer_message_at: Date | null;
+    }>(
+      `SELECT c.customer_identity, c.crm_person_id, c.last_customer_message_at, t.name AS business_name,
+              a.display_phone_number AS business_number
        FROM conversations c
        JOIN tenants t ON t.id = c.tenant_id
        JOIN whatsapp_accounts a ON a.tenant_id = c.tenant_id AND a.id = c.whatsapp_account_id
@@ -199,6 +208,7 @@ const loadTurnContext = async (deps: AgentDependencies, client: TenantClient, co
     businessNumber: conversation.business_number,
     hasSentAiMessage: (aiSent.rowCount ?? 0) > 0,
     upcomingBookings: bookings.rows,
+    windowClosesAt: customerServiceWindow(conversation.last_customer_message_at, now).closesAt,
   };
 };
 
@@ -375,6 +385,7 @@ const runClaimedTurn = async (deps: AgentDependencies, state: TurnState): Promis
   const businessContext = [
     `Knowledge base results for the latest message: ${prefetched.status === 'ok' ? JSON.stringify(prefetched.output) : 'unavailable'}`,
     `This customer's upcoming bookings (id: time): ${bookingsText}`,
+    `Free-form replies are possible until ${context.windowClosesAt ? formatSlotLabel(context.windowClosesAt, context.settings.timezone) : 'unknown'}; after that only approved templates can be sent.`,
     confirmationNote,
   ]
     .filter(Boolean)

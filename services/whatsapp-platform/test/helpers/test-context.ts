@@ -14,6 +14,7 @@ import { createAgent } from '../../src/app/create-agent.ts';
 import { runDueJobs, type JobHandler } from '../../src/jobs/worker.ts';
 import { InMemoryCalendar } from '../../src/stubs/in-memory-calendar.ts';
 import type { BookingChangeHandler } from '../../src/tools/phase-one-tools.ts';
+import { createBookingChangeHandler, createReminderHandler } from '../../src/reminders/booking-reminders.ts';
 import { seedTenant, type SeededTenant } from './fixtures.ts';
 import { createTestDatabase, type TestDatabase } from './test-database.ts';
 
@@ -53,7 +54,7 @@ export const createTestContext = async (
     wrapGraph?: (graph: GraphClient) => GraphClient;
     model?: ModelAdapter;
     onBookingChange?: BookingChangeHandler;
-    extraHandlers?: (deps: { send: Parameters<typeof createAgent>[0] }) => Record<string, JobHandler>;
+    withReminders?: boolean;
   } = {},
 ): Promise<TestContext> => {
   const database = await createTestDatabase();
@@ -83,10 +84,11 @@ export const createTestContext = async (
     crm,
     calendar,
     model: options.model ?? unusedModel,
-    onBookingChange: options.onBookingChange ?? (async () => undefined),
+    onBookingChange: options.onBookingChange ?? (options.withReminders ? createBookingChangeHandler(clock) : async () => undefined),
   };
   const { agent, turnHandler } = createAgent(wiring);
-  const handlers = { 'agent.turn': turnHandler, ...(options.extraHandlers?.({ send: wiring }) ?? {}) };
+  const handlers: Record<string, JobHandler> = { 'agent.turn': turnHandler };
+  if (options.withReminders) handlers['reminder.send'] = createReminderHandler(wiring);
   const app = await buildApp({
     ...sendDependencies,
     crm,

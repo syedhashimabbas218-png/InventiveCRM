@@ -16,7 +16,7 @@ export type SendPayload = {
   type: 'text' | 'buttons' | 'template';
   body?: string;
   buttons?: { id: string; title: string }[];
-  template?: { name: string; language_code: string; body_parameters?: string[]; quick_reply_payloads?: string[] };
+  template?: { name: string; language_code: string; parameters?: Record<string, string>; quick_reply_payloads?: string[] };
 };
 
 export type SendRefusalReason =
@@ -110,8 +110,8 @@ export const parseSendPayload = (input: unknown): { ok: true; payload: SendPaylo
       !isObject(template) ||
       typeof template.name !== 'string' ||
       typeof template.language_code !== 'string' ||
-      (template.body_parameters !== undefined &&
-        (!Array.isArray(template.body_parameters) || !template.body_parameters.every((value) => typeof value === 'string'))) ||
+      (template.parameters !== undefined &&
+        (!isObject(template.parameters) || !Object.values(template.parameters).every((value) => typeof value === 'string'))) ||
       (template.quick_reply_payloads !== undefined &&
         (!Array.isArray(template.quick_reply_payloads) ||
           !template.quick_reply_payloads.every((value) => typeof value === 'string')))
@@ -137,7 +137,11 @@ const toOutbound = (payload: SendPayload): OutboundMessage => {
         template: {
           name: payload.template?.name ?? '',
           languageCode: payload.template?.language_code ?? '',
-          bodyParameters: (payload.template?.body_parameters ?? []).map((text) => ({ type: 'text', text })),
+          bodyParameters: Object.entries(payload.template?.parameters ?? {}).map(([parameterName, text]) => ({
+            type: 'text',
+            parameter_name: parameterName,
+            text,
+          })),
           quickReplyPayloads: payload.template?.quick_reply_payloads,
         },
       };

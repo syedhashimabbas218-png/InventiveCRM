@@ -1,6 +1,6 @@
 export type OutboundButton = { id: string; title: string };
 
-export type TemplateParameter = { type: 'text'; text: string };
+export type TemplateParameter = { type: 'text'; parameter_name: string; text: string };
 
 export type TemplateMessage = {
   name: string;

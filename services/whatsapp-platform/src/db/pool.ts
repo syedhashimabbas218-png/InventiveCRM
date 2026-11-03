@@ -3,8 +3,15 @@ import pg from 'pg';
 export type Database = pg.Pool;
 export type TenantClient = pg.PoolClient & { readonly tenantId: string };
 
-export const createDatabase = (connectionString: string): Database =>
-  new pg.Pool({ connectionString, max: 10 });
+// pg emits 'error' when the server drops an idle pooled connection (restart, failover); unhandled, that kills the process.
+export const createDatabase = (
+  connectionString: string,
+  onIdleClientError: (error: Error) => void = (error) => console.error('idle database connection lost', error.message),
+): Database => {
+  const pool = new pg.Pool({ connectionString, max: 10 });
+  pool.on('error', onIdleClientError);
+  return pool;
+};
 
 // Every tenant-scoped query runs inside this transaction so RLS sees app.tenant_id.
 // Queries must still filter on tenant_id explicitly; RLS is the second line of defence.

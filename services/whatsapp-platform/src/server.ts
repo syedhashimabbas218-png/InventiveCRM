@@ -11,6 +11,8 @@ import { InMemoryCrm } from './stubs/in-memory-crm.ts';
 import { InMemoryEventBus } from './stubs/in-memory-event-bus.ts';
 import { InMemoryOwnerNotifier } from './stubs/in-memory-owner-notifier.ts';
 import { createGraphClient } from './whatsapp/graph-client.ts';
+import { createBookingChangeHandler, createReminderHandler } from './reminders/booking-reminders.ts';
+import { templatePolicy } from './templates/template-policy.ts';
 
 const WORKER_INTERVAL_MS = 1000;
 
@@ -30,7 +32,7 @@ const sendDependencies = {
   tokenKeys: [loadTokenKeyFromEnvironment(process.env)],
   ownerNotifier,
   eventBus,
-  templatePolicy: async () => ({ status: 422 as const, body: { reason: 'template_not_allowed' as const } }),
+  templatePolicy,
   sendTimeoutMs: 10_000,
 };
 
@@ -39,7 +41,7 @@ const { turnHandler } = createAgent({
   crm,
   calendar,
   model: selectModel(process.env),
-  onBookingChange: async () => undefined,
+  onBookingChange: createBookingChangeHandler(systemClock),
 });
 
 const app = await buildApp({
@@ -54,7 +56,7 @@ let working = false;
 setInterval(() => {
   if (working) return;
   working = true;
-  runDueJobs({ database, clock: systemClock }, { 'agent.turn': turnHandler }, { batchSize: 10, lockSeconds: 120 })
+  runDueJobs({ database, clock: systemClock }, { 'agent.turn': turnHandler, 'reminder.send': createReminderHandler(sendDependencies) }, { batchSize: 10, lockSeconds: 120 })
     .catch((error: Error) => app.log.error(error, 'job run failed'))
     .finally(() => {
       working = false;

@@ -53,8 +53,9 @@ export const createTestDatabase = async (): Promise<TestDatabase> => {
   await runMigrations(ownerUrl);
 
   const appUrl = withUrlDatabase(ADMIN_URL, name, 'wa_app', APP_ROLE_PASSWORD);
-  const app = createDatabase(appUrl);
-  const owner = createDatabase(ownerUrl);
+  const ignoreTeardownDisconnect = () => undefined;
+  const app = createDatabase(appUrl, ignoreTeardownDisconnect);
+  const owner = createDatabase(ownerUrl, ignoreTeardownDisconnect);
 
   return {
     name,
