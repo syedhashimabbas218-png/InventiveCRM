@@ -16,7 +16,18 @@ type StatusEvent = {
 const handler = async (payload: DatabaseEventPayload<StatusEvent>) => {
   const before = payload.properties.before?.status;
   const after = payload.properties.after;
-  if (after?.status === 'ISSUED' && before !== 'ISSUED') return issueInvoice(payload.recordId);
+  if (after?.status === 'ISSUED' && before !== 'ISSUED') {
+    try {
+      return await issueInvoice(payload.recordId);
+    } catch (error) {
+      // Surface failures on the record so the user sees why nothing happened.
+      await gql(`mutation($id: UUID!, $data: InvoiceUpdateInput!) { updateInvoice(id: $id, data: $data) { id } }`, {
+        id: payload.recordId,
+        data: { status: before ?? 'DRAFT', complianceIssues: `Could not issue the invoice: ${(error as Error).message}` },
+      });
+      throw error;
+    }
+  }
   if (after?.status === 'PAID' && before !== 'PAID') {
     const data: Record<string, unknown> = {};
     if (!after.paidDate) data.paidDate = todayInLondon();

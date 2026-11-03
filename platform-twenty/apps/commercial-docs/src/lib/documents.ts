@@ -21,7 +21,7 @@ type LineRecord = {
   discountPercent: number | null;
   netAmount: Money;
   vatAmount: Money;
-  position: number | null;
+  lineOrder: number | null;
   productId: string | null;
 };
 
@@ -35,7 +35,7 @@ type PersonRecord = {
 
 const MONEY = 'amountMicros currencyCode';
 const ADDRESS = 'addressStreet1 addressStreet2 addressCity addressState addressPostcode addressCountry';
-const LINE_FIELDS = `id description quantity unit unitPrice { ${MONEY} } vatRate discountPercent netAmount { ${MONEY} } vatAmount { ${MONEY} } position productId`;
+const LINE_FIELDS = `id description quantity unit unitPrice { ${MONEY} } vatRate discountPercent netAmount { ${MONEY} } vatAmount { ${MONEY} } lineOrder productId`;
 const PARTY_FIELDS = `company { id name address { ${ADDRESS} } vatNumber } person { id name { firstName lastName } emails { primaryEmail } company { id name address { ${ADDRESS} } vatNumber } }`;
 
 export const loadProfile = async (): Promise<BusinessProfile | null> => {
@@ -65,13 +65,13 @@ const customerOf = (company: CompanyRecord, person: PersonRecord): Customer | nu
   return {
     name,
     address: billingCompany?.address ?? null,
-    vatNumber: billingCompany?.vatNumber ?? null,
+    vatNumber: billingCompany?.vatNumber || null,
     email: person?.emails?.primaryEmail ?? null,
   };
 };
 
 const sortedLines = (lines: LineRecord[]) =>
-  [...lines].sort((first, second) => (first.position ?? 0) - (second.position ?? 0));
+  [...lines].sort((first, second) => (first.lineOrder ?? 0) - (second.lineOrder ?? 0));
 
 const toCalculationLine = (line: LineRecord) => ({
   quantity: Number(line.quantity ?? 0),
@@ -88,8 +88,9 @@ const toTemplateLine = (line: LineRecord): TemplateLine => ({
   vatRate: (line.vatRate ?? 'STANDARD_20') as VatRate,
 });
 
+// Twenty TEXT fields are '' when empty, so text fallbacks use || rather than ??.
 const formatNumber = (prefix: string | null, next: number | null, padding: number | null, fallbackPrefix: string) =>
-  `${prefix ?? fallbackPrefix}${String(next ?? 1).padStart(padding ?? 4, '0')}`;
+  `${prefix || fallbackPrefix}${String(next ?? 1).padStart(padding ?? 4, '0')}`;
 
 const sameMoney = (money: Money, pence: number) => microsToPence(money?.amountMicros) === pence && money?.currencyCode === 'GBP';
 
@@ -137,9 +138,11 @@ export const refreshLine = async (kind: LineKind, lineId: string, parentIdHint?:
       }
     }
     if (line.quantity === null) updates.quantity = 1;
-    if (!line.vatRate) updates.vatRate = 'STANDARD_20';
-    const calculation = toCalculationLine({ ...line, quantity: line.quantity ?? 1 });
     const profile = await loadProfile();
+    // A business that is not VAT registered never charges VAT, whatever the price list says.
+    const vatRate: VatRate = profile && !profile.vatRegistered ? 'NO_VAT' : (line.vatRate ?? 'STANDARD_20');
+    if (line.vatRate !== vatRate) updates.vatRate = vatRate;
+    const calculation = toCalculationLine({ ...line, vatRate, quantity: line.quantity ?? 1 });
     const netPence = computeLineNetPence(calculation);
     const vatPence = computeVatPence(netPence, calculation.vatRate, roundingOf(profile));
     if (!sameMoney(line.netAmount, netPence)) updates.netAmount = gbp(netPence);
@@ -187,6 +190,7 @@ type InvoiceRecord = {
   personId: string | null;
   creditedInvoiceId: string | null;
   creditedInvoice: { id: string; invoiceNumber: string | null; total: Money } | null;
+  sourceQuote: { quoteNumber: string | null } | null;
   company: CompanyRecord;
   person: PersonRecord;
   lines: { edges: { node: LineRecord }[] };
@@ -195,7 +199,7 @@ type InvoiceRecord = {
 const INVOICE_FIELDS = `id name invoiceNumber kind status template issueDate supplyDate dueDate paymentTermsDays purchaseOrderNumber notes
   subtotal { ${MONEY} } vatTotal { ${MONEY} } total { ${MONEY} } amountPaid { ${MONEY} }
   isRecurring recurrenceFrequency recurrenceInterval nextRecurrenceDate recurrenceEndDate autoIssueRecurring issuedAt
-  companyId personId creditedInvoiceId creditedInvoice { id invoiceNumber total { ${MONEY} } }
+  companyId personId creditedInvoiceId creditedInvoice { id invoiceNumber total { ${MONEY} } } sourceQuote { quoteNumber }
   ${PARTY_FIELDS} lines(first: 200) { edges { node { ${LINE_FIELDS} } } }`;
 
 export const loadInvoice = async (id: string): Promise<InvoiceRecord | null> => {
@@ -226,19 +230,32 @@ export const refreshInvoiceTotals = async (invoiceId: string) => {
   if (Object.keys(updates).length > 0) await updateInvoice(invoiceId, updates);
 };
 
-const allocateNumber = async (profile: BusinessProfile, kind: 'INVOICE' | 'CREDIT_NOTE' | 'QUOTE') => {
-  const config = {
-    INVOICE: { field: 'nextInvoiceNumber', prefix: profile.invoicePrefix, next: profile.nextInvoiceNumber, fallback: 'INV-' },
-    CREDIT_NOTE: { field: 'nextCreditNoteNumber', prefix: profile.creditNotePrefix, next: profile.nextCreditNoteNumber, fallback: 'CN-' },
-    QUOTE: { field: 'nextQuoteNumber', prefix: profile.quotePrefix, next: profile.nextQuoteNumber, fallback: 'QUO-' },
-  }[kind];
-  const number = formatNumber(config.prefix, config.next, profile.numberPadding, config.fallback);
-  await gql(`mutation($id: UUID!, $data: BusinessProfileUpdateInput!) { updateBusinessProfile(id: $id, data: $data) { id } }`, {
-    id: profile.id,
-    data: { [config.field]: (config.next ?? 1) + 1 },
-  });
-  return number;
+const NUMBERING = {
+  INVOICE: { counter: 'nextInvoiceNumber', prefix: 'invoicePrefix', fallback: 'INV-', object: 'invoices', field: 'invoiceNumber' },
+  CREDIT_NOTE: { counter: 'nextCreditNoteNumber', prefix: 'creditNotePrefix', fallback: 'CN-', object: 'invoices', field: 'invoiceNumber' },
+  QUOTE: { counter: 'nextQuoteNumber', prefix: 'quotePrefix', fallback: 'QUO-', object: 'quotes', field: 'quoteNumber' },
+} as const;
+
+// Picks the next unused number without consuming it, so a failed issue never leaves a gap in the sequence.
+const peekNumber = async (profile: BusinessProfile, kind: keyof typeof NUMBERING) => {
+  const config = NUMBERING[kind];
+  let next = (profile[config.counter] as number | null) ?? 1;
+  for (;;) {
+    const number = formatNumber(profile[config.prefix] as string | null, next, profile.numberPadding, config.fallback);
+    const data = await gql<Record<string, { edges: unknown[] }>>(
+      `query($number: String!) { ${config.object}(filter: { ${config.field}: { eq: $number } }, first: 1) { edges { node { id } } } }`,
+      { number },
+    );
+    if (data[config.object].edges.length === 0) return { number, next };
+    next += 1;
+  }
 };
+
+const commitNumber = (profile: BusinessProfile, kind: keyof typeof NUMBERING, used: number) =>
+  gql(`mutation($id: UUID!, $data: BusinessProfileUpdateInput!) { updateBusinessProfile(id: $id, data: $data) { id } }`, {
+    id: profile.id,
+    data: { [NUMBERING[kind].counter]: used + 1 },
+  });
 
 const attachToClientCard = async ({
   bytes,
@@ -268,7 +285,7 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
   const [invoice, profile] = await Promise.all([loadInvoice(invoiceId), loadProfile()]);
   if (!invoice) return { issued: false, issues: ['Invoice not found.'] };
   // Issued invoices are frozen: corrections go through a credit note, never a silent re-issue.
-  if (invoice.issuedAt) return { issued: true, issues: [], number: invoice.invoiceNumber ?? undefined };
+  if (invoice.issuedAt) return { issued: true, issues: [], number: invoice.invoiceNumber || undefined };
 
   const kind = invoice.kind === 'CREDIT_NOTE' ? 'CREDIT_NOTE' : 'INVOICE';
   const template: InvoiceTemplate =
@@ -286,7 +303,7 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
     customer,
     lines,
     supplyDate,
-    creditedInvoiceNumber: invoice.creditedInvoice?.invoiceNumber ?? null,
+    creditedInvoiceNumber: invoice.creditedInvoice?.invoiceNumber || null,
   });
   if (issues.length > 0 || !profile || !customer) {
     await updateInvoice(invoiceId, { status: 'DRAFT', complianceIssues: issues.join('\n') });
@@ -295,7 +312,8 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
 
   const paymentTermsDays = invoice.paymentTermsDays ?? profile.defaultPaymentTermsDays ?? 30;
   const dueDate = invoice.dueDate ?? addDays(issueDate, paymentTermsDays);
-  const number = invoice.invoiceNumber ?? (await allocateNumber(profile, kind));
+  const reserved = invoice.invoiceNumber ? null : await peekNumber(profile, kind);
+  const number = invoice.invoiceNumber || reserved?.number || '';
   const totals = computeTotals(lines.map(toCalculationLine), {
     rounding: roundingOf(profile),
     reverseCharge: template === 'UK_REVERSE_CHARGE_INVOICE',
@@ -312,7 +330,8 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
       supplyDate,
       dueDate: kind === 'INVOICE' ? dueDate : null,
       purchaseOrderNumber: invoice.purchaseOrderNumber,
-      creditedInvoiceNumber: invoice.creditedInvoice?.invoiceNumber ?? null,
+      quoteNumber: invoice.sourceQuote?.quoteNumber || null,
+      creditedInvoiceNumber: invoice.creditedInvoice?.invoiceNumber || null,
       notes: invoice.notes,
       lines: lines.map(toTemplateLine),
       totals,
@@ -337,6 +356,7 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
     complianceIssues: '',
     issuedAt: new Date().toISOString(),
   });
+  if (reserved) await commitNumber(profile, kind, reserved.next);
   await attachToClientCard({ bytes, filename, companyId, personId: invoice.personId });
 
   if (kind === 'CREDIT_NOTE' && invoice.creditedInvoice) {
@@ -406,7 +426,7 @@ export const refreshQuoteTotals = async (quoteId: string) => {
 export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issues: string[]; number?: string }> => {
   const [quote, profile] = await Promise.all([loadQuote(quoteId), loadProfile()]);
   if (!quote) return { sent: false, issues: ['Quote not found.'] };
-  if (quote.sentAt) return { sent: true, issues: [], number: quote.quoteNumber ?? undefined };
+  if (quote.sentAt) return { sent: true, issues: [], number: quote.quoteNumber || undefined };
   const lines = sortedLines(nodes(quote.lines));
   const customer = customerOf(quote.company, quote.person);
   const issues = checkQuote({ profile, customer, lines });
@@ -417,7 +437,8 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
 
   const issueDate = quote.issueDate ?? todayInLondon();
   const validUntil = quote.validUntil ?? addDays(issueDate, profile.quoteValidityDays ?? 30);
-  const number = quote.quoteNumber ?? (await allocateNumber(profile, 'QUOTE'));
+  const reserved = quote.quoteNumber ? null : await peekNumber(profile, 'QUOTE');
+  const number = quote.quoteNumber || reserved?.number || '';
   const totals = quoteTotals(quote, profile);
   const bytes = await renderPdf(
     buildQuotePdfModel({
@@ -447,6 +468,7 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
     complianceIssues: '',
     sentAt: new Date().toISOString(),
   });
+  if (reserved) await commitNumber(profile, 'QUOTE', reserved.next);
   await attachToClientCard({
     bytes,
     filename,
@@ -469,7 +491,7 @@ const copyLines = async (
       unitPrice: line.unitPrice ? gbp(microsToPence(line.unitPrice.amountMicros)) : null,
       vatRate: line.vatRate,
       discountPercent: line.discountPercent,
-      position: line.position ?? index,
+      lineOrder: line.lineOrder ?? index,
       productId: line.productId,
       invoiceId: target.invoiceId,
     })),
@@ -491,7 +513,7 @@ export const convertQuoteToInvoice = async (quoteId: string): Promise<{ invoiceI
     `mutation($data: InvoiceCreateInput!) { createInvoice(data: $data) { id } }`,
     {
       data: {
-        name: `Draft from ${quote.quoteNumber ?? 'quote'}`,
+        name: `Draft from ${quote.quoteNumber || 'quote'}`,
         kind: 'INVOICE',
         status: 'DRAFT',
         template: profile?.vatRegistered ? 'UK_VAT_INVOICE' : 'UK_NON_VAT_INVOICE',
@@ -499,7 +521,6 @@ export const convertQuoteToInvoice = async (quoteId: string): Promise<{ invoiceI
         personId: quote.personId,
         sourceQuoteId: quote.id,
         notes: quote.notes,
-        purchaseOrderNumber: quote.quoteNumber ? `Quote ${quote.quoteNumber}` : null,
       },
     },
   );
@@ -528,7 +549,7 @@ export const runRecurringInvoices = async (today: string = todayInLondon()) => {
       `mutation($data: InvoiceCreateInput!) { createInvoice(data: $data) { id } }`,
       {
         data: {
-          name: `Recurring from ${template.invoiceNumber ?? template.name ?? 'invoice'}`,
+          name: `Recurring from ${template.invoiceNumber || template.name || 'invoice'}`,
           kind: 'INVOICE',
           status: 'DRAFT',
           template: template.template,

@@ -1,4 +1,4 @@
-import { defineApplicationRole } from 'twenty-sdk/define';
+import { defineApplicationRole, SystemPermissionFlag } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
 
@@ -13,4 +13,6 @@ export default defineApplicationRole({
   canDestroyAllObjectRecords: false,
   canBeAssignedToUsers: false,
   canBeAssignedToApiKeys: false,
+  // Generated PDFs are uploaded to the document and to the client's attachments.
+  permissionFlagUniversalIdentifiers: [SystemPermissionFlag.UPLOAD_FILE],
 });

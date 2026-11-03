@@ -1,0 +1,246 @@
+{
+  "prompt": "We're Acme Plumbing & Heating in Manchester. We do boiler services, repairs and new installs for landlords and homeowners. I want to track each job with its type, the property address, the boiler make and model, the Gas Safe certificate number and where the job is in our pipeline (enquiry, booked, in progress, completed, invoiced). Landlords need to see when their next annual gas safety check is due. When a new job comes in, create a task for the office to call the customer and book it.",
+  "objects": [
+    {
+      "nameSingular": "serviceJob",
+      "namePlural": "serviceJobs",
+      "labelSingular": "Job",
+      "labelPlural": "Jobs",
+      "icon": "IconTool",
+      "description": "A plumbing or heating job at a customer property.",
+      "fields": [
+        {
+          "name": "jobType",
+          "label": "Job type",
+          "type": "SELECT",
+          "icon": "IconTool",
+          "options": [
+            {
+              "value": "BOILER_SERVICE",
+              "label": "Boiler service",
+              "position": 0,
+              "color": "gray"
+            },
+            {
+              "value": "REPAIR",
+              "label": "Repair",
+              "position": 1,
+              "color": "blue"
+            },
+            {
+              "value": "INSTALLATION",
+              "label": "New installation",
+              "position": 2,
+              "color": "sky"
+            },
+            {
+              "value": "GAS_SAFETY_CHECK",
+              "label": "Landlord gas safety check",
+              "position": 3,
+              "color": "orange"
+            },
+            {
+              "value": "EMERGENCY",
+              "label": "Emergency call-out",
+              "position": 4,
+              "color": "green"
+            }
+          ]
+        },
+        {
+          "name": "jobStatus",
+          "label": "Stage",
+          "type": "SELECT",
+          "icon": "IconProgress",
+          "options": [
+            {
+              "value": "ENQUIRY",
+              "label": "Enquiry",
+              "position": 0,
+              "color": "gray"
+            },
+            {
+              "value": "BOOKED",
+              "label": "Booked",
+              "position": 1,
+              "color": "blue"
+            },
+            {
+              "value": "IN_PROGRESS",
+              "label": "In progress",
+              "position": 2,
+              "color": "sky"
+            },
+            {
+              "value": "COMPLETED",
+              "label": "Completed",
+              "position": 3,
+              "color": "orange"
+            },
+            {
+              "value": "INVOICED",
+              "label": "Invoiced",
+              "position": 4,
+              "color": "green"
+            }
+          ],
+          "defaultValue": "'ENQUIRY'"
+        },
+        {
+          "name": "propertyAddress",
+          "label": "Property address",
+          "type": "ADDRESS",
+          "icon": "IconHome"
+        },
+        {
+          "name": "boilerMake",
+          "label": "Boiler make",
+          "type": "TEXT",
+          "icon": "IconFlame"
+        },
+        {
+          "name": "boilerModel",
+          "label": "Boiler model",
+          "type": "TEXT",
+          "icon": "IconFlame"
+        },
+        {
+          "name": "gasSafeCertificateNumber",
+          "label": "Gas Safe certificate no.",
+          "type": "TEXT",
+          "icon": "IconCertificate"
+        },
+        {
+          "name": "scheduledFor",
+          "label": "Scheduled for",
+          "type": "DATE_TIME",
+          "icon": "IconCalendarEvent"
+        },
+        {
+          "name": "customer",
+          "label": "Customer",
+          "type": "RELATION",
+          "icon": "IconBuildingSkyscraper",
+          "relation": {
+            "target": "company",
+            "inverseLabel": "Jobs",
+            "inverseIcon": "IconTool"
+          }
+        },
+        {
+          "name": "contact",
+          "label": "Contact",
+          "type": "RELATION",
+          "icon": "IconUser",
+          "relation": {
+            "target": "person",
+            "inverseLabel": "Jobs",
+            "inverseIcon": "IconTool"
+          }
+        }
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "object": "company",
+      "name": "isLandlord",
+      "label": "Landlord",
+      "type": "BOOLEAN",
+      "icon": "IconKey",
+      "defaultValue": false
+    },
+    {
+      "object": "company",
+      "name": "gasSafetyCheckDue",
+      "label": "Gas safety check due",
+      "type": "DATE",
+      "icon": "IconCalendarDue"
+    },
+    {
+      "object": "person",
+      "name": "preferredContactTime",
+      "label": "Best time to call",
+      "type": "SELECT",
+      "icon": "IconClock",
+      "options": [
+        {
+          "value": "MORNING",
+          "label": "Morning",
+          "position": 0,
+          "color": "gray"
+        },
+        {
+          "value": "AFTERNOON",
+          "label": "Afternoon",
+          "position": 1,
+          "color": "blue"
+        },
+        {
+          "value": "EVENING",
+          "label": "Evening",
+          "position": 2,
+          "color": "sky"
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "name": "Jobs pipeline",
+      "objectNameSingular": "serviceJob",
+      "type": "KANBAN",
+      "mainGroupByFieldName": "jobStatus",
+      "icon": "IconLayoutKanban"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "New job: book it in",
+      "description": "Created from the client setup prompt: Job created.",
+      "trigger": {
+        "name": "Job created",
+        "type": "DATABASE_EVENT",
+        "settings": {
+          "eventName": "serviceJob.created",
+          "outputSchema": {}
+        },
+        "nextStepIds": [
+          "60c480ec-6347-4948-89b3-3ce67a9b2c04"
+        ]
+      },
+      "steps": [
+        {
+          "id": "60c480ec-6347-4948-89b3-3ce67a9b2c04",
+          "name": "Create task",
+          "type": "CREATE_RECORD",
+          "valid": true,
+          "settings": {
+            "input": {
+              "objectName": "task",
+              "objectRecord": {
+                "title": "Call the customer to book job: {{trigger.properties.after.name}}",
+                "status": "TODO"
+              }
+            },
+            "outputSchema": {},
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": 0
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "source": "trigger",
+          "target": "60c480ec-6347-4948-89b3-3ce67a9b2c04"
+        }
+      ]
+    }
+  ]
+}

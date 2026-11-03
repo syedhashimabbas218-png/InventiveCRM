@@ -1,0 +1,266 @@
+{
+  "prompt": "We're Glow Beauty Salon in York. Clients book hair and beauty treatments. For each client we need allergies, the date of their last patch test, preferred stylist and how they heard about us. We want an Appointments list with the treatment, stylist, date and time, duration, price and whether a deposit was paid. When a new client is added, remind us to do a patch test before any colour treatment.",
+  "objects": [
+    {
+      "nameSingular": "salonAppointment",
+      "namePlural": "salonAppointments",
+      "labelSingular": "Appointment",
+      "labelPlural": "Appointments",
+      "icon": "IconCalendarEvent",
+      "description": "A booked treatment at the salon.",
+      "fields": [
+        {
+          "name": "treatment",
+          "label": "Treatment",
+          "type": "SELECT",
+          "icon": "IconScissors",
+          "options": [
+            {
+              "value": "CUT_AND_FINISH",
+              "label": "Cut and finish",
+              "position": 0,
+              "color": "gray"
+            },
+            {
+              "value": "COLOUR",
+              "label": "Colour",
+              "position": 1,
+              "color": "blue"
+            },
+            {
+              "value": "HIGHLIGHTS",
+              "label": "Highlights",
+              "position": 2,
+              "color": "sky"
+            },
+            {
+              "value": "BRIDAL",
+              "label": "Bridal",
+              "position": 3,
+              "color": "orange"
+            },
+            {
+              "value": "NAILS",
+              "label": "Nails",
+              "position": 4,
+              "color": "green"
+            },
+            {
+              "value": "LASHES_AND_BROWS",
+              "label": "Lashes and brows",
+              "position": 5,
+              "color": "purple"
+            },
+            {
+              "value": "FACIAL",
+              "label": "Facial",
+              "position": 6,
+              "color": "red"
+            }
+          ]
+        },
+        {
+          "name": "stylist",
+          "label": "Stylist",
+          "type": "TEXT",
+          "icon": "IconUser"
+        },
+        {
+          "name": "startsAt",
+          "label": "Date and time",
+          "type": "DATE_TIME",
+          "icon": "IconCalendarTime"
+        },
+        {
+          "name": "durationMinutes",
+          "label": "Duration (minutes)",
+          "type": "NUMBER",
+          "icon": "IconClock"
+        },
+        {
+          "name": "price",
+          "label": "Price",
+          "type": "CURRENCY",
+          "icon": "IconCurrencyPound"
+        },
+        {
+          "name": "depositPaid",
+          "label": "Deposit paid",
+          "type": "BOOLEAN",
+          "icon": "IconCash",
+          "defaultValue": false
+        },
+        {
+          "name": "appointmentStatus",
+          "label": "Status",
+          "type": "SELECT",
+          "icon": "IconProgress",
+          "options": [
+            {
+              "value": "BOOKED",
+              "label": "Booked",
+              "position": 0,
+              "color": "gray"
+            },
+            {
+              "value": "CONFIRMED",
+              "label": "Confirmed",
+              "position": 1,
+              "color": "blue"
+            },
+            {
+              "value": "COMPLETED",
+              "label": "Completed",
+              "position": 2,
+              "color": "sky"
+            },
+            {
+              "value": "NO_SHOW",
+              "label": "No-show",
+              "position": 3,
+              "color": "orange"
+            },
+            {
+              "value": "CANCELLED",
+              "label": "Cancelled",
+              "position": 4,
+              "color": "green"
+            }
+          ],
+          "defaultValue": "'BOOKED'"
+        },
+        {
+          "name": "client",
+          "label": "Client",
+          "type": "RELATION",
+          "icon": "IconUser",
+          "relation": {
+            "target": "person",
+            "inverseLabel": "Appointments",
+            "inverseIcon": "IconCalendarEvent"
+          }
+        }
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "object": "person",
+      "name": "allergies",
+      "label": "Allergies",
+      "type": "TEXT",
+      "icon": "IconAlertTriangle"
+    },
+    {
+      "object": "person",
+      "name": "lastPatchTestDate",
+      "label": "Last patch test",
+      "type": "DATE",
+      "icon": "IconTestPipe"
+    },
+    {
+      "object": "person",
+      "name": "preferredStylist",
+      "label": "Preferred stylist",
+      "type": "TEXT",
+      "icon": "IconScissors"
+    },
+    {
+      "object": "person",
+      "name": "referralSource",
+      "label": "Heard about us via",
+      "type": "SELECT",
+      "icon": "IconSpeakerphone",
+      "options": [
+        {
+          "value": "INSTAGRAM",
+          "label": "Instagram",
+          "position": 0,
+          "color": "gray"
+        },
+        {
+          "value": "GOOGLE",
+          "label": "Google",
+          "position": 1,
+          "color": "blue"
+        },
+        {
+          "value": "WALK_IN",
+          "label": "Walk-in",
+          "position": 2,
+          "color": "sky"
+        },
+        {
+          "value": "FRIEND",
+          "label": "Friend or family",
+          "position": 3,
+          "color": "orange"
+        },
+        {
+          "value": "OTHER",
+          "label": "Other",
+          "position": 4,
+          "color": "green"
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "name": "Appointments by status",
+      "objectNameSingular": "salonAppointment",
+      "type": "KANBAN",
+      "mainGroupByFieldName": "appointmentStatus",
+      "icon": "IconLayoutKanban"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "New client: patch test reminder",
+      "description": "Created from the client setup prompt: Client added.",
+      "trigger": {
+        "name": "Client added",
+        "type": "DATABASE_EVENT",
+        "settings": {
+          "eventName": "person.created",
+          "outputSchema": {}
+        },
+        "nextStepIds": [
+          "ae383713-f38d-4e47-bac8-62838de0f693"
+        ]
+      },
+      "steps": [
+        {
+          "id": "ae383713-f38d-4e47-bac8-62838de0f693",
+          "name": "Create task",
+          "type": "CREATE_RECORD",
+          "valid": true,
+          "settings": {
+            "input": {
+              "objectName": "task",
+              "objectRecord": {
+                "title": "Patch test {{trigger.properties.after.name.firstName}} {{trigger.properties.after.name.lastName}} at least 48 hours before any colour treatment",
+                "status": "TODO"
+              }
+            },
+            "outputSchema": {},
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": 0
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "source": "trigger",
+          "target": "ae383713-f38d-4e47-bac8-62838de0f693"
+        }
+      ]
+    }
+  ]
+}

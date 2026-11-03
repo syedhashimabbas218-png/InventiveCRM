@@ -32,6 +32,11 @@ branding/
                       the PWA manifest or the 2FA label
   overrides/          small hand patches (*.patch), applied with git apply before the string rules;
                       they read brand values from the BrandConfig.ts files apply.mjs generates
+apps/commercial-docs/  Quotes & Invoices app (UK quotes, VAT invoices, credit notes, recurring billing)
+scripts/
+  provision-workspace.mjs  create a client workspace and its admin API key
+  apply-setup-spec.mjs     apply an AI-written setup spec (objects, fields, views, workflows) over MCP
+setup-specs/            example specs written from client prompts
 deploy/
   docker-compose.yml  server, worker, Postgres and Redis for one multi-tenant instance
   .env.example        multi-workspace settings; copy to .env and fill in secrets
@@ -72,3 +77,26 @@ One instance hosts every client. Each client gets its own workspace at `<subdoma
 ## Tests
 
 `tests/multitenant/run.sh` signs up a server admin, creates two client workspaces, checks that neither can read, change or delete the other's records (including replayed session cookies and cross-origin requests), invites a client and checks they cannot reach the other workspace, create workspaces or open the admin panel, then crawls every settings page for leftover Twenty text, links and logos.
+5. Set `LOGIC_FUNCTION_TYPE=LOCAL` (already in `.env.example`) so app functions such as invoice PDFs run.
+
+## Onboarding a client
+
+1. Create the workspace and an admin API key (the key file is written with mode 600):
+
+   ```bash
+   INVENTIVECRM_ADMIN_PASSWORD=... node scripts/provision-workspace.mjs --server https://crm.inventiveweb.studio --email admin@inventiveweb.studio --name "Acme Plumbing" --subdomain acme --key-file acme.key
+   ```
+
+2. Install the Quotes & Invoices app in it (see `apps/commercial-docs/README.md`).
+3. Set the workspace up from the client's description. Either connect an AI assistant to the workspace's MCP server
+   (`https://acme.crm.inventiveweb.studio/mcp`, header `Authorization: Bearer <API key>`) and describe the business, or have the
+   assistant write a setup spec like those in `setup-specs/` and apply it:
+
+   ```bash
+   node scripts/apply-setup-spec.mjs --mcp https://acme.crm.inventiveweb.studio/mcp --key-file acme.key --spec setup-specs/plumbing-and-heating.json
+   ```
+
+   The script rejects field types and object names outside an allow-list, refuses to touch the Quotes & Invoices objects,
+   skips anything that already exists and never deletes, so it can be re-run safely.
+
+Keep API keys out of the repository. The MCP key has the Admin role of that one workspace only.

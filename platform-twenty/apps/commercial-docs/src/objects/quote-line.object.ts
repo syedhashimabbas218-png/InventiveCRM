@@ -24,6 +24,6 @@ export default defineObject({
     numberField({ universalIdentifier: field.discountPercent, name: 'discountPercent', label: 'Discount %', icon: 'IconDiscount' }, { defaultValue: 0 }),
     moneyField({ universalIdentifier: field.netAmount, name: 'netAmount', label: 'Net amount', icon: 'IconCurrencyPound' }),
     moneyField({ universalIdentifier: field.vatAmount, name: 'vatAmount', label: 'VAT amount', icon: 'IconReceiptTax' }),
-    numberField({ universalIdentifier: field.position, name: 'position', label: 'Order', icon: 'IconSortAscending' }, { integer: true, defaultValue: 0 }),
+    numberField({ universalIdentifier: field.position, name: 'lineOrder', label: 'Order', icon: 'IconSortAscending' }, { integer: true, defaultValue: 0 }),
   ],
 });

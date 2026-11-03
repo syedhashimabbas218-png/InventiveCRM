@@ -1,0 +1,10 @@
+import { writeFileSync } from 'node:fs';
+import { client } from './inv-lib.mjs';
+const { gql } = client(process.argv[2]);
+const [object, number, out] = process.argv.slice(3);
+const field = object === 'quotes' ? 'quoteNumber' : 'invoiceNumber';
+const data = await gql(`query($n: String!) { ${object}(filter: { ${field}: { eq: $n } }) { edges { node { pdf { url label } } } } }`, { n: number });
+const file = data[object].edges[0].node.pdf[0];
+const response = await fetch(file.url);
+writeFileSync(out, Buffer.from(await response.arrayBuffer()));
+console.log(file.label, response.status, response.headers.get('content-type'));

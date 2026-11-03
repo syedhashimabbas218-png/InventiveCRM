@@ -75,13 +75,12 @@ const tableLines = (lines: TemplateLine[], totals: DocumentTotals, showVat: bool
 const vatSummaryRows = (totals: DocumentTotals, { reverseCharge }: { reverseCharge: boolean }): [string, string][] => {
   const rows: [string, string][] = [['Total excluding VAT', formatGbp(totals.subtotalPence)]];
   for (const row of totals.breakdown) {
-    const label = VAT_RATES[row.vatRate].label;
     if (VAT_RATES[row.vatRate].basisPoints > 0)
       rows.push([
-        reverseCharge ? `Reverse charge VAT ${label} on ${formatGbp(row.netPence)}` : `VAT ${label} on ${formatGbp(row.netPence)}`,
+        `${reverseCharge ? 'Reverse charge VAT' : 'VAT'} ${VAT_SHORT_LABEL[row.vatRate]} on ${formatGbp(row.netPence)}`,
         formatGbp(row.vatPence),
       ]);
-    else rows.push([`${label} supplies`, formatGbp(row.netPence)]);
+    else rows.push([`${VAT_RATES[row.vatRate].label} supplies`, formatGbp(row.netPence)]);
   }
   rows.push([reverseCharge ? 'VAT to be accounted for by customer' : 'Total VAT', formatGbp(totals.vatPence)]);
   return rows;
@@ -97,6 +96,7 @@ export const buildInvoicePdfModel = ({
   supplyDate,
   dueDate,
   purchaseOrderNumber,
+  quoteNumber,
   creditedInvoiceNumber,
   notes,
   lines,
@@ -111,6 +111,7 @@ export const buildInvoicePdfModel = ({
   supplyDate: string | null;
   dueDate: string | null;
   purchaseOrderNumber: string | null;
+  quoteNumber?: string | null;
   creditedInvoiceNumber: string | null;
   notes: string | null;
   lines: TemplateLine[];
@@ -129,6 +130,7 @@ export const buildInvoicePdfModel = ({
   if (isCreditNote && creditedInvoiceNumber) metaRows.push(['Credits invoice', creditedInvoiceNumber]);
   if (!isCreditNote && dueDate) metaRows.push(['Payment due', formatUkDate(dueDate)]);
   if (purchaseOrderNumber) metaRows.push(['Your order reference', purchaseOrderNumber]);
+  if (quoteNumber) metaRows.push(['Quote reference', quoteNumber]);
 
   const customerLines = [customer.name, ...formatAddress(customer.address)];
   if (reverseCharge && customer.vatNumber) customerLines.push(`VAT registration no. ${formatVatNumber(customer.vatNumber)}`);

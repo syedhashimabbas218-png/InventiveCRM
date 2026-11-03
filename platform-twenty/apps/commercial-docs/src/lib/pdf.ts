@@ -156,7 +156,7 @@ export const renderPdf = async (model: PdfModel): Promise<Uint8Array> => {
   // Totals.
   newPageIfNeeded(model.summaryRows.length * 14 + 40);
   y -= 6;
-  const totalsLabelX = PAGE.width / 2 + 20;
+  const totalsLabelX = PAGE.width / 2 - 20;
   for (const [label, value] of model.summaryRows) {
     text(label, totalsLabelX, { size: 9, color: MUTED });
     text(value, 0, { alignRight: PAGE.width - PAGE.margin - 4 });
