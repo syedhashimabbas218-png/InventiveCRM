@@ -8,6 +8,12 @@ import { InMemoryCrm } from '../../src/stubs/in-memory-crm.ts';
 import { InMemoryEventBus } from '../../src/stubs/in-memory-event-bus.ts';
 import { InMemoryOwnerNotifier } from '../../src/stubs/in-memory-owner-notifier.ts';
 import { createGraphClient, type GraphClient } from '../../src/whatsapp/graph-client.ts';
+import type { ModelAdapter } from '../../src/agent/model/types.ts';
+import type { AgentDependencies } from '../../src/agent/turn.ts';
+import { createAgent } from '../../src/app/create-agent.ts';
+import { runDueJobs, type JobHandler } from '../../src/jobs/worker.ts';
+import { InMemoryCalendar } from '../../src/stubs/in-memory-calendar.ts';
+import type { BookingChangeHandler } from '../../src/tools/phase-one-tools.ts';
 import { seedTenant, type SeededTenant } from './fixtures.ts';
 import { createTestDatabase, type TestDatabase } from './test-database.ts';
 
@@ -22,6 +28,9 @@ export type TestContext = {
   crm: InMemoryCrm;
   ownerNotifier: InMemoryOwnerNotifier;
   mockGraph: MockGraphServer;
+  calendar: InMemoryCalendar;
+  agent: AgentDependencies;
+  runJobs: () => Promise<number>;
   graph: GraphClient;
   tokenKey: TokenKey;
   now: Date;
@@ -31,8 +40,21 @@ export type TestContext = {
   close: () => Promise<void>;
 };
 
+const unusedModel: ModelAdapter = {
+  name: 'unused',
+  complete: async () => {
+    throw new Error('no model configured for this test');
+  },
+};
+
 export const createTestContext = async (
-  options: { templatePolicy?: TemplatePolicy; wrapGraph?: (graph: GraphClient) => GraphClient } = {},
+  options: {
+    templatePolicy?: TemplatePolicy;
+    wrapGraph?: (graph: GraphClient) => GraphClient;
+    model?: ModelAdapter;
+    onBookingChange?: BookingChangeHandler;
+    extraHandlers?: (deps: { send: Parameters<typeof createAgent>[0] }) => Record<string, JobHandler>;
+  } = {},
 ): Promise<TestContext> => {
   const database = await createTestDatabase();
   const eventBus = new InMemoryEventBus();
@@ -44,19 +66,33 @@ export const createTestContext = async (
   const realGraph = createGraphClient({ baseUrl: graphUrl, version: 'v26.0', timeoutMs: SEND_TIMEOUT_MS });
   const graph = options.wrapGraph ? options.wrapGraph(realGraph) : realGraph;
   const state = { now: new Date('2026-11-03T10:00:00Z') };
-  const app = await buildApp({
+  const calendar = new InMemoryCalendar();
+  const clock = () => state.now;
+  const sendDependencies = {
     database: database.app,
     eventBus,
-    crm,
     ownerNotifier,
     graph,
     tokenKeys: [tokenKey],
-    clock: () => state.now,
+    clock,
+    sendTimeoutMs: SEND_TIMEOUT_MS,
+    templatePolicy: options.templatePolicy ?? (async () => ({ status: 422 as const, body: { reason: 'template_not_allowed' as const } })),
+  };
+  const wiring = {
+    ...sendDependencies,
+    crm,
+    calendar,
+    model: options.model ?? unusedModel,
+    onBookingChange: options.onBookingChange ?? (async () => undefined),
+  };
+  const { agent, turnHandler } = createAgent(wiring);
+  const handlers = { 'agent.turn': turnHandler, ...(options.extraHandlers?.({ send: wiring }) ?? {}) };
+  const app = await buildApp({
+    ...sendDependencies,
+    crm,
     appSecret: TEST_APP_SECRET,
     verifyToken: TEST_VERIFY_TOKEN,
     debounceSeconds: 8,
-    sendTimeoutMs: SEND_TIMEOUT_MS,
-    templatePolicy: options.templatePolicy ?? (async () => ({ status: 422, body: { reason: 'template_not_allowed' } })),
   });
   await app.ready();
   return {
@@ -66,6 +102,9 @@ export const createTestContext = async (
     crm,
     ownerNotifier,
     mockGraph,
+    calendar,
+    agent,
+    runJobs: () => runDueJobs({ database: database.app, clock }, handlers, { batchSize: 20, lockSeconds: 120 }),
     graph,
     tokenKey,
     get now() {

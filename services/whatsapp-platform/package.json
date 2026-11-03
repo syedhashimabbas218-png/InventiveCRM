@@ -9,7 +9,9 @@
   "scripts": {
     "migrate": "tsx scripts/migrate.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test --test-concurrency=4 'test/**/*.test.ts'"
+    "test": "node --import tsx --test --test-concurrency=4 'test/**/*.test.ts'",
+    "start": "tsx src/server.ts",
+    "mock-whatsapp": "tsx scripts/mock-whatsapp.ts"
   },
   "dependencies": {
     "fastify": "^5.12.8",
