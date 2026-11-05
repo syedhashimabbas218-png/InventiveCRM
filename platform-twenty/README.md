@@ -88,6 +88,16 @@ One instance hosts every client. Each client gets its own workspace at `<subdoma
 
 Keep `APPLICATION_API_RATE_LIMITING_LIMIT` from `.env.example`: Twenty's default of 500 API calls a minute is shared by all workspaces using an app.
 
+### Before DNS: local mode
+
+Until the domain points at the server, run it on `localhost` and reach it through an SSH tunnel:
+
+1. In `deploy/.env`, set `SERVER_URL=http://localhost:3000` and add `COMPOSE_FILE=docker-compose.yml:docker-compose.local.yml`, then run `docker compose up -d` in `deploy/`. The override lets the worker reach the server on `localhost`, which app functions need. The ops scripts follow `COMPOSE_FILE` too.
+2. On your own computer, run `ssh -N -L 3000:127.0.0.1:3000 root@<server>` and open `http://app.localhost:3000` in Chrome or Firefox, which send every `*.localhost` name to your own machine. Workspaces are at `http://<subdomain>.localhost:3000`.
+3. Links in emails and booking pages point at `localhost`, so only someone with the tunnel can open them.
+4. The worker borrows the server container's network: if the server restarts on its own, run `docker compose restart worker`.
+5. To go live, set `SERVER_URL` back to `https://crm.inventiveweb.studio`, delete the `COMPOSE_FILE` line and run `docker compose up -d`.
+
 Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restore.sh`; read [UPDATES.md](UPDATES.md) first.
 
 ## Tests

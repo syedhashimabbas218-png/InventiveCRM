@@ -1,0 +1,5 @@
+# Local mode, until DNS and TLS exist: SERVER_URL=http://localhost:3000, and this file in COMPOSE_FILE in .env.
+# App functions run by the worker call SERVER_URL too, so the worker shares the server's network to reach it.
+services:
+  worker:
+    network_mode: service:server

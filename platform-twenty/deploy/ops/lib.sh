@@ -29,7 +29,14 @@ die() { log "ERROR: $*"; exit 1; }
 
 [ -f "$ENV_FILE" ] || die "$ENV_FILE not found"
 
-compose() { docker compose --project-directory "$DEPLOY_DIR" -f "$DEPLOY_DIR/docker-compose.yml" --env-file "$ENV_FILE" "$@"; }
+# Honours COMPOSE_FILE from .env (colon-separated, relative to the deploy directory), as plain docker compose does.
+compose() {
+  local names=() files=() name
+  IFS=: read -ra names <<<"$(env_value COMPOSE_FILE)"
+  [ ${#names[@]} -gt 0 ] || names=(docker-compose.yml)
+  for name in "${names[@]}"; do files+=(-f "$DEPLOY_DIR/$name"); done
+  docker compose --project-directory "$DEPLOY_DIR" "${files[@]}" --env-file "$ENV_FILE" "$@"
+}
 
 env_value() {
   local value
