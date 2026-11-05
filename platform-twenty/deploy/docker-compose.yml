@@ -43,7 +43,7 @@ services:
         condition: service_healthy
 
   db:
-    image: postgres:16
+    image: postgres:16.15@sha256:933463a6c8eba2b9f5cd414138738cd8d5519cd2c471214c222652f547a66a32
     environment:
       POSTGRES_USER: ${PG_DATABASE_USER}
       POSTGRES_PASSWORD: ${PG_DATABASE_PASSWORD}
@@ -58,7 +58,7 @@ services:
     restart: always
 
   redis:
-    image: redis:7.4
+    image: redis:7.4.12@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
     command: ["--maxmemory-policy", "noeviction"]
     healthcheck:
       test: redis-cli ping
@@ -69,7 +69,7 @@ services:
 
   # Our outgoing mail server: system emails and invoices sent "from our server". Not published outside the stack.
   mail:
-    image: boky/postfix:v5.1.0-alpine
+    image: boky/postfix:v5.1.0-alpine@sha256:6e761312e833947f77af755072c0e77b67d298d127595470a79e9454008dd594
     environment:
       ALLOWED_SENDER_DOMAINS: ${MAIL_SENDER_DOMAINS}
       POSTFIX_myhostname: ${MAIL_HOSTNAME}
@@ -85,7 +85,7 @@ services:
 
   # Turns filled Word templates into PDFs (LibreOffice). No AI, no outside calls; reachable only inside the stack.
   docs:
-    image: gotenberg/gotenberg:8.38.1-libreoffice
+    image: gotenberg/gotenberg:8.38.1-libreoffice@sha256:2098722190575dbd975d8abf02e4ce83ffe20783114c5cc56f1b2ac309e6a083
     command: ["gotenberg", "--api-timeout=60s", "--libreoffice-restart-after=50", "--log-level=warn"]
     restart: always
 

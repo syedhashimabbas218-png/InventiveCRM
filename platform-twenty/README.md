@@ -77,7 +77,7 @@ The product name is the single `productName` value in `brand.config.json`. Upstr
 
 One instance hosts every client. Each client gets its own workspace at `<subdomain>.crm.inventiveweb.studio`; sign-in is at `app.crm.inventiveweb.studio`.
 
-1. Point `crm.inventiveweb.studio` and `*.crm.inventiveweb.studio` at the server and put a TLS proxy in front of port 3000.
+1. Point `crm.inventiveweb.studio` and `*.crm.inventiveweb.studio` at the server and put a TLS proxy in front of port 3000. `deploy/caddy/` holds the Caddy config and systemd unit we run: one wildcard certificate through Cloudflare DNS-01, with a DNS-edit token in `/root/secrets/cloudflare-dns-token`. Caddy is built with `xcaddy build v2.11.7 --with github.com/caddy-dns/cloudflare@v0.2.4`.
 2. Copy `deploy/.env.example` to `deploy/.env`, set `IMAGE` to a built tag and fill in the secrets.
 3. Run `docker compose up -d` in `deploy/`. Migrations run when the server starts.
 4. Sign up first: the first account on a fresh instance becomes server admin. With `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS=true`, only server admins can create workspaces; clients join by invitation.

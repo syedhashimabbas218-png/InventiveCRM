@@ -1,0 +1,15 @@
+# TLS proxy for the multi-workspace server. One wildcard certificate covers every workspace subdomain
+# (DNS-01 through Cloudflare); the token arrives as a systemd credential, see caddy.service.
+{
+	admin localhost:2019
+}
+
+crm.inventiveweb.studio, *.crm.inventiveweb.studio {
+	tls {
+		dns cloudflare {file.{$CREDENTIALS_DIRECTORY}/cloudflare-dns-token}
+		resolvers 1.1.1.1 1.0.0.1
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+	log
+}
