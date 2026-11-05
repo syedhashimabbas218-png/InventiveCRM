@@ -1,4 +1,5 @@
-# Install with: crontab -e (as the user that runs docker), adjusting the path.
-# Nightly backup at 02:17 UTC, monthly restore drill on the 1st.
-17 2 * * * /opt/inventivecrm/deploy/ops/backup.sh nightly >>/var/log/inventivecrm-backup.log 2>&1
-43 4 1 * * /opt/inventivecrm/deploy/ops/verify-backup.sh latest --full >>/var/log/inventivecrm-backup.log 2>&1
+# Install with: crontab -e (as the user that runs docker). The times assume the server clock is UTC
+# (timedatectl set-timezone Etc/UTC); cron follows the system timezone.
+# Nightly backup at 02:17, monthly restore drill on the 1st.
+17 2 * * * /opt/inventivecrm/platform-twenty/deploy/ops/backup.sh nightly >>/var/log/inventivecrm-backup.log 2>&1
+43 4 1 * * /opt/inventivecrm/platform-twenty/deploy/ops/verify-backup.sh latest --full >>/var/log/inventivecrm-backup.log 2>&1
