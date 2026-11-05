@@ -2,6 +2,9 @@ name: CI WhatsApp platform
 
 on:
   pull_request:
+    paths:
+      - services/whatsapp-platform/**
+      - .github/workflows/ci-whatsapp-platform.yaml
   merge_group:
 
 permissions:
@@ -12,16 +15,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  changed-files-check:
-    if: github.event_name != 'merge_group'
-    uses: ./.github/workflows/changed-files.yaml
-    with:
-      files: |
-        services/whatsapp-platform/**
-        .github/workflows/ci-whatsapp-platform.yaml
   whatsapp-platform-test:
-    needs: changed-files-check
-    if: always() && (github.event_name == 'merge_group' || needs.changed-files-check.outputs.any_changed == 'true')
     timeout-minutes: 15
     runs-on: ubuntu-latest
     services:

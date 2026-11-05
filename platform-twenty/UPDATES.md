@@ -25,7 +25,7 @@ Nothing updates on its own. Images are pinned by tag, private app installs have 
 9. **App releases never remove objects or fields.** On upgrade the server deletes whatever the new version no longer declares, with its data, in every workspace. Run `twenty app plan --json | node scripts/check-app-plan.mjs` against the owner workspace before every publish; it fails on any deletion. Add fields, or stop using old ones.
 10. **One client first.** Install a new app version in our own workspace, then one client, then the rest.
 11. **Upgrades happen in a maintenance window.** The CRM is offline while it migrates (about 2 minutes in the rehearsal, longer with more data). Announce it to clients.
-12. **Never sync this repository's `main` from upstream Twenty.** The build always downloads the pinned upstream tag, so it never needs it. A sync brings back Twenty's own workflows (deploys to their cloud, translation and AI-catalog syncs), which fail here without their secrets and use our Actions minutes. The only workflows here are `platform-twenty-rebrand.yml` and `platform-twenty-upstream-watch.yml`.
+12. **Never sync this repository's `main` from upstream Twenty.** The build always downloads the pinned upstream tag, so it never needs it. A sync brings back Twenty's own workflows (deploys to their cloud, translation and AI-catalog syncs), which fail here without their secrets and use our Actions minutes. The only workflows here are `platform-twenty-rebrand.yml`, `platform-twenty-upstream-watch.yml` and `ci-whatsapp-platform.yaml`.
 
 ## Backups
 
