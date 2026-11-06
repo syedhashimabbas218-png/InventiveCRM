@@ -17,7 +17,11 @@ const YORK = { lat: 53.9583, lng: -1.0803, label: 'York', postcode: 'YO1 7HH' };
 
 let client = 0;
 const ip = () => ({ 'x-forwarded-for': `10.20.${Math.floor(client / 250)}.${(client++ % 250) + 1}` });
-const day = (offset) => new Date(Date.UTC(2026, 10, 3 + offset)).toISOString().slice(0, 10);
+// Day 0 is the first Tuesday at least a week ahead (the fixtures were written for a Tuesday), so every test day stays
+// inside the booking horizon and out of the past.
+const WEEK_AHEAD = new Date(Date.now() + 7 * 86_400_000);
+const BASE_DAY = new Date(WEEK_AHEAD.getTime() + ((2 - WEEK_AHEAD.getUTCDay() + 7) % 7) * 86_400_000);
+const day = (offset) => new Date(Date.UTC(BASE_DAY.getUTCFullYear(), BASE_DAY.getUTCMonth(), BASE_DAY.getUTCDate() + offset)).toISOString().slice(0, 10);
 const at = (offset, time) => `${day(offset)}T${time}:00.000Z`;
 
 // Start from a clean slate: earlier runs' test bookings in this test workspace and the double's events.
@@ -195,6 +199,40 @@ await fetch(`${W}/s/scheduling/sync-now`, { method: 'POST', headers: { Authoriza
 const restored = (await events('alice@googlemail.test')).find((event) => event.id === fiEvents[0].id);
 assert('an event moved directly in Google is moved back to the booked time and logged', restored?.start === at(8, '12:00'), restored?.start);
 
+// Google rate limits arrive as 403: they are retried, and the account is not flagged for reconnecting.
+const ri = email('ri');
+await book(types.aliceIntro, at(8, '14:00'), { name: 'Ri Customer', email: ri });
+await synced(ri);
+const riAppointment = (await appointmentByEmail(ri))[0];
+await mock('/admin/outage', { email: 'alice@googlemail.test', on: true, mode: 'rate-limit' });
+await api.gql(`mutation($id: UUID!, $data: AppointmentUpdateInput!) { updateAppointment(id: $id, data: $data) { id } }`, { id: riAppointment.id, data: { startsAt: at(8, '15:00'), endsAt: at(8, '15:30') } });
+const rateLimited = await waitFor('rate-limited sync recorded', async () => ((await appointmentByEmail(ri))[0].calendarStatus === 'PENDING' ? true : null), 60000).catch(() => false);
+const whileLimited = (await admin(W, adminToken, { action: 'connections' })).body.connections.find((connection) => connection.provider === 'GOOGLE');
+await mock('/admin/outage', { email: 'alice@googlemail.test', on: false });
+await api.gql(`mutation { updateCalendarSyncs(filter: { status: { eq: FAILED } }, data: { nextAttemptAt: null }) { id } }`).catch(() => null);
+await fetch(`${W}/s/scheduling/sync-now`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' }, body: '{}' });
+assert('a Google rate limit (403 rateLimitExceeded) is retried without asking Alice to reconnect', rateLimited && whileLimited?.status !== 'NEEDS_RECONNECT' && (await appointmentByEmail(ri))[0].calendarStatus === 'SYNCED', `pending seen: ${rateLimited}, connection ${whileLimited?.status}`);
+
+// calendar.events.owned: a calendar shared with Alice can block her time but cannot receive bookings.
+const aliceGoogle = (await admin(W, adminToken, { action: 'connections' })).body.connections.find((connection) => connection.provider === 'GOOGLE');
+const shared = aliceGoogle.calendars.find((calendar) => !calendar.primary);
+const toShared = await admin(W, adminToken, { action: 'saveConnection', settingId: aliceGoogle.id, availabilityCalendarIds: aliceGoogle.availabilityCalendarIds, bookingCalendarId: shared.id, conferencing: aliceGoogle.conferencing });
+const blockShared = await admin(W, adminToken, { action: 'saveConnection', settingId: aliceGoogle.id, availabilityCalendarIds: [...new Set([...aliceGoogle.availabilityCalendarIds, shared.id])], bookingCalendarId: aliceGoogle.bookingCalendarId, conferencing: aliceGoogle.conferencing });
+await admin(W, adminToken, { action: 'saveConnection', settingId: aliceGoogle.id, availabilityCalendarIds: aliceGoogle.availabilityCalendarIds, bookingCalendarId: aliceGoogle.bookingCalendarId, conferencing: aliceGoogle.conferencing });
+assert('a shared (writer) Google calendar can block availability but is refused as the booking calendar', !shared.canWrite && toShared.status === 400 && blockShared.status === 200, `canWrite ${shared.canWrite}, booking ${toShared.status}, blocking ${blockShared.status}`);
+
+// Granular consent: when Alice unticks the events permission, her account is paused with a reason, no event calls are
+// made, and reconnecting with every permission brings her times back.
+await mock('/admin/withhold-scopes', { provider: 'google', email: 'alice@googlemail.test', scopes: ['calendar.events.owned'] });
+await connectCalendar({ token: adminToken, workspaceUrl: W, applicationId: state.applicationId, providerName: 'google-calendar', provider: 'google', email: 'alice@googlemail.test', reconnectingConnectedAccountId: aliceGoogle.connectionId });
+const partial = (await admin(W, adminToken, { action: 'connections' })).body.connections.find((connection) => connection.provider === 'GOOGLE');
+const partialSlots = (await slots(types.aliceIntro, at(10, '00:00'))).slots.length;
+await mock('/admin/withhold-scopes', { provider: 'google', email: 'alice@googlemail.test', scopes: [] });
+await connectCalendar({ token: adminToken, workspaceUrl: W, applicationId: state.applicationId, providerName: 'google-calendar', provider: 'google', email: 'alice@googlemail.test', reconnectingConnectedAccountId: aliceGoogle.connectionId });
+const full = (await admin(W, adminToken, { action: 'connections' })).body.connections.find((connection) => connection.provider === 'GOOGLE');
+const fullSlots = (await slots(types.aliceIntro, at(10, '00:00'))).slots.length;
+assert('a partial Google grant pauses the account with the missing permission named, and a full grant restores it', partial?.status === 'NEEDS_RECONNECT' && /did not grant/.test(partial?.error ?? '') && partialSlots === 0 && full?.status === 'CONNECTED' && fullSlots > 0, `partial ${partial?.status} "${partial?.error}" ${partialSlots} slots, full ${full?.status} ${fullSlots} slots`);
+
 // Time zones: a New York customer sees New York times in their email.
 const gi = email('gi');
 await book(types.aliceIntro, at(9, '14:00'), { name: 'Gi Customer', email: gi, timeZone: 'America/New_York' });
@@ -202,7 +240,9 @@ const giMail = await waitFor('NY email', async () => (await inbox(gi))[0], 30000
 assert('a customer in New York gets times in their own zone', /09:00 to 09:30 \(America\/New_York\)/.test(giMail?.Subject ?? '') || /09:00/.test(giMail?.Snippet ?? ''), giMail?.Subject);
 
 // Reminders at the configured intervals.
-await api.gql(`mutation($slug: String!) { updateAppointmentTypes(filter: { slug: { eq: $slug } }, data: { reminderMinutes: "20000,60" }) { id } }`, { slug: types.aliceIntro });
+// The first interval is already due (an hour more than the time left), the second is not.
+const firstReminder = Math.ceil((Date.parse(at(9, '14:00')) - Date.now()) / 60_000) + 60;
+await api.gql(`mutation($slug: String!, $minutes: String!) { updateAppointmentTypes(filter: { slug: { eq: $slug } }, data: { reminderMinutes: $minutes }) { id } }`, { slug: types.aliceIntro, minutes: `${firstReminder},60` });
 await fetch(`${W}/s/scheduling/reminders-now`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' }, body: '{}' });
 assert('reminders go out at the first due interval, once', (await inbox(gi)).filter((message) => /Reminder/.test(message.Subject)).length === 1);
 
@@ -219,7 +259,7 @@ assert('booking is limited per client, and instant or honeypot submissions are r
 if (otherKeyFile) {
   const other = keyClient(otherKeyFile);
   const seen = await other.gql(`{ appointments(first: 5) { totalCount } }`).then((data) => data.appointments.totalCount).catch((error) => `error: ${error.message.slice(0, 80)}`);
-  const crossPage = await booking('http://glow.localhost:3000', { action: 'page', slug: types.aliceIntro }, ip());
+  const crossPage = await booking(W.replace('//acme.', '//glow.'), { action: 'page', slug: types.aliceIntro }, ip());
   assert('another workspace cannot see these appointments or book these pages', (seen === 0 || String(seen).startsWith('error')) && crossPage.status !== 200, `glow sees ${seen}; glow page status ${crossPage.status}`);
 }
 

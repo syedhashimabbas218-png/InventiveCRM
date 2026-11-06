@@ -8,6 +8,7 @@ import { DAY, isValidTimeZone, WEEKDAYS } from 'src/engine/time';
 import { gql, metadata, nodes } from 'src/lib/api';
 import { bookAppointment } from 'src/lib/booking';
 import { loadAdvisorCalendars, updateSetting } from 'src/lib/calendar/connections';
+import { missingPermissionMessage } from 'src/lib/calendar/permissions';
 import { GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME } from 'src/lib/calendar/provider-names';
 import { publicBaseUrl } from 'src/lib/notify';
 import { mapTicket } from 'src/lib/tokens';
@@ -143,10 +144,10 @@ const connections = async () => {
     advisor: { id: advisor.id, name: advisor.name },
     applicationId: process.env.APPLICATION_ID ?? null,
     connections: await Promise.all(
-      calendars.map(async ({ setting, provider, adapter }) => {
+      calendars.map(async ({ setting, provider, adapter, permissions }) => {
         const connection = own.find((candidate) => candidate.id === setting.connectionId);
         let available: { id: string; name: string; primary: boolean; canWrite: boolean }[] = [];
-        let error = '';
+        let error = permissions.missing.length > 0 ? missingPermissionMessage(provider, permissions) : '';
         let status = setting.status;
         if (adapter) {
           try {
@@ -160,7 +161,7 @@ const connections = async () => {
             error = (listError as Error).message;
           }
         }
-        return { ...setting, status, provider, calendars: available, error, authFailed: Boolean(connection?.authFailedAt) };
+        return { ...setting, status, provider, calendars: available, error, missingPermissions: permissions.missing, authFailed: Boolean(connection?.authFailedAt) };
       }),
     ),
   };
@@ -176,8 +177,10 @@ const saveConnection = async (body: Record<string, unknown>) => {
   const ids = Array.isArray(body.availabilityCalendarIds) ? body.availabilityCalendarIds.map(String).slice(0, 50) : target.setting.availabilityCalendarIds ?? [];
   const bookingCalendarId = typeof body.bookingCalendarId === 'string' ? body.bookingCalendarId : target.setting.bookingCalendarId;
   if (target.adapter) {
-    const known = (await target.adapter.listCalendars()).map((calendar) => calendar.id);
+    const available = await target.adapter.listCalendars();
+    const known = available.map((calendar) => calendar.id);
     if ([...ids, bookingCalendarId].some((id) => !known.includes(id))) throw new AdminError(400, 'Unknown calendar for this account.');
+    if (!available.find((calendar) => calendar.id === bookingCalendarId)?.canWrite) throw new AdminError(400, 'New bookings can only go to a calendar you own.');
   }
   const conferencing = ['NONE', 'GOOGLE_MEET', 'MICROSOFT_TEAMS', 'FIXED_LINK'].includes(String(body.conferencing)) ? String(body.conferencing) : target.setting.conferencing;
   await updateSetting(settingId, { availabilityCalendarIds: ids, bookingCalendarId, conferencing });

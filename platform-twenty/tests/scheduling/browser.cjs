@@ -17,7 +17,7 @@ const assert = (name, passed, detail = '') => {
   console.log(`${passed ? 'PASS' : 'FAIL'} ${name}${detail ? ` -- ${detail}` : ''}`);
 };
 const gql = async (query, variables = {}) => {
-  const response = await fetch('http://localhost:3000/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify({ query, variables }) });
+  const response = await fetch(`${process.env.SERVER_URL}/graphql`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify({ query, variables }) });
   return (await response.json()).data;
 };
 // Clients must never see the upstream product name: pages and emails are collected and checked at the end.
@@ -39,7 +39,7 @@ const site = createServer((request, response) => {
   await new Promise((resolve) => site.listen(8099, '127.0.0.1', resolve));
   // Reruns from one machine would otherwise hit the per-visitor booking limit.
   await gql(`mutation { destroyPublicRequestCounters(filter: { key: { like: "book|%" } }) { id } }`);
-  const browser = await chromium.launch({ proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,*.localhost,127.0.0.1' } });
+  const browser = await chromium.launch(process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,*.localhost,127.0.0.1' } } : {});
 
   // Booking page, desktop: pick a day, a time, fill in, book.
   const page = await browser.newPage({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 2, timezoneId: 'Europe/London' });

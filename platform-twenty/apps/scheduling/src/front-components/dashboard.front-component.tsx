@@ -1,11 +1,37 @@
+import styled from '@emotion/styled';
 import { useEffect, useState } from 'react';
 import { defineFrontComponent } from 'twenty-sdk/define';
 import { AppPath, copyToClipboard, enqueueSnackbar, navigate } from 'twenty-sdk/front-component';
+import { Callout } from 'twenty-ui/components/feedback';
+import { SegmentedControl } from 'twenty-ui/components/input';
+import { IconCalendarEvent, IconCode, IconCopy, IconLink, IconMap, IconPlus } from 'twenty-ui/icon';
+import { themeCssVariables } from 'twenty-ui/theme';
 
 import { IDS } from 'src/constants/ids';
-import { Button, callAdmin, Card, label, Pill, STATUS_COLORS, type Theme, useTheme, when } from 'src/front-components/shared';
+import {
+  callAdmin,
+  Code,
+  Divided,
+  ErrorState,
+  Grid,
+  Hint,
+  Input,
+  LoadingState,
+  Page,
+  PageHeader,
+  Panel,
+  PrimaryButton,
+  QuietButton,
+  Row,
+  SecondaryButton,
+  Select,
+  Stack,
+  StatusTag,
+  label,
+  when,
+} from 'src/front-components/shared';
 
-type Row = {
+type AppointmentRow = {
   id: string;
   title: string;
   status: string;
@@ -22,9 +48,9 @@ type Row = {
 type Overview = {
   member: { name: string; email: string };
   advisor: { id: string; name: string; personalUrl: string | null } | null;
-  today: Row[];
-  mine: Row[];
-  team: Row[];
+  today: AppointmentRow[];
+  mine: AppointmentRow[];
+  team: AppointmentRow[];
   recent: { name: string; occurredAt: string; actor: string; appointment: { title: string; customerName: string; startsAt: string } | null }[];
   connections: { id: string; name: string; provider: string; status: string }[];
   failingSyncs: number;
@@ -46,37 +72,110 @@ const copy = (text: string, what: string) => {
   enqueueSnackbar({ message: `${what} copied`, variant: 'success' });
 };
 
-const AppointmentList = ({ theme, rows, empty }: { theme: Theme; rows: Row[]; empty: string }) =>
+const AppointmentButton = styled.button`
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: ${() => themeCssVariables.border.radius.sm};
+  border-top: 1px solid ${() => themeCssVariables.border.color.light};
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: ${() => themeCssVariables.spacing[3]};
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  padding: ${() => themeCssVariables.spacing[2]};
+  text-align: left;
+  width: 100%;
+
+  &:hover {
+    background: ${() => themeCssVariables.background.transparent.light};
+  }
+`;
+
+const Ellipsis = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const TypeDot = styled.span<{ dotColor: string }>`
+  background: ${({ dotColor }) => dotColor};
+  border-radius: 50%;
+  display: inline-block;
+  height: 8px;
+  margin-right: ${() => themeCssVariables.spacing[2]};
+  width: 8px;
+`;
+
+const RightColumn = styled.span`
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: ${() => themeCssVariables.spacing[1]};
+`;
+
+const FormGrid = styled.div`
+  align-items: end;
+  display: grid;
+  gap: ${() => themeCssVariables.spacing[2]};
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+`;
+
+const MapFrame = styled.iframe`
+  border: 0;
+  border-radius: ${() => themeCssVariables.border.radius.md};
+  height: 460px;
+  width: 100%;
+`;
+
+const NoWrap = styled.span`
+  flex-shrink: 0;
+  white-space: nowrap;
+`;
+
+const ActivityRow = styled.div`
+  align-items: baseline;
+  display: flex;
+  gap: ${() => themeCssVariables.spacing[3]};
+  justify-content: space-between;
+`;
+
+const SpaceBetween = styled.div`
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${() => themeCssVariables.spacing[2]};
+  justify-content: space-between;
+`;
+
+const AppointmentList = ({ rows, empty }: { rows: AppointmentRow[]; empty: string }) =>
   rows.length === 0 ? (
-    <p style={{ margin: 0, color: theme.muted, fontSize: 13 }}>{empty}</p>
+    <Hint>{empty}</Hint>
   ) : (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <Stack>
       {rows.slice(0, 12).map((row) => (
-        <button
-          key={row.id}
-          onClick={() => openRecord(row.id)}
-          style={{ all: 'unset', cursor: 'pointer', display: 'grid', gridTemplateColumns: '108px minmax(0, 1fr) auto', gap: 10, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${theme.line}`, fontSize: 13, color: theme.text }}
-        >
-          <span style={{ color: theme.muted }}>{when(row.startsAt)}</span>
-          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: row.appointmentType?.color || theme.accent, marginRight: 8 }} />
+        <AppointmentButton key={row.id} onClick={() => openRecord(row.id)}>
+          <Hint>{when(row.startsAt)}</Hint>
+          <Stack>
+            <Ellipsis>
+              <TypeDot dotColor={row.appointmentType?.color || themeCssVariables.color.blue} />
               {row.customerName || row.title}
-            </span>
-            <span style={{ color: theme.muted, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {[row.appointmentType?.name, row.advisor?.name, row.location].filter(Boolean).join(' · ')}
-            </span>
-          </span>
-          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-            <Pill color={STATUS_COLORS[row.status] ?? theme.muted}>{label(row.status)}</Pill>
-            {row.calendarStatus !== 'NOT_CONNECTED' && <Pill color={STATUS_COLORS[row.calendarStatus] ?? theme.muted}>{row.calendarStatus === 'SYNCED' ? 'In calendar' : label(row.calendarStatus)}</Pill>}
-          </span>
-        </button>
+            </Ellipsis>
+            <Ellipsis>
+              <Hint>{[row.appointmentType?.name, row.advisor?.name, row.location].filter(Boolean).join(' · ')}</Hint>
+            </Ellipsis>
+          </Stack>
+          <RightColumn>
+            <StatusTag kind="appointment" value={row.status} />
+            {row.calendarStatus !== 'NOT_CONNECTED' && <StatusTag kind="calendar" value={row.calendarStatus} />}
+          </RightColumn>
+        </AppointmentButton>
       ))}
-    </div>
+    </Stack>
   );
 
-const ManualBooking = ({ theme, onDone }: { theme: Theme; onDone: () => void }) => {
+const ManualBooking = ({ onDone }: { onDone: () => void }) => {
   const [types, setTypes] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState({ appointmentTypeId: '', start: '', name: '', email: '', phone: '' });
   const [busy, setBusy] = useState(false);
@@ -85,7 +184,6 @@ const ManualBooking = ({ theme, onDone }: { theme: Theme; onDone: () => void }) 
       .then((result) => setTypes(result.types))
       .catch(() => setTypes([]));
   }, []);
-  const input = { font: 'inherit', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${theme.line}`, background: theme.card, color: theme.text } as const;
   const submit = async () => {
     setBusy(true);
     try {
@@ -104,23 +202,23 @@ const ManualBooking = ({ theme, onDone }: { theme: Theme; onDone: () => void }) 
     }
   };
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, alignItems: 'end' }}>
-      <select style={input} value={form.appointmentTypeId} onChange={(event) => setForm({ ...form, appointmentTypeId: event.target.value })}>
+    <FormGrid>
+      <Select aria-label="Appointment type" value={form.appointmentTypeId} onChange={(event) => setForm({ ...form, appointmentTypeId: event.target.value })}>
         <option value="">Appointment type</option>
         {types.map((type) => (
           <option key={type.id} value={type.id}>
             {type.name}
           </option>
         ))}
-      </select>
-      <input style={input} type="datetime-local" value={form.start} onChange={(event) => setForm({ ...form, start: event.target.value })} />
-      <input style={input} placeholder="Customer name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-      <input style={input} placeholder="Customer email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-      <input style={input} placeholder="Phone (optional)" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-      <Button theme={theme} primary disabled={busy || !form.appointmentTypeId || !form.start || !form.name || !form.email} onClick={submit}>
-        {busy ? 'Booking…' : 'Book'}
-      </Button>
-    </div>
+      </Select>
+      <Input aria-label="Start" type="datetime-local" value={form.start} onChange={(event) => setForm({ ...form, start: event.target.value })} />
+      <Input placeholder="Customer name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+      <Input placeholder="Customer email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+      <Input placeholder="Phone (optional)" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+      <PrimaryButton loading={busy} disabled={busy || !form.appointmentTypeId || !form.start || !form.name || !form.email} onClick={submit}>
+        Book
+      </PrimaryButton>
+    </FormGrid>
   );
 };
 
@@ -131,7 +229,7 @@ const FORMATS = [
   ['AT_CUSTOMER', "At the customer's address"],
 ] as const;
 
-const QuickType = ({ theme, onDone }: { theme: Theme; onDone: () => void }) => {
+const QuickType = ({ onDone }: { onDone: () => void }) => {
   const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState({ name: '', durationMinutes: '30', meetingFormat: 'VIRTUAL', conferencing: 'GOOGLE_MEET', teamId: '', assignment: 'ROUND_ROBIN', locationMode: 'NEAREST' });
   const [more, setMore] = useState(false);
@@ -141,7 +239,6 @@ const QuickType = ({ theme, onDone }: { theme: Theme; onDone: () => void }) => {
       .then((result) => setTeams(result.teams))
       .catch(() => setTeams([]));
   }, []);
-  const input = { font: 'inherit', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${theme.line}`, background: theme.card, color: theme.text } as const;
   const create = async () => {
     setBusy(true);
     try {
@@ -156,65 +253,72 @@ const QuickType = ({ theme, onDone }: { theme: Theme; onDone: () => void }) => {
     }
   };
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, alignItems: 'end' }}>
-        <input style={input} placeholder="Name, e.g. Free consultation" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-        <select aria-label="Duration" style={input} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: event.target.value })}>
+    <Stack>
+      <FormGrid>
+        <Input placeholder="Name, e.g. Free consultation" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+        <Select aria-label="Duration" value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: event.target.value })}>
           {[15, 20, 30, 45, 60, 90, 120].map((minutes) => (
-            <option key={minutes} value={minutes}>{minutes} minutes</option>
+            <option key={minutes} value={minutes}>
+              {minutes} minutes
+            </option>
           ))}
-        </select>
-        <select aria-label="Where" style={input} value={form.meetingFormat} onChange={(event) => setForm({ ...form, meetingFormat: event.target.value })}>
+        </Select>
+        <Select aria-label="Where" value={form.meetingFormat} onChange={(event) => setForm({ ...form, meetingFormat: event.target.value })}>
           {FORMATS.map(([value, name]) => (
-            <option key={value} value={value}>{name}</option>
+            <option key={value} value={value}>
+              {name}
+            </option>
           ))}
-        </select>
-        <select aria-label="Who" style={input} value={form.teamId} onChange={(event) => setForm({ ...form, teamId: event.target.value })}>
+        </Select>
+        <Select aria-label="Who" value={form.teamId} onChange={(event) => setForm({ ...form, teamId: event.target.value })}>
           <option value="">Just me</option>
           {teams.map((team) => (
-            <option key={team.id} value={team.id}>Team: {team.name}</option>
+            <option key={team.id} value={team.id}>
+              Team: {team.name}
+            </option>
           ))}
-        </select>
-      </div>
+        </Select>
+      </FormGrid>
       {more && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+        <FormGrid>
           {form.meetingFormat === 'VIRTUAL' && (
-            <select aria-label="Video link" style={input} value={form.conferencing} onChange={(event) => setForm({ ...form, conferencing: event.target.value })}>
+            <Select aria-label="Video link" value={form.conferencing} onChange={(event) => setForm({ ...form, conferencing: event.target.value })}>
               <option value="GOOGLE_MEET">Google Meet link</option>
               <option value="MICROSOFT_TEAMS">Microsoft Teams link</option>
               <option value="NONE">No link</option>
-            </select>
+            </Select>
           )}
           {form.teamId && (
-            <select aria-label="Assignment" style={input} value={form.assignment} onChange={(event) => setForm({ ...form, assignment: event.target.value })}>
+            <Select aria-label="Assignment" value={form.assignment} onChange={(event) => setForm({ ...form, assignment: event.target.value })}>
               <option value="ROUND_ROBIN">Round robin</option>
               <option value="FIRST_AVAILABLE">First available</option>
               <option value="CUSTOMER_CHOICE">Customer picks the advisor</option>
               <option value="COLLECTIVE">Everyone attends</option>
-            </select>
+            </Select>
           )}
           {form.meetingFormat === 'AT_CUSTOMER' && (
-            <select aria-label="Advisor by location" style={input} value={form.locationMode} onChange={(event) => setForm({ ...form, locationMode: event.target.value })}>
+            <Select aria-label="Advisor by location" value={form.locationMode} onChange={(event) => setForm({ ...form, locationMode: event.target.value })}>
               <option value="NEAREST">Nearest advisor</option>
               <option value="FASTEST">Shortest drive</option>
               <option value="WITHIN_RADIUS">Anyone covering the address</option>
               <option value="TERRITORY">By postcode territory</option>
               <option value="CUSTOMER_CHOICE">Customer picks on a map</option>
               <option value="GEOGRAPHIC_ROUND_ROBIN">Round robin among nearby advisors</option>
-            </select>
+            </Select>
           )}
-        </div>
+        </FormGrid>
       )}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <Button theme={theme} primary disabled={busy || !form.name.trim()} onClick={create}>{busy ? 'Creating…' : 'Create draft'}</Button>
-        {!more && <Button theme={theme} onClick={() => setMore(true)}>More options</Button>}
-      </div>
-    </div>
+      <Row>
+        <PrimaryButton loading={busy} disabled={busy || !form.name.trim()} onClick={create}>
+          Create draft
+        </PrimaryButton>
+        {!more && <QuietButton onClick={() => setMore(true)}>More options</QuietButton>}
+      </Row>
+    </Stack>
   );
 };
 
 const Dashboard = () => {
-  const theme = useTheme();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [scope, setScope] = useState<'mine' | 'team'>('mine');
@@ -254,150 +358,172 @@ const Dashboard = () => {
     }
   };
 
-  const page = { fontFamily: 'Inter, sans-serif', color: theme.text, padding: 16, display: 'flex', flexDirection: 'column' as const, gap: 12, fontSize: 13 };
-  if (error) return <div style={page}><p style={{ color: theme.danger }}>Could not load scheduling: {error}</p><Button theme={theme} onClick={load}>Try again</Button></div>;
-  if (!data) return <div style={page}><p style={{ color: theme.muted }}>Loading…</p></div>;
+  if (error)
+    return (
+      <Page>
+        <ErrorState message={error} onRetry={load} />
+      </Page>
+    );
+  if (!data)
+    return (
+      <Page>
+        <LoadingState />
+      </Page>
+    );
 
   const upcoming = (scope === 'mine' ? data.mine : data.team).filter((row) => Date.parse(row.endsAt) >= Date.now());
   const needsAttention = data.connections.filter((connection) => connection.status !== 'CONNECTED');
 
   return (
-    <div style={page}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 18 }}>Scheduling</h2>
-          <span style={{ color: theme.muted }}>
-            {data.today.length} today · {data.team.length} in the next two weeks
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {data.advisor?.personalUrl && <Button theme={theme} onClick={() => copy(data.advisor?.personalUrl ?? '', 'Your booking link')}>Copy my booking link</Button>}
-          <Button theme={theme} onClick={() => setShowQuickType(!showQuickType)}>New appointment type</Button>
-          <Button theme={theme} onClick={toggleMap}>{mapUrl ? 'Hide advisor map' : 'Advisor map'}</Button>
-          <Button theme={theme} primary onClick={() => setShowManual(!showManual)}>Schedule an appointment</Button>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Scheduling"
+        description={`${data.today.length} today · ${data.team.length} in the next two weeks`}
+        actions={
+          <Row>
+            {data.advisor?.personalUrl && (
+              <SecondaryButton startIcon={<IconLink size={14} />} onClick={() => copy(data.advisor?.personalUrl ?? '', 'Your booking link')}>
+                Copy my booking link
+              </SecondaryButton>
+            )}
+            <SecondaryButton startIcon={<IconPlus size={14} />} onClick={() => setShowQuickType(!showQuickType)}>
+              New appointment type
+            </SecondaryButton>
+            <SecondaryButton startIcon={<IconMap size={14} />} onClick={toggleMap}>
+              {mapUrl ? 'Hide advisor map' : 'Advisor map'}
+            </SecondaryButton>
+            <PrimaryButton startIcon={<IconCalendarEvent size={14} />} onClick={() => setShowManual(!showManual)}>
+              Schedule an appointment
+            </PrimaryButton>
+          </Row>
+        }
+      />
 
       {!data.advisor && (
-        <Card theme={theme} title="Take bookings yourself">
-          <span style={{ color: theme.muted }}>You do not have an advisor profile yet. Create one with default working hours, then adjust them under Availability.</span>
-          <div>
-            <Button theme={theme} primary onClick={setup}>Create my advisor profile</Button>
-          </div>
-        </Card>
+        <Callout
+          status="info"
+          title="Take bookings yourself"
+          description="You do not have an advisor profile yet. Create one with default working hours, then adjust them under Availability."
+          action={<PrimaryButton onClick={setup}>Create my advisor profile</PrimaryButton>}
+        />
       )}
       {(needsAttention.length > 0 || data.failingSyncs > 0) && (
-        <Card theme={theme} title="Needs attention" style={{ borderColor: theme.danger }}>
-          {needsAttention.map((connection) => (
-            <span key={connection.id}>
-              {connection.name}: <Pill color={STATUS_COLORS[connection.status] ?? theme.muted}>{label(connection.status)}</Pill>
-            </span>
-          ))}
-          {data.failingSyncs > 0 && <span>{data.failingSyncs} appointment(s) could not be written to a calendar. See Calendar sync queue.</span>}
-        </Card>
+        <Callout
+          status="warning"
+          title="Needs attention"
+          description={[
+            ...needsAttention.map((connection) => `${connection.name}: ${label(connection.status)}`),
+            ...(data.failingSyncs > 0 ? [`${data.failingSyncs} appointment(s) could not be written to a calendar. See Calendar sync queue.`] : []),
+          ].join(' · ')}
+        />
       )}
       {showQuickType && (
-        <Card theme={theme} title="New appointment type">
-          <QuickType theme={theme} onDone={() => setShowQuickType(false)} />
-        </Card>
+        <Panel title="New appointment type">
+          <QuickType onDone={() => setShowQuickType(false)} />
+        </Panel>
       )}
       {mapUrl && (
-        <Card
-          theme={theme}
+        <Panel
           title="Advisors, offices and service areas"
           action={
-            <a href={mapUrl} target="_blank" rel="noreferrer" style={{ color: theme.accent, fontSize: 13 }}>
+            <a href={mapUrl} target="_blank" rel="noreferrer">
               Open full screen
             </a>
           }
         >
-          <iframe src={mapUrl} width="100%" height="460" style={{ border: 0, borderRadius: 6 }} />
-        </Card>
+          <MapFrame src={mapUrl} />
+        </Panel>
       )}
       {showManual && (
-        <Card theme={theme} title="Schedule an appointment">
+        <Panel title="Schedule an appointment">
           <ManualBooking
-            theme={theme}
             onDone={() => {
               setShowManual(false);
               load();
             }}
           />
-        </Card>
+        </Panel>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 12 }}>
-        <Card theme={theme} title="Today">
-          <AppointmentList theme={theme} rows={data.today} empty="Nothing booked today." />
-        </Card>
-        <Card
-          theme={theme}
+      <Grid>
+        <Panel title="Today">
+          <AppointmentList rows={data.today} empty="Nothing booked today." />
+        </Panel>
+        <Panel
           title="Upcoming"
           action={
-            <div style={{ display: 'flex', gap: 4 }}>
-              {data.advisor && <Button theme={theme} primary={scope === 'mine'} onClick={() => setScope('mine')}>Mine</Button>}
-              <Button theme={theme} primary={scope === 'team'} onClick={() => setScope('team')}>Team</Button>
-            </div>
+            <SegmentedControl
+              aria-label="Whose appointments"
+              size="sm"
+              value={scope}
+              onValueChange={(value) => setScope(value as 'mine' | 'team')}
+              options={data.advisor ? [{ value: 'mine', label: 'Mine' }, { value: 'team', label: 'Team' }] : [{ value: 'team', label: 'Team' }]}
+            />
           }
         >
-          <AppointmentList theme={theme} rows={upcoming} empty="No upcoming appointments." />
-        </Card>
-        <Card theme={theme} title="Calendar connections" action={<Button theme={theme} onClick={() => navigate(AppPath.RecordIndexPage, { objectNamePlural: 'calendarSettings' })}>Manage</Button>}>
+          <AppointmentList rows={upcoming} empty="No upcoming appointments." />
+        </Panel>
+        <Panel title="Calendar connections" action={<QuietButton onClick={() => openList('calendarSettings')}>Manage</QuietButton>}>
           {data.connections.length === 0 ? (
-            <span style={{ color: theme.muted }}>No calendar connected: only bookings made here block your time. Connect Google or Microsoft under Scheduling, Calendar connections.</span>
+            <Hint>No calendar connected: only bookings made here block your time. Connect Google or Microsoft under Scheduling, Calendar connections.</Hint>
           ) : (
             data.connections.map((connection) => (
-              <div key={connection.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <SpaceBetween key={connection.id}>
                 <span>{connection.name}</span>
-                <Pill color={STATUS_COLORS[connection.status] ?? theme.muted}>{label(connection.status)}</Pill>
-              </div>
+                <StatusTag kind="connection" value={connection.status} />
+              </SpaceBetween>
             ))
           )}
-        </Card>
-        <Card theme={theme} title="Recent bookings and changes">
+        </Panel>
+        <Panel title="Recent bookings and changes">
           {data.recent.length === 0 ? (
-            <span style={{ color: theme.muted }}>No activity yet.</span>
+            <Hint>No activity yet.</Hint>
           ) : (
             data.recent.map((event, index) => (
-              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              <ActivityRow key={index}>
                 <span>
                   <strong>{ACTIVITY[event.name] ?? event.name}</strong> {event.appointment ? `${event.appointment.customerName}, ${when(event.appointment.startsAt)}` : ''}
                 </span>
-                <span style={{ color: theme.muted }}>{when(event.occurredAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
+                <NoWrap>
+                  <Hint>{when(event.occurredAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</Hint>
+                </NoWrap>
+              </ActivityRow>
             ))
           )}
-        </Card>
-      </div>
+        </Panel>
+      </Grid>
 
-      <Card theme={theme} title="Booking pages" action={<Button theme={theme} onClick={() => openList('bookingLinks')}>Booking links</Button>}>
-        {data.bookingPages.length === 0 && <span style={{ color: theme.muted }}>Create an appointment type and set it to Active to get a booking page.</span>}
+      <Panel title="Booking pages" action={<QuietButton onClick={() => openList('bookingLinks')}>Booking links</QuietButton>}>
+        {data.bookingPages.length === 0 && <Hint>Create an appointment type and set it to Active to get a booking page.</Hint>}
         {data.bookingPages.map((page) => (
-          <div key={page.url} style={{ borderTop: `1px solid ${theme.line}`, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span>
-                <strong>{page.name}</strong> <span style={{ color: theme.muted }}>{page.detail}</span>
-              </span>
-              <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <Pill color={STATUS_COLORS[page.status] ?? theme.muted}>{label(page.status)}</Pill>
-                <Button theme={theme} onClick={() => copy(page.url, 'Booking link')}>Copy link</Button>
-                <Button theme={theme} onClick={() => setEmbedFor(embedFor === page.url ? null : page.url)}>Embed</Button>
-              </span>
-            </div>
-            {embedFor === page.url && (
-              <div style={{ display: 'grid', gap: 6 }}>
-                {(['inline', 'popup', 'floating'] as const).map((kind) => (
-                  <div key={kind} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                    <pre style={{ flex: 1, margin: 0, padding: 8, background: theme.soft, borderRadius: 6, fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{page.embed[kind]}</pre>
-                    <Button theme={theme} onClick={() => copy(page.embed[kind], `${label(kind)} embed code`)}>Copy {kind}</Button>
-                  </div>
+          <Divided key={page.url}>
+            <Stack>
+              <SpaceBetween>
+                <span>
+                  <strong>{page.name}</strong> <Hint>{page.detail}</Hint>
+                </span>
+                <Row>
+                  <StatusTag kind="type" value={page.status} />
+                  <SecondaryButton startIcon={<IconCopy size={14} />} onClick={() => copy(page.url, 'Booking link')}>
+                    Copy link
+                  </SecondaryButton>
+                  <SecondaryButton startIcon={<IconCode size={14} />} onClick={() => setEmbedFor(embedFor === page.url ? null : page.url)}>
+                    Embed
+                  </SecondaryButton>
+                </Row>
+              </SpaceBetween>
+              {embedFor === page.url &&
+                (['inline', 'popup', 'floating'] as const).map((kind) => (
+                  <Row key={kind}>
+                    <Code>{page.embed[kind]}</Code>
+                    <QuietButton onClick={() => copy(page.embed[kind], `${label(kind)} embed code`)}>Copy {kind}</QuietButton>
+                  </Row>
                 ))}
-              </div>
-            )}
-          </div>
+            </Stack>
+          </Divided>
         ))}
-      </Card>
-    </div>
+      </Panel>
+    </Page>
   );
 };
 

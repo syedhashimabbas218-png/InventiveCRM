@@ -5,15 +5,18 @@ End-to-end and browser tests for `apps/scheduling`, run against a real multi-wor
 ## Prepare
 
 1. Start the provider double: `node mock-calendar-providers.mjs` (port 8095).
+   On the test server set `OUTBOUND_HTTP_SAFE_MODE_ENABLED=false`: from Twenty 2.55 the server refuses OAuth token requests to internal addresses such as 127.0.0.1. Production keeps the default.
 2. Build and install the app with the OAuth endpoints pointed at the double. The connection providers read `SCHEDULING_GOOGLE_AUTHORIZE_URL`, `SCHEDULING_GOOGLE_TOKEN_URL` and `SCHEDULING_MICROSOFT_LOGIN_URL` at build time, for example `http://127.0.0.1:8095/google/oauth/authorize`, `http://127.0.0.1:8095/google/oauth/token` and `http://127.0.0.1:8095/microsoft`.
 3. Set the app variables, with `GOOGLE_CALENDAR_API_URL=http://127.0.0.1:8095/google/calendar/v3` and `MICROSOFT_GRAPH_API_URL=http://127.0.0.1:8095/graph/v1.0`, any client id and secret, a `BOOKING_LINK_SECRET`, SMTP pointing at Mailpit, and the map services.
 4. Create the test world (two users, five advisors, an office, teams and nine appointment types, with Alice on Google and Bob on Microsoft):
 
 ```bash
-node setup.mjs http://acme.localhost:3000 acme.key state.json
+SERVER_URL=http://localhost:3001 node setup.mjs http://acme.localhost:3001 acme.key state.json
 ```
 
 ## Run
+
+Every script needs `SERVER_URL` set to the throwaway test server; there is no default, so tests can never reach a live instance by accident. Never point it at production: `e2e.mjs` deletes every appointment, reservation and audit record in the workspace it is given.
 
 ```bash
 node e2e.mjs state.json acme.key glow.key

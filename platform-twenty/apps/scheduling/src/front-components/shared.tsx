@@ -1,6 +1,27 @@
-import { type CSSProperties, type ReactNode } from 'react';
+import 'twenty-ui/style.css';
+import 'twenty-ui/theme-dark.css';
+import 'twenty-ui/theme-light.css';
+
+import styled from '@emotion/styled';
+import { type ReactNode } from 'react';
 import { RestApiClient, RestApiClientError } from 'twenty-client-sdk/rest';
-import { useColorScheme } from 'twenty-sdk/front-component';
+import { Callout } from 'twenty-ui/components/feedback';
+import { Section } from 'twenty-ui/components/layout';
+import { Button, type ButtonProps } from 'twenty-ui/primitives/input';
+import { Tag } from 'twenty-ui/primitives/data-display';
+import { Skeleton } from 'twenty-ui/primitives/feedback';
+import { Card } from 'twenty-ui/primitives/surfaces';
+import { Heading, Text } from 'twenty-ui/primitives/typography';
+import { themeCssVariables } from 'twenty-ui/theme';
+
+import {
+  APPOINTMENT_STATUSES,
+  CALENDAR_STATUSES,
+  CONNECTION_STATUSES,
+  OVERRIDE_KINDS,
+  SYNC_STATUSES,
+  TYPE_STATUSES,
+} from 'src/constants/enums';
 
 const appRoutes = new RestApiClient();
 
@@ -14,77 +35,186 @@ export const callAdmin = async <TData,>(body: Record<string, unknown>): Promise<
   }
 };
 
-export const useTheme = () => {
-  const dark = useColorScheme() === 'dark';
-  return {
-    dark,
-    text: dark ? '#ebebeb' : '#333333',
-    muted: dark ? '#a0a0a0' : '#666666',
-    line: dark ? '#333333' : '#ebebeb',
-    card: dark ? '#1b1b1b' : '#ffffff',
-    soft: dark ? '#222222' : '#f5f5f5',
-    accent: '#1961ED',
-    danger: '#e5484d',
-    ok: '#18794e',
-    warn: '#d97706',
-  };
+export const Page = styled.div`
+  box-sizing: border-box;
+  color: ${() => themeCssVariables.font.color.primary};
+  display: flex;
+  flex-direction: column;
+  font-family: ${() => themeCssVariables.font.family};
+  font-size: ${() => themeCssVariables.font.size.md};
+  gap: ${() => themeCssVariables.spacing[6]};
+  padding: ${() => themeCssVariables.spacing[6]} ${() => themeCssVariables.spacing[8]};
+  width: 100%;
+`;
+
+export const NarrowPage = styled(Page)`
+  max-width: 760px;
+`;
+
+export const Grid = styled.div`
+  display: grid;
+  gap: ${() => themeCssVariables.spacing[4]};
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+`;
+
+export const Row = styled.div`
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${() => themeCssVariables.spacing[2]};
+`;
+
+export const Stack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${() => themeCssVariables.spacing[2]};
+`;
+
+export const Divided = styled.div`
+  border-top: 1px solid ${() => themeCssVariables.border.color.light};
+  padding-top: ${() => themeCssVariables.spacing[3]};
+`;
+
+export const PageHeader = ({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) => (
+  <Section.Root fullWidth>
+    <Section.Header level={1} size="lg" title={title} description={description} actions={actions} />
+  </Section.Root>
+);
+
+const PanelHeading = styled.div`
+  align-items: center;
+  display: flex;
+  gap: ${() => themeCssVariables.spacing[2]};
+  justify-content: space-between;
+  margin-bottom: ${() => themeCssVariables.spacing[3]};
+  min-height: ${() => themeCssVariables.spacing[6]};
+`;
+
+export const Panel = ({ title, action, children, tone }: { title: string; action?: ReactNode; children: ReactNode; tone?: 'danger' }) => (
+  <Card.Root fullWidth style={{ display: 'flex', flexDirection: 'column', ...(tone === 'danger' ? { borderColor: themeCssVariables.border.color.danger } : {}) }}>
+    <Card.Content style={{ flex: 1 }}>
+      <PanelHeading>
+        <Heading level={2} size="md">
+          {title}
+        </Heading>
+        {action}
+      </PanelHeading>
+      <Stack>{children}</Stack>
+    </Card.Content>
+  </Card.Root>
+);
+
+export const Hint = ({ children }: { children: ReactNode }) => (
+  <Text size="sm" color="tertiary">
+    {children}
+  </Text>
+);
+
+export const PrimaryButton = (props: ButtonProps) => <Button size="sm" variant="solid" color="accent" {...props} />;
+export const SecondaryButton = (props: ButtonProps) => <Button size="sm" variant="outline" color="neutral" {...props} />;
+export const QuietButton = (props: ButtonProps) => <Button size="sm" variant="ghost" color="neutral" {...props} />;
+
+// One colour and label per status, shared with the record views so chips look the same everywhere in the CRM.
+const STATUS_SETS = {
+  appointment: APPOINTMENT_STATUSES,
+  calendar: CALENDAR_STATUSES,
+  connection: CONNECTION_STATUSES,
+  sync: SYNC_STATUSES,
+  type: TYPE_STATUSES,
+  override: OVERRIDE_KINDS,
+} as const;
+
+type StatusColor = Parameters<typeof Tag>[0]['color'];
+
+export const StatusTag = ({ kind, value }: { kind: keyof typeof STATUS_SETS; value: string }) => {
+  const entry = (STATUS_SETS[kind] as Record<string, { label: string; color: string }>)[value];
+  return (
+    <Tag variant="soft" color={(entry?.color ?? 'gray') as StatusColor}>
+      {entry?.label ?? label(value)}
+    </Tag>
+  );
 };
 
-export type Theme = ReturnType<typeof useTheme>;
-
-export const Card = ({ theme, title, action, children, style }: { theme: Theme; title: string; action?: ReactNode; children: ReactNode; style?: CSSProperties }) => (
-  <section style={{ background: theme.card, border: `1px solid ${theme.line}`, borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 10, ...style }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-      <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: theme.text }}>{title}</h3>
-      {action}
-    </div>
+export const ColorTag = ({ color, children }: { color: StatusColor; children: ReactNode }) => (
+  <Tag variant="soft" color={color}>
     {children}
-  </section>
+  </Tag>
 );
 
-export const Button = ({ theme, onClick, children, primary, disabled }: { theme: Theme; onClick: () => void; children: ReactNode; primary?: boolean; disabled?: boolean }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    style={{
-      font: 'inherit',
-      fontSize: 13,
-      padding: '5px 10px',
-      borderRadius: 6,
-      cursor: disabled ? 'default' : 'pointer',
-      opacity: disabled ? 0.5 : 1,
-      border: `1px solid ${primary ? theme.accent : theme.line}`,
-      background: primary ? theme.accent : theme.card,
-      color: primary ? '#fff' : theme.text,
-    }}
-  >
-    {children}
-  </button>
+const controlStyles = () => `
+  background: ${themeCssVariables.background.primary};
+  border: 1px solid ${themeCssVariables.border.color.medium};
+  border-radius: ${themeCssVariables.border.radius.sm};
+  box-sizing: border-box;
+  color: ${themeCssVariables.font.color.primary};
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.md};
+  height: 32px;
+  padding: 0 ${themeCssVariables.spacing[2]};
+
+  &:focus-visible {
+    border-color: ${themeCssVariables.color.blue};
+    outline: none;
+  }
+`;
+
+// Native controls keep keyboard, date and time pickers working inside the sandboxed renderer.
+export const Select = styled.select`
+  ${controlStyles}
+`;
+
+export const Input = styled.input`
+  ${controlStyles}
+`;
+
+export const CheckboxLabel = styled.label`
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: ${() => themeCssVariables.spacing[2]};
+  padding: ${() => themeCssVariables.spacing[1]} 0;
+
+  input {
+    accent-color: ${() => themeCssVariables.color.blue};
+    margin: 0;
+  }
+`;
+
+export const FieldLabel = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: ${() => themeCssVariables.spacing[1]};
+`;
+
+export const FieldTitle = styled.span`
+  color: ${() => themeCssVariables.font.color.secondary};
+  font-size: ${() => themeCssVariables.font.size.sm};
+  font-weight: ${() => themeCssVariables.font.weight.medium};
+`;
+
+export const Code = styled.pre`
+  background: ${() => themeCssVariables.background.tertiary};
+  border-radius: ${() => themeCssVariables.border.radius.sm};
+  color: ${() => themeCssVariables.font.color.secondary};
+  flex: 1;
+  font-size: ${() => themeCssVariables.font.size.xs};
+  margin: 0;
+  padding: ${() => themeCssVariables.spacing[2]};
+  white-space: pre-wrap;
+  word-break: break-all;
+`;
+
+export const LoadingState = () => (
+  <Stack>
+    <Skeleton layout="block" height={24} width={240} />
+    <Skeleton layout="block" height={96} />
+    <Skeleton layout="block" height={96} />
+  </Stack>
 );
 
-export const Pill = ({ color, children }: { color: string; children: ReactNode }) => (
-  <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: `${color}22`, color, whiteSpace: 'nowrap' }}>{children}</span>
+export const ErrorState = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
+  <Callout status="error" title="Could not load this page" description={message} action={onRetry ? <SecondaryButton onClick={onRetry}>Try again</SecondaryButton> : undefined} />
 );
-
-export const STATUS_COLORS: Record<string, string> = {
-  CONFIRMED: '#18794e',
-  PENDING: '#666666',
-  RESCHEDULED: '#7c3aed',
-  CANCELLED: '#e5484d',
-  COMPLETED: '#1961ED',
-  NO_SHOW: '#d97706',
-  CONNECTED: '#18794e',
-  NEEDS_RECONNECT: '#e5484d',
-  ERROR: '#d97706',
-  DISCONNECTED: '#666666',
-  SYNCED: '#18794e',
-  FAILED: '#e5484d',
-  NOT_CONNECTED: '#666666',
-  CHANGED_EXTERNALLY: '#d97706',
-  ACTIVE: '#18794e',
-  DRAFT: '#666666',
-  DISABLED: '#e5484d',
-};
 
 export const when = (iso: string, options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) =>
   new Intl.DateTimeFormat('en-GB', options).format(new Date(iso));

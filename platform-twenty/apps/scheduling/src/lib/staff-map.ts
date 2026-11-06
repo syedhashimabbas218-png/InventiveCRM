@@ -36,7 +36,7 @@ export const staffMapPage = async (ticket: string) => {
     body: html(`<div id="map"></div><div class="legend" id="legend"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-var D=${payload};var COLORS=['#1961ED','#18794e','#7c3aed','#d97706','#e5484d','#0e7490','#be185d','#4d7c0f'];
+var D=${payload};var COLORS=['#3e63dd','#30a46c','#6e56cf','#f76b15','#e5484d','#00a2c7','#d6409f','#46a758'];
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 var map=L.map('map');L.tileLayer(D.tileUrl,{attribution:D.attribution,maxZoom:18}).addTo(map);var bounds=[];var legend=[];
 D.offices.forEach(function(o){var p=[o.latitude,o.longitude];bounds.push(p);L.circleMarker(p,{radius:9,color:'#333',fillColor:'#fff',fillOpacity:1,weight:3}).addTo(map).bindPopup('<strong>'+esc(o.name)+'</strong><br>'+esc(o.streetAddress)+' '+esc(o.postcode))});

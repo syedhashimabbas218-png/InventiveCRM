@@ -121,7 +121,7 @@ const pageInfo = async (slug: string) => {
       locationMode: type.locationMode,
       needsLocation: type.locationMode !== 'NONE' || type.meetingFormat === 'AT_CUSTOMER',
       capacity: type.capacity ?? 1,
-      color: type.color || '#1961ED',
+      color: type.color || '#3e63dd',
       timeZone: type.timeZone || settings.defaultTimeZone,
       intakeQuestions: (type.intakeQuestions ?? []).filter((question) => !link?.presets?.hide?.includes(question.id)),
       office: publicOffice(type),

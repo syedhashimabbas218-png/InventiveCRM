@@ -145,7 +145,7 @@ export const syncAppointment = async (appointment: AppointmentRecord) => {
         status: gaveUp ? 'GAVE_UP' : 'FAILED',
         attempts,
         lastError: (error as Error).message.slice(0, 500),
-        nextAttemptAt: gaveUp ? null : new Date(Date.now() + BACKOFF_MINUTES[attempts - 1] * MINUTE).toISOString(),
+        nextAttemptAt: gaveUp ? null : new Date(Date.now() + Math.max(BACKOFF_MINUTES[attempts - 1] * MINUTE, error instanceof CalendarRequestError ? (error.retryAfterMs ?? 0) : 0)).toISOString(),
       });
       if (error instanceof CalendarAuthError) await updateSetting(target.setting.id, { status: 'NEEDS_RECONNECT', lastError: (error as Error).message.slice(0, 500) });
       if (gaveUp && row?.status !== 'GAVE_UP' && advisor.email)

@@ -6,18 +6,18 @@ const json = (value: unknown) =>
     .replace(LINE_SEPARATORS, (character) => `\\u${character.charCodeAt(0).toString(16)}`);
 
 const STYLE = `
-:root{--accent:#1961ED;--text:#333;--muted:#666;--line:#ebebeb;--bg:#fafafa;--card:#fff;--danger:#e5484d;--ok:#18794e;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-@media (prefers-color-scheme:dark){:root{--text:#ebebeb;--muted:#a0a0a0;--line:#333;--bg:#141414;--card:#1b1b1b}}
+:root{--accent:#3e63dd;--text:#333333;--muted:#666666;--line:#ebebeb;--line-strong:#d6d6d6;--bg:#fcfcfc;--card:#ffffff;--soft:#f1f1f1;--danger:#e5484d;--ok:#30a46c;--radius-sm:4px;--radius-md:8px;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+@media (prefers-color-scheme:dark){:root{--text:#ebebeb;--muted:#b3b3b3;--line:#222222;--line-strong:#484848;--bg:#171717;--card:#1b1b1b;--soft:#1d1d1d}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.45}
 .wrap{max-width:980px;margin:32px auto;padding:0 16px}.embed .wrap{margin:0 auto;padding:8px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:300px 1fr;overflow:hidden}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-md);display:grid;grid-template-columns:300px 1fr;overflow:hidden}
 .side{padding:24px;border-right:1px solid var(--line)}.main{padding:24px;min-height:420px}
 h1{font-size:20px;margin:6px 0 10px}h2{font-size:15px;margin:0 0 12px}.muted{color:var(--muted)}.meta{display:flex;gap:8px;align-items:center;margin:6px 0;color:var(--muted)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block}
-button,.btn{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:8px 12px;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff}button:disabled{opacity:.5;cursor:default}
+button,.btn{font:inherit;font-weight:500;border:1px solid var(--line-strong);background:var(--card);color:var(--text);border-radius:var(--radius-sm);padding:7px 12px;cursor:pointer}button:hover:not(:disabled){background:var(--soft)}
+button.primary,button.primary:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff}button:disabled{opacity:.5;cursor:default}
 button.link{border:0;background:none;color:var(--accent);padding:0}
-input,select,textarea{font:inherit;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
+input,select,textarea{font:inherit;width:100%;padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--card);color:var(--text)}input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
 label{display:block;margin:12px 0 4px;font-weight:500}.row{display:flex;gap:16px}.row>*{flex:1}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}.cal .h{font-size:12px;color:var(--muted);padding:4px 0}
 .cal button{padding:9px 0;border-radius:50%;aspect-ratio:1;border:0}.cal button.on{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-weight:600}
@@ -25,9 +25,9 @@ label{display:block;margin:12px 0 4px;font-weight:500}.row{display:flex;gap:16px
 .times{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow:auto}.times button{border-color:var(--accent);color:var(--accent);font-weight:600}
 .split{display:grid;grid-template-columns:1fr 200px;gap:24px}.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .error{color:var(--danger);margin:10px 0}.ok{color:var(--ok)}.list{display:flex;flex-direction:column;gap:8px}
-.adv{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:left;width:100%}
-.adv:hover{border-color:var(--accent)}#map{height:300px;border-radius:10px;border:1px solid var(--line);margin:10px 0}
-.suggest{border:1px solid var(--line);border-radius:8px;margin-top:4px;overflow:hidden}.suggest button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0}
+.adv{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:var(--radius-md);padding:10px 12px;text-align:left;width:100%}
+.adv:hover{border-color:var(--accent)}#map{height:300px;border-radius:var(--radius-md);border:1px solid var(--line);margin:10px 0}
+.suggest{border:1px solid var(--line);border-radius:var(--radius-sm);margin-top:4px;overflow:hidden}.suggest button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0}
 .hp{position:absolute;left:-5000px}.foot{margin-top:12px;font-size:12px;color:var(--muted);text-align:center}
 @media (max-width:760px){.card{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--line)}.split{grid-template-columns:1fr}}
 `;
@@ -53,7 +53,7 @@ function embedBlocked(domains){if(!embed||!domains)return false;var list=domains
  var origin=(location.ancestorOrigins&&location.ancestorOrigins.length?location.ancestorOrigins[0]:'')||(document.referrer?new URL(document.referrer).origin:'')||parentOrigin;
  try{var host=new URL(origin).hostname.toLowerCase();return !list.some(function(d){return host===d||host.slice(-d.length-1)==='.'+d})}catch(e){return true}}
 
-function renderSide(p){var t=p.type;document.documentElement.style.setProperty('--accent',t.color||'#1961ED');
+function renderSide(p){var t=p.type;document.documentElement.style.setProperty('--accent',t.color||'#3e63dd');
  side.innerHTML=(t.team?'<div class="muted">'+esc(t.team)+'</div>':'')+'<h1>'+esc(t.name)+'</h1>'+
  '<div class="meta"><span class="dot"></span>'+t.durationMinutes+' minutes</div><div class="meta">'+esc(FORMAT[t.meetingFormat]||'')+(t.conferencing==='GOOGLE_MEET'?' (Google Meet)':t.conferencing==='MICROSOFT_TEAMS'?' (Microsoft Teams)':'')+'</div>'+
  (t.office&&t.office.name?'<div class="meta">'+esc(t.office.name)+(t.office.address?', '+esc(t.office.address):'')+'</div>':'')+
@@ -130,7 +130,7 @@ function done(r){root.innerHTML='<h2 class="ok">'+(r.status==='PENDING'?'Request
  if(embed&&window.parent!==window)window.parent.postMessage({type:'crm-booking:booked'},'*');height()}
 
 // ---- manage page
-function manage(){post({action:'manage',token:C.token}).then(function(a){S.tz=a.timeZone||S.tz;S.page={type:{name:a.typeName,durationMinutes:Math.round((new Date(a.end)-new Date(a.start))/6e4),meetingFormat:'',color:'#1961ED',description:''},map:{}};S.manage=a;
+function manage(){post({action:'manage',token:C.token}).then(function(a){S.tz=a.timeZone||S.tz;S.page={type:{name:a.typeName,durationMinutes:Math.round((new Date(a.end)-new Date(a.start))/6e4),meetingFormat:'',color:'#3e63dd',description:''},map:{}};S.manage=a;
  side.innerHTML='<h1>'+esc(a.typeName)+'</h1>'+(a.advisorName?'<div class="meta">With '+esc(a.advisorName)+'</div>':'')+(a.location?'<div class="meta">'+esc(a.location)+'</div>':'')+(a.meetingUrl?'<div class="meta"><a href="'+esc(a.meetingUrl)+'">Join link</a></div>':'');
  var when=esc(fmt(a.start,{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' ('+esc(S.tz)+')';
  root.innerHTML='<h2>'+(a.status==='CANCELLED'?'This appointment is cancelled':'Your appointment')+'</h2><p>'+when+'</p>'+
@@ -169,13 +169,13 @@ window.addEventListener('message',function(e){if(e.origin!==ORIGIN||!e.data||typ
   if(e.data.type==='crm-booking:booked')f.dispatchEvent(new CustomEvent('crm-booking:booked',{bubbles:true}))})});
 function inline(){Array.prototype.forEach.call(document.querySelectorAll('[data-crm-booking]'),function(el){if(el.dataset.crmBookingReady)return;el.dataset.crmBookingReady='1';el.appendChild(frame(el.getAttribute('data-crm-booking'),el.getAttribute('data-min-height')))})}
 function popup(slug){var shade=document.createElement('div');shade.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px';
- var box=document.createElement('div');box.style.cssText='background:#fff;border-radius:12px;width:100%;max-width:1000px;max-height:92vh;overflow:auto;position:relative';
+ var box=document.createElement('div');box.style.cssText='background:#fff;border-radius:8px;width:100%;max-width:1000px;max-height:92vh;overflow:auto;position:relative';
  var close=document.createElement('button');close.textContent='×';close.setAttribute('aria-label','Close');close.style.cssText='position:absolute;top:6px;right:10px;font-size:24px;border:0;background:none;cursor:pointer;z-index:1';
  close.onclick=function(){shade.remove()};shade.onclick=function(e){if(e.target===shade)shade.remove()};document.addEventListener('keydown',function k(e){if(e.key==='Escape'){shade.remove();document.removeEventListener('keydown',k)}});
  box.appendChild(close);box.appendChild(frame(slug,560));shade.appendChild(box);document.body.appendChild(shade)}
 function popups(){Array.prototype.forEach.call(document.querySelectorAll('[data-crm-booking-popup]'),function(el){if(el.dataset.crmBookingReady)return;el.dataset.crmBookingReady='1';el.addEventListener('click',function(e){e.preventDefault();popup(el.getAttribute('data-crm-booking-popup'))})})}
 function floating(){var slug=current&&current.getAttribute('data-floating');if(!slug||document.getElementById('crm-booking-float'))return;var b=document.createElement('button');b.id='crm-booking-float';
- b.textContent=current.getAttribute('data-label')||'Book an appointment';b.style.cssText='position:fixed;right:20px;bottom:20px;z-index:2147483645;border:0;border-radius:999px;padding:12px 18px;font:600 14px sans-serif;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2);background:'+(current.getAttribute('data-color')||'#1961ED');
+ b.textContent=current.getAttribute('data-label')||'Book an appointment';b.style.cssText='position:fixed;right:20px;bottom:20px;z-index:2147483645;border:0;border-radius:999px;padding:12px 18px;font:600 14px sans-serif;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2);background:'+(current.getAttribute('data-color')||'#3e63dd');
  b.onclick=function(){popup(slug)};document.body.appendChild(b)}
 function init(){inline();popups();floating()}
 window.CrmBooking={open:popup,refresh:init};

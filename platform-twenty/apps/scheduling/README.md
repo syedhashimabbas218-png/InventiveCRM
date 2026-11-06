@@ -99,8 +99,11 @@ Per workspace, in **Scheduling settings**: contact matching, contact and company
 
 ## Google setup
 
+[PUBLISHING.md](PUBLISHING.md) lists everything Google and Microsoft check before verification (home page, privacy policy, domain ownership, scope justifications, demo video, publisher verification) and what the app does for each.
+
+
 1. In Google Cloud Console, create a project and enable the **Google Calendar API**.
-2. OAuth consent screen: user type External (or Internal for a single Google Workspace), add the scopes `openid`, `email`, `.../auth/calendar.calendarlist.readonly`, `.../auth/calendar.freebusy`, `.../auth/calendar.events`.
+2. OAuth consent screen: user type External (or Internal for a single Google Workspace), add the scopes `openid`, `email`, `.../auth/calendar.calendarlist.readonly`, `.../auth/calendar.freebusy`, `.../auth/calendar.events.owned`. Bookings can therefore only go to calendars the user owns; shared calendars can still block time.
 3. Credentials, Create OAuth client ID, type Web application. Authorized redirect URI: `${SERVER_URL}/auth/apps/callback`, for example `https://crm.inventiveweb.studio/auth/apps/callback`. It is the server URL, not a workspace subdomain.
 4. Put the client id and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 5. `calendar.events` is a sensitive scope. Until Google verifies the app, only listed test users can connect, and refresh tokens of apps in Testing status expire after 7 days. Submit for verification before going live.

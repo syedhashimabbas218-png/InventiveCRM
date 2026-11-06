@@ -6,6 +6,7 @@ import { cachedForRun, gql, nodes } from 'src/lib/api';
 import { googleCalendar } from 'src/lib/calendar/google';
 import { microsoftCalendar } from 'src/lib/calendar/microsoft';
 import { GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME } from 'src/lib/calendar/provider-names';
+import { type CalendarPermissions, grantedPermissions, isUsable, missingPermissionMessage } from 'src/lib/calendar/permissions';
 import { type CalendarAdapter, CalendarAuthError } from 'src/lib/calendar/types';
 
 export type CalendarSettingRecord = {
@@ -21,7 +22,7 @@ export type CalendarSettingRecord = {
   advisorId: string | null;
 };
 
-export type AdvisorCalendar = { setting: CalendarSettingRecord; provider: Provider; adapter: CalendarAdapter | null };
+export type AdvisorCalendar = { setting: CalendarSettingRecord; provider: Provider; adapter: CalendarAdapter | null; permissions: CalendarPermissions };
 
 const SETTING_FIELDS = 'id name connectionId provider accountEmail availabilityCalendarIds bookingCalendarId conferencing status advisorId';
 
@@ -32,8 +33,12 @@ const allCalendarConnections = cachedForRun(() =>
   Promise.all([GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME].map((providerName) => listConnections({ providerName, scope: 'USER' }))).then((lists) => lists.flat()),
 );
 
-export const adapterFor = (provider: Provider, accessToken: string) =>
-  provider === 'GOOGLE' ? googleCalendar(accessToken) : microsoftCalendar(accessToken);
+// Without the calendar-list permission only the primary calendar is offered, and the list is never requested.
+export const adapterFor = (provider: Provider, accessToken: string, permissions?: CalendarPermissions): CalendarAdapter => {
+  const adapter = provider === 'GOOGLE' ? googleCalendar(accessToken) : microsoftCalendar(accessToken);
+  if (!permissions || permissions.listCalendars || provider !== 'GOOGLE') return adapter;
+  return { ...adapter, listCalendars: async () => [{ id: 'primary', name: 'Primary calendar', primary: true, canWrite: true }] };
+};
 
 export const updateSetting = (id: string, data: Record<string, unknown>) =>
   gql(`mutation($id: UUID!, $data: CalendarSettingUpdateInput!) { updateCalendarSetting(id: $id, data: $data) { id } }`, { id, data });
@@ -56,19 +61,32 @@ export const loadAdvisorCalendars = async (advisor: { id: string; workspaceMembe
   for (const connection of connections) {
     const provider = PROVIDER_BY_NAME[connection.providerName];
     let setting = settings.find((candidate) => candidate.connectionId === connection.id);
-    const adapter = connection.authFailedAt || !connection.accessToken ? null : adapterFor(provider, connection.accessToken);
+    const permissions = grantedPermissions(provider, connection.scopes);
+    const usable = isUsable(permissions);
+    const adapter = connection.authFailedAt || !connection.accessToken || !usable ? null : adapterFor(provider, connection.accessToken, permissions);
     if (!setting) setting = await createDefaultSetting(advisor.id, connection.id, provider, connection.handle ?? connection.name ?? '', adapter);
     // A refusal seen by this app stays flagged until a provider call succeeds again, even while Twenty still holds a token.
     const status = !adapter ? 'NEEDS_RECONNECT' : setting.status === 'DISCONNECTED' ? 'CONNECTED' : setting.status;
     if (status !== setting.status) {
-      await updateSetting(setting.id, { status, ...(adapter ? { lastError: '' } : { lastError: connection.authFailedReason ?? 'Sign-in expired: reconnect the account.' }) });
+      const reason = !usable ? missingPermissionMessage(provider, permissions) : (connection.authFailedReason ?? 'Sign-in expired: reconnect the account.');
+      await updateSetting(setting.id, { status, lastError: adapter ? '' : reason });
       setting = { ...setting, status };
     }
-    calendars.push({ setting, provider, adapter });
+    calendars.push({ setting, provider, adapter, permissions });
   }
 
+  // Disconnecting removes what the app kept about the account: its address and calendar ids. The row stays so history
+  // and sync rows still point somewhere.
   for (const orphan of settings.filter((setting) => !connections.some((connection) => connection.id === setting.connectionId)))
-    if (orphan.status !== 'DISCONNECTED') await updateSetting(orphan.id, { status: 'DISCONNECTED', lastError: 'The account was disconnected.' });
+    if (orphan.status !== 'DISCONNECTED' || orphan.accountEmail)
+      await updateSetting(orphan.id, {
+        status: 'DISCONNECTED',
+        lastError: 'The account was disconnected.',
+        name: `${orphan.provider === 'GOOGLE' ? 'Google' : 'Microsoft'}: disconnected account`,
+        accountEmail: '',
+        availabilityCalendarIds: [],
+        bookingCalendarId: '',
+      });
   return calendars;
 };
 

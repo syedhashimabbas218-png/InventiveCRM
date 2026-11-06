@@ -59,7 +59,8 @@ export const googleCalendar = (accessToken: string, baseUrl = process.env.GOOGLE
         id: item.id,
         name: item.summary,
         primary: Boolean(item.primary),
-        canWrite: item.accessRole === 'owner' || item.accessRole === 'writer',
+        // calendar.events.owned only allows writing to calendars the user owns.
+        canWrite: item.accessRole === 'owner',
       }));
     },
 

@@ -17,7 +17,11 @@ const account = (email, provider) => {
     accounts.set(email, {
       provider,
       revoked: false,
+      // false, 'down' (503) or 'rate-limit' (Google 403 rateLimitExceeded, Graph 429 with Retry-After).
       outage: false,
+      // Scopes the user unticks on the consent screen at their next login.
+      withheldScopes: [],
+      grantedScope: '',
       calendars: [
         { id: provider === 'google' ? email : `cal-${email}-primary`, name: provider === 'google' ? email : 'Calendar', primary: true },
         { id: provider === 'google' ? `team-${email}` : `cal-${email}-team`, name: 'Team rota', primary: false },
@@ -52,6 +56,7 @@ const authAccount = (request, provider) => {
   // Tokens carry the account, so a restarted double still recognises connections Twenty already stores.
   const found = account(email, provider);
   if (found.revoked) return { error: 401 };
+  if (found.outage === 'rate-limit') return { error: provider === 'google' ? 403 : 429, rateLimited: true };
   if (found.outage) return { error: 503 };
   return { email, account: found };
 };
@@ -63,7 +68,10 @@ const handleOAuth = async (request, response, url, provider) => {
     const email = pendingLogin[provider].shift() ?? `default-${provider}@example.test`;
     account(email, provider);
     const code = randomUUID();
-    codes.set(code, { email, provider });
+    const target = account(email, provider);
+    const requested = (url.searchParams.get('scope') ?? '').split(' ').filter(Boolean);
+    // Like Google and Microsoft, the token response lists what the user actually granted.
+    codes.set(code, { email, provider, scope: requested.filter((scope) => !target.withheldScopes.some((withheld) => scope.endsWith(withheld))).join(' ') });
     const redirect = new URL(url.searchParams.get('redirect_uri'));
     redirect.searchParams.set('code', code);
     redirect.searchParams.set('state', url.searchParams.get('state') ?? '');
@@ -76,13 +84,14 @@ const handleOAuth = async (request, response, url, provider) => {
     const entry = codes.get(params.get('code'));
     if (!entry) return send(response, 400, { error: 'invalid_grant' });
     codes.delete(params.get('code'));
-    log.push({ oauth: 'token', provider, email: entry.email, verifier: Boolean(params.get('code_verifier')) });
+    log.push({ oauth: 'token', provider, email: entry.email, verifier: Boolean(params.get('code_verifier')), scope: entry.scope });
+    account(entry.email, provider).grantedScope = entry.scope;
     return send(response, 200, {
       access_token: tokenFor(provider, entry.email),
       refresh_token: `refresh.${provider}.${Buffer.from(entry.email).toString('base64url')}`,
       expires_in: 3600,
       token_type: 'Bearer',
-      scope: 'openid email calendar',
+      scope: entry.scope,
       id_token: idToken(entry.email),
     });
   }
@@ -92,7 +101,7 @@ const handleOAuth = async (request, response, url, provider) => {
     const found = email ? account(email, provider) : null;
     if (refreshProvider !== provider || !found || found.revoked) return send(response, 400, { error: 'invalid_grant' });
     log.push({ oauth: 'refresh', provider, email });
-    return send(response, 200, { access_token: tokenFor(provider, email), expires_in: 3600, token_type: 'Bearer', scope: 'openid email calendar' });
+    return send(response, 200, { access_token: tokenFor(provider, email), expires_in: 3600, token_type: 'Bearer', scope: found.grantedScope });
   }
   return send(response, 400, { error: 'unsupported_grant_type' });
 };
@@ -109,9 +118,10 @@ const googleEvent = (event) => ({
 
 const handleGoogle = async (request, response, url) => {
   const auth = authAccount(request, 'google');
+  if (auth.rateLimited) return send(response, 403, { error: { code: 403, message: 'Rate Limit Exceeded', errors: [{ domain: 'usageLimits', reason: 'rateLimitExceeded' }] } });
   if (auth.error) return send(response, auth.error, { error: { code: auth.error, message: auth.error === 401 ? 'Invalid Credentials' : 'Backend Error' } });
   const path = url.pathname.replace('/google/calendar/v3', '');
-  if (path === '/users/me/calendarList') return send(response, 200, { items: auth.account.calendars.map((calendar) => ({ id: calendar.id, summary: calendar.name, primary: calendar.primary, accessRole: 'owner' })) });
+  if (path === '/users/me/calendarList') return send(response, 200, { items: auth.account.calendars.map((calendar) => ({ id: calendar.id, summary: calendar.name, primary: calendar.primary, accessRole: calendar.primary ? 'owner' : 'writer' })) });
   if (path === '/freeBusy' && request.method === 'POST') {
     const body = JSON.parse(await readBody(request));
     const from = Date.parse(body.timeMin);
@@ -180,6 +190,7 @@ const fromGraph = (value) => new Date(value.dateTime.endsWith('Z') ? value.dateT
 
 const handleGraph = async (request, response, url) => {
   const auth = authAccount(request, 'microsoft');
+  if (auth.rateLimited) return send(response, 429, { error: { code: 'TooManyRequests', message: 'Too many requests' } }, { 'Retry-After': '1' });
   if (auth.error) return send(response, auth.error, { error: { code: auth.error === 401 ? 'InvalidAuthenticationToken' : 'ServiceUnavailable', message: 'mock' } });
   const path = url.pathname.replace('/graph/v1.0', '');
   if (path === '/me/calendars') return send(response, 200, { value: auth.account.calendars.map((calendar) => ({ id: calendar.id, name: calendar.name, isDefaultCalendar: calendar.primary, canEdit: true })) });
@@ -260,8 +271,11 @@ const handleAdmin = async (request, response, url) => {
       accounts.get(body.email).revoked = body.revoked !== false;
       return send(response, 200, { revoked: accounts.get(body.email).revoked });
     case '/admin/outage':
-      accounts.get(body.email).outage = Boolean(body.on);
+      accounts.get(body.email).outage = body.on ? (body.mode ?? 'down') : false;
       return send(response, 200, { outage: accounts.get(body.email).outage });
+    case '/admin/withhold-scopes':
+      account(body.email, body.provider).withheldScopes = body.scopes ?? [];
+      return send(response, 200, { withheld: body.scopes ?? [] });
     case '/admin/reset':
       for (const value of accounts.values()) value.events = [];
       log.length = 0;

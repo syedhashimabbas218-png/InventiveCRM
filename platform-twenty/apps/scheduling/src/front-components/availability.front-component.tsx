@@ -1,9 +1,30 @@
+import styled from '@emotion/styled';
 import { useEffect, useState } from 'react';
 import { defineFrontComponent } from 'twenty-sdk/define';
 import { enqueueSnackbar } from 'twenty-sdk/front-component';
+import { IconPlus } from 'twenty-ui/icon';
+import { themeCssVariables } from 'twenty-ui/theme';
 
 import { IDS } from 'src/constants/ids';
-import { Button, callAdmin, Card, Pill, type Theme, useTheme } from 'src/front-components/shared';
+import {
+  callAdmin,
+  Divided,
+  ErrorState,
+  FieldTitle,
+  Grid,
+  Hint,
+  Input,
+  LoadingState,
+  Page,
+  PageHeader,
+  Panel,
+  PrimaryButton,
+  QuietButton,
+  Row,
+  SecondaryButton,
+  Select,
+  StatusTag,
+} from 'src/front-components/shared';
 
 type TimeWindow = { start: string; end: string };
 type Override = { id: string; name: string; startDate: string; endDate: string; kind: string; windows: TimeWindow[] | null };
@@ -25,27 +46,43 @@ const DAYS = [
 
 const ZONES = ['Europe/London', 'Europe/Dublin', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Asia/Dubai', 'Asia/Karachi', 'Asia/Kolkata', 'Asia/Singapore', 'Australia/Sydney', 'UTC'];
 
-const inputStyle = (theme: Theme) => ({ font: 'inherit', fontSize: 13, padding: '5px 8px', borderRadius: 6, border: `1px solid ${theme.line}`, background: theme.card, color: theme.text }) as const;
+const DayRow = styled.div`
+  align-items: center;
+  border-top: 1px solid ${() => themeCssVariables.border.color.light};
+  display: grid;
+  gap: ${() => themeCssVariables.spacing[3]};
+  grid-template-columns: 120px 1fr auto;
+  padding-top: ${() => themeCssVariables.spacing[2]};
+`;
 
-const WindowsEditor = ({ theme, windows, onChange }: { theme: Theme; windows: TimeWindow[]; onChange: (windows: TimeWindow[]) => void }) => (
-  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+const NumberInput = styled(Input)`
+  width: 64px;
+`;
+
+const WindowsEditor = ({ windows, onChange }: { windows: TimeWindow[]; onChange: (windows: TimeWindow[]) => void }) => (
+  <Row>
     {windows.map((window, index) => (
-      <span key={index} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-        <input aria-label="From" type="time" style={inputStyle(theme)} value={window.start} onChange={(event) => onChange(windows.map((item, at) => (at === index ? { ...item, start: event.target.value } : item)))} />
-        <span style={{ color: theme.muted }}>to</span>
-        <input aria-label="To" type="time" style={inputStyle(theme)} value={window.end === '24:00' ? '23:59' : window.end} onChange={(event) => onChange(windows.map((item, at) => (at === index ? { ...item, end: event.target.value === '23:59' ? '24:00' : event.target.value } : item)))} />
-        <Button theme={theme} onClick={() => onChange(windows.filter((_, at) => at !== index))}>Remove</Button>
-      </span>
+      <Row key={index}>
+        <Input aria-label="From" type="time" value={window.start} onChange={(event) => onChange(windows.map((item, at) => (at === index ? { ...item, start: event.target.value } : item)))} />
+        <Hint>to</Hint>
+        <Input
+          aria-label="To"
+          type="time"
+          value={window.end === '24:00' ? '23:59' : window.end}
+          onChange={(event) => onChange(windows.map((item, at) => (at === index ? { ...item, end: event.target.value === '23:59' ? '24:00' : event.target.value } : item)))}
+        />
+        <QuietButton onClick={() => onChange(windows.filter((_, at) => at !== index))}>Remove</QuietButton>
+      </Row>
     ))}
     {windows.length < 8 && (
-      <Button theme={theme} onClick={() => onChange([...windows, windows.length ? { start: '13:00', end: '17:00' } : { start: '09:00', end: '17:00' }])}>
+      <SecondaryButton startIcon={<IconPlus size={14} />} onClick={() => onChange([...windows, windows.length ? { start: '13:00', end: '17:00' } : { start: '09:00', end: '17:00' }])}>
         {windows.length ? 'Add hours' : 'Set hours'}
-      </Button>
+      </SecondaryButton>
     )}
-  </div>
+  </Row>
 );
 
-const TimeOff = ({ theme, overrides, onChanged }: { theme: Theme; overrides: Override[]; onChanged: () => void }) => {
+const TimeOff = ({ overrides, onChanged }: { overrides: Override[]; onChanged: () => void }) => {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({ name: '', startDate: today, endDate: today, kind: 'UNAVAILABLE' });
   const [windows, setWindows] = useState<TimeWindow[]>([{ start: '10:00', end: '14:00' }]);
@@ -63,36 +100,41 @@ const TimeOff = ({ theme, overrides, onChanged }: { theme: Theme; overrides: Ove
     }
   };
   return (
-    <Card theme={theme} title="Time off and special hours">
-      {overrides.length === 0 && <span style={{ color: theme.muted }}>Nothing planned. Add holidays, a day off, or different hours for a date.</span>}
+    <Panel title="Time off and special hours">
+      {overrides.length === 0 && <Hint>Nothing planned. Add holidays, a day off, or different hours for a date.</Hint>}
       {overrides.map((override) => (
-        <div key={override.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, borderTop: `1px solid ${theme.line}`, paddingTop: 8 }}>
-          <span>
-            <strong>{override.name}</strong> <span style={{ color: theme.muted }}>{override.startDate === override.endDate ? override.startDate : `${override.startDate} to ${override.endDate}`}</span>{' '}
-            <Pill color={override.kind === 'UNAVAILABLE' ? theme.danger : theme.accent}>{override.kind === 'UNAVAILABLE' ? 'Unavailable' : (override.windows ?? []).map((window) => `${window.start} to ${window.end}`).join(', ')}</Pill>
-          </span>
-          <Button theme={theme} disabled={busy} onClick={() => run({ action: 'removeOverride', id: override.id }, 'Removed')}>Remove</Button>
-        </div>
+        <Divided key={override.id}>
+          <Row>
+            <strong>{override.name}</strong>
+            <Hint>{override.startDate === override.endDate ? override.startDate : `${override.startDate} to ${override.endDate}`}</Hint>
+            <StatusTag kind="override" value={override.kind} />
+            {override.kind !== 'UNAVAILABLE' && <Hint>{(override.windows ?? []).map((window) => `${window.start} to ${window.end}`).join(', ')}</Hint>}
+            <QuietButton disabled={busy} onClick={() => run({ action: 'removeOverride', id: override.id }, 'Removed')}>
+              Remove
+            </QuietButton>
+          </Row>
+        </Divided>
       ))}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', borderTop: `1px solid ${theme.line}`, paddingTop: 10 }}>
-        <input style={inputStyle(theme)} placeholder="Reason (optional)" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-        <input aria-label="First day" type="date" style={inputStyle(theme)} value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value, endDate: form.endDate < event.target.value ? event.target.value : form.endDate })} />
-        <input aria-label="Last day" type="date" style={inputStyle(theme)} value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} />
-        <select aria-label="Kind" style={inputStyle(theme)} value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })}>
-          <option value="UNAVAILABLE">Unavailable all day</option>
-          <option value="CUSTOM_HOURS">Different hours</option>
-        </select>
-        {form.kind === 'CUSTOM_HOURS' && <WindowsEditor theme={theme} windows={windows} onChange={setWindows} />}
-        <Button theme={theme} primary disabled={busy} onClick={() => run({ action: 'addOverride', ...form, windows: form.kind === 'CUSTOM_HOURS' ? windows : [] }, 'Added')}>
-          Add
-        </Button>
-      </div>
-    </Card>
+      <Divided>
+        <Row>
+          <Input placeholder="Reason (optional)" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          <Input aria-label="First day" type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value, endDate: form.endDate < event.target.value ? event.target.value : form.endDate })} />
+          <Input aria-label="Last day" type="date" value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} />
+          <Select aria-label="Kind" value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })}>
+            <option value="UNAVAILABLE">Unavailable all day</option>
+            <option value="CUSTOM_HOURS">Different hours</option>
+          </Select>
+          {form.kind === 'CUSTOM_HOURS' && <WindowsEditor windows={windows} onChange={setWindows} />}
+          <PrimaryButton disabled={busy} onClick={() => run({ action: 'addOverride', ...form, windows: form.kind === 'CUSTOM_HOURS' ? windows : [] }, 'Added')}>
+            Add
+          </PrimaryButton>
+        </Row>
+      </Divided>
+    </Panel>
   );
 };
 
 const Availability = () => {
-  const theme = useTheme();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState('');
   const [hours, setHours] = useState<Record<string, TimeWindow[]>>({});
@@ -127,60 +169,73 @@ const Availability = () => {
   };
   const copyToWeekdays = (from: string) => setHours({ ...hours, ...Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri'].map((day) => [day, (hours[from] ?? []).map((window) => ({ ...window }))])) });
 
-  const page = { fontFamily: 'Inter, sans-serif', color: theme.text, padding: 16, display: 'flex', flexDirection: 'column' as const, gap: 12, fontSize: 13 };
-  if (error) return <div style={page}><p style={{ color: theme.danger }}>{error}</p><Button theme={theme} onClick={load}>Try again</Button></div>;
-  if (!data) return <div style={page}><p style={{ color: theme.muted }}>Loading…</p></div>;
+  if (error)
+    return (
+      <Page>
+        <ErrorState message={error} onRetry={load} />
+      </Page>
+    );
+  if (!data)
+    return (
+      <Page>
+        <LoadingState />
+      </Page>
+    );
   const zones = ZONES.includes(timeZone) ? ZONES : [timeZone, ...ZONES];
 
   return (
-    <div style={page}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 18 }}>My availability</h2>
-          <span style={{ color: theme.muted }}>Customers can book you inside these hours, minus anything in your connected calendars.</span>
-        </div>
-        <Button theme={theme} primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="My availability"
+        description="Customers can book you inside these hours, minus anything in your connected calendars."
+        actions={
+          <PrimaryButton loading={saving} disabled={saving} onClick={save}>
+            Save
+          </PrimaryButton>
+        }
+      />
 
-      <Card theme={theme} title="Weekly hours">
+      <Panel title="Weekly hours">
         {DAYS.map(([day, name]) => {
           const windows = hours[day] ?? [];
           return (
-            <div key={day} style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', gap: 10, alignItems: 'center', borderTop: `1px solid ${theme.line}`, paddingTop: 8 }}>
-              <strong>{name}</strong>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                {windows.length === 0 && <span style={{ color: theme.muted }}>Unavailable</span>}
-                <WindowsEditor theme={theme} windows={windows} onChange={(next) => setHours({ ...hours, [day]: next })} />
-              </div>
-              {day === 'mon' && windows.length > 0 ? <Button theme={theme} onClick={() => copyToWeekdays('mon')}>Copy to weekdays</Button> : <span />}
-            </div>
+            <DayRow key={day}>
+              <FieldTitle>{name}</FieldTitle>
+              <Row>
+                {windows.length === 0 && <Hint>Unavailable</Hint>}
+                <WindowsEditor windows={windows} onChange={(next) => setHours({ ...hours, [day]: next })} />
+              </Row>
+              {day === 'mon' && windows.length > 0 ? <QuietButton onClick={() => copyToWeekdays('mon')}>Copy to weekdays</QuietButton> : <span />}
+            </DayRow>
           );
         })}
-        <span style={{ color: theme.muted }}>Hours past midnight, such as 22:00 to 02:00, carry into the next day.</span>
-      </Card>
+        <Hint>Hours past midnight, such as 22:00 to 02:00, carry into the next day.</Hint>
+      </Panel>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
-        <Card theme={theme} title="Time zone">
-          <select aria-label="Time zone" style={inputStyle(theme)} value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>
+      <Grid>
+        <Panel title="Time zone">
+          <Select aria-label="Time zone" value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>
             {zones.map((zone) => (
-              <option key={zone} value={zone}>{zone.replace(/_/g, ' ')}</option>
+              <option key={zone} value={zone}>
+                {zone.replace(/_/g, ' ')}
+              </option>
             ))}
-          </select>
-          <span style={{ color: theme.muted }}>Clock changes are handled automatically.</span>
-        </Card>
-        <Card theme={theme} title="Limits">
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          </Select>
+          <Hint>Clock changes are handled automatically.</Hint>
+        </Panel>
+        <Panel title="Limits">
+          <Row>
             <span>At most</span>
-            <input aria-label="Daily limit" style={{ ...inputStyle(theme), width: 60 }} inputMode="numeric" placeholder="None" value={limits.dailyLimit} onChange={(event) => setLimits({ ...limits, dailyLimit: event.target.value.replace(/\D/g, '') })} />
+            <NumberInput aria-label="Daily limit" inputMode="numeric" placeholder="None" value={limits.dailyLimit} onChange={(event) => setLimits({ ...limits, dailyLimit: event.target.value.replace(/\D/g, '') })} />
             <span>a day and</span>
-            <input aria-label="Weekly limit" style={{ ...inputStyle(theme), width: 60 }} inputMode="numeric" placeholder="None" value={limits.weeklyLimit} onChange={(event) => setLimits({ ...limits, weeklyLimit: event.target.value.replace(/\D/g, '') })} />
+            <NumberInput aria-label="Weekly limit" inputMode="numeric" placeholder="None" value={limits.weeklyLimit} onChange={(event) => setLimits({ ...limits, weeklyLimit: event.target.value.replace(/\D/g, '') })} />
             <span>a week</span>
-          </div>
-        </Card>
-      </div>
+          </Row>
+        </Panel>
+      </Grid>
 
-      <TimeOff theme={theme} overrides={data.overrides} onChanged={load} />
-    </div>
+      <TimeOff overrides={data.overrides} onChanged={load} />
+    </Page>
   );
 };
 
