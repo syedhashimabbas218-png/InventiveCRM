@@ -21,7 +21,7 @@ export const formatWhen = (start: number, end: number, timeZone: string) => {
   return `${day}, ${time(start)} to ${time(end)} (${zone})`;
 };
 
-const icsText = (value: string) => value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const icsText = (value: string) => value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
 const icsTime = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 const fold = (line: string) => line.match(/.{1,73}/g)?.join('\r\n ') ?? line;
 

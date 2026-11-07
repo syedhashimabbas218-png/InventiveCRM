@@ -1,11 +1,14 @@
 // Simulates an AI assistant handling: "Invoice Northern Lettings for two hours of labour and issue it."
 import { readFileSync } from 'node:fs';
 import { assert, client, summary, waitFor } from './inv-lib.mjs';
+// No default: a forgotten variable must not send test traffic to a live server on the usual port.
+const SERVER_URL = process.env.SERVER_URL;
+if (!SERVER_URL) throw new Error('Set SERVER_URL to the throwaway test server, for example http://localhost:3001');
 const key = readFileSync(`${process.env.KEYS_DIR ?? 'keys'}/acme.key`, 'utf8').trim();
 const state = JSON.parse(readFileSync('inv-state.json', 'utf8'));
 let id = 0;
 const rpc = async (method, params) => {
-  const response = await fetch('http://localhost:3000/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', Authorization: `Bearer ${key}` }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) });
+  const response = await fetch(`${SERVER_URL}/mcp`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', Authorization: `Bearer ${key}` }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) });
   const text = await response.text();
   return JSON.parse(text.startsWith('{') ? text : text.split('\n').filter((line) => line.startsWith('data:')).pop().slice(5));
 };

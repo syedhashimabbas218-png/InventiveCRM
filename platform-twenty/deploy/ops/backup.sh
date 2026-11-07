@@ -24,9 +24,10 @@ jq -n \
   --arg label "$label" \
   --arg image "$image" \
   --arg imageDigest "$(docker image inspect --format '{{join .RepoDigests ","}}' "$image" 2>/dev/null || true)" \
+  --arg imageId "$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null || true)" \
   --arg database "$(env_value PG_DATABASE_NAME)" \
   --arg encryptionKeyFingerprint "$(key_fingerprint)" \
-  '{createdAt: $createdAt, label: $label, image: $image, imageDigest: $imageDigest, database: $database, encryptionKeyFingerprint: $encryptionKeyFingerprint}' \
+  '{createdAt: $createdAt, label: $label, image: $image, imageDigest: $imageDigest, imageId: $imageId, database: $database, encryptionKeyFingerprint: $encryptionKeyFingerprint}' \
   >"$work/manifest.json"
 (cd "$work" && sha256sum db.dump storage.tar.gz mail-dkim.tar.gz manifest.json >SHA256SUMS)
 

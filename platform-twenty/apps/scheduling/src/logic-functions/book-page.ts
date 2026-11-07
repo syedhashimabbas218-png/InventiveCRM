@@ -8,7 +8,8 @@ import { bookingPage } from 'src/lib/page';
 const handler = async (event: RoutePayload) =>
   new Response(bookingPage({ base: await publicBaseUrl(), slug: (event.pathParameters.slug ?? '').slice(0, 120), token: '', mode: 'book' }), {
     status: 200,
-    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+    // The page is a shell that loads its data from the booking API, so it is the same for every visitor.
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=0, s-maxage=300' },
   });
 
 export default defineLogicFunction({

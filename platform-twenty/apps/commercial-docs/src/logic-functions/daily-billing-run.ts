@@ -16,7 +16,10 @@ const expireQuotes = async (today: string) => {
 };
 
 const handler = async (input?: { body?: { date?: string } | null; date?: string }) => {
-  const today = input?.body?.date ?? input?.date ?? todayInLondon();
+  // A caller may replay a past day (tests do), never a future one: that would issue and send invoices early.
+  const requested = input?.body?.date ?? input?.date;
+  const actualToday = todayInLondon();
+  const today = typeof requested === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(requested) && requested <= actualToday ? requested : actualToday;
   const recurringInvoicesCreated = await runRecurringInvoices(today);
   const invoicesMarkedOverdue = await markOverdueInvoices(today);
   const quotesExpired = await expireQuotes(today);

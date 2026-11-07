@@ -33,6 +33,15 @@ for (const field of [...(spec.objects ?? []).flatMap((object) => (object.fields 
   if (!ALLOWED_FIELD_TYPES.has(field.type)) problems.push(`field ${field.object}.${field.name}: type ${field.type} is not allowed`);
   if (PROTECTED_OBJECTS.has(field.object)) problems.push(`field ${field.object}.${field.name}: the Quotes & Invoices objects are managed by the app`);
 }
+// Specs are written by an AI from a client's description, so they may only build workflows from data steps: no code,
+// no outbound HTTP, no deletes and no public webhook triggers.
+const ALLOWED_STEP_TYPES = new Set(['CREATE_RECORD', 'UPDATE_RECORD', 'FIND_RECORDS', 'SEND_EMAIL', 'FORM', 'FILTER', 'IF_ELSE', 'DELAY', 'ITERATOR', 'EMPTY']);
+const ALLOWED_TRIGGER_TYPES = new Set(['DATABASE_EVENT', 'MANUAL', 'CRON']);
+for (const workflow of spec.workflows ?? []) {
+  if (!ALLOWED_TRIGGER_TYPES.has(workflow.trigger?.type)) problems.push(`workflow ${workflow.name}: trigger ${workflow.trigger?.type} is not allowed`);
+  for (const step of workflow.steps ?? [])
+    if (!ALLOWED_STEP_TYPES.has(step.type)) problems.push(`workflow ${workflow.name}: step type ${step.type} is not allowed`);
+}
 if (problems.length > 0) {
   console.error(`Spec rejected:\n- ${problems.join('\n- ')}`);
   process.exit(1);

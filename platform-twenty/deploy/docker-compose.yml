@@ -3,9 +3,10 @@ name: inventivecrm
 x-app: &app
   image: ${IMAGE}
   env_file: .env
-  environment:
+  environment: &app-env
     PG_DATABASE_URL: postgres://${PG_DATABASE_USER}:${PG_DATABASE_PASSWORD}@db:5432/${PG_DATABASE_NAME}
     REDIS_URL: redis://redis:6379
+    REDIS_QUEUE_URL: redis://redis-queue:6379
   volumes:
     - server-local-data:/app/packages/twenty-server/.local-storage
   depends_on:
@@ -13,8 +14,11 @@ x-app: &app
       condition: service_healthy
     redis:
       condition: service_healthy
+    redis-queue:
+      condition: service_healthy
     mail:
       condition: service_healthy
+  networks: [default, mail, docs]
   restart: always
 
 services:
@@ -22,6 +26,7 @@ services:
     <<: *app
     ports:
       - "127.0.0.1:3000:3000"
+    mem_limit: 3g
     healthcheck:
       test: curl --fail http://localhost:3000/healthz
       interval: 5s
@@ -33,9 +38,9 @@ services:
   worker:
     <<: *app
     command: ["yarn", "worker:prod"]
+    mem_limit: 2g
     environment:
-      PG_DATABASE_URL: postgres://${PG_DATABASE_USER}:${PG_DATABASE_PASSWORD}@db:5432/${PG_DATABASE_NAME}
-      REDIS_URL: redis://redis:6379
+      <<: *app-env
       DISABLE_DB_MIGRATIONS: "true"
       DISABLE_CRON_JOBS_REGISTRATION: "true"
     depends_on:
@@ -50,6 +55,7 @@ services:
       POSTGRES_DB: ${PG_DATABASE_NAME}
     volumes:
       - db-data:/var/lib/postgresql/data
+    mem_limit: 2g
     healthcheck:
       test: pg_isready -U ${PG_DATABASE_USER} -h localhost -d postgres
       interval: 5s
@@ -59,7 +65,26 @@ services:
 
   redis:
     image: redis:7.4.12@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
-    command: ["--maxmemory-policy", "noeviction"]
+    # Cache and login sessions. Kept on disk so a restart does not sign everyone out; when full, only keys that expire
+    # anyway are evicted, least recently used first.
+    command: ["--maxmemory", "768mb", "--maxmemory-policy", "volatile-lru", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis-data:/data
+    mem_limit: 1g
+    healthcheck:
+      test: redis-cli ping
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: always
+
+  # Background job queues, separate so cache pressure can never evict a job. Never evicts; kept on disk.
+  redis-queue:
+    image: redis:7.4.12@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
+    command: ["--maxmemory-policy", "noeviction", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis-queue-data:/data
+    mem_limit: 512m
     healthcheck:
       test: redis-cli ping
       interval: 5s
@@ -81,12 +106,17 @@ services:
     volumes:
       - mail-dkim:/etc/opendkim/keys
       - mail-spool:/var/spool/postfix
+    mem_limit: 256m
+    networks: [mail]
     restart: always
 
   # Turns filled Word templates into PDFs (LibreOffice). No AI, no outside calls; reachable only inside the stack.
   docs:
     image: gotenberg/gotenberg:8.38.1-libreoffice@sha256:2098722190575dbd975d8abf02e4ce83ffe20783114c5cc56f1b2ac309e6a083
     command: ["gotenberg", "--api-timeout=60s", "--libreoffice-restart-after=50", "--log-level=warn"]
+    mem_limit: 1536m
+    # Converts client-supplied Word files, so it has no internet and cannot reach the database or Redis.
+    networks: [docs]
     restart: always
 
   # Road routing and address search for the Scheduling app. Opt in with --profile maps after preparing MAPS_DIR
@@ -113,8 +143,16 @@ services:
     shm_size: 1g
     restart: always
 
+networks:
+  default:
+  mail:
+  docs:
+    internal: true
+
 volumes:
   db-data:
+  redis-data:
+  redis-queue-data:
   server-local-data:
   mail-dkim:
   mail-spool:

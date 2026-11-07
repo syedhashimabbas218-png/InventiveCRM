@@ -60,6 +60,45 @@ export const detectFileKind = (bytes: Uint8Array): 'DOCX' | 'PDF' | null => {
   return null;
 };
 
+// ---------- Size limits ----------
+
+// Templates come from clients. These limits keep one crafted file (a zip bomb or a page the size of a wall) from
+// exhausting the memory every workspace shares.
+const MAX_TEMPLATE_BYTES = 10 * 1024 * 1024;
+const MAX_DOCX_UNPACKED_BYTES = 50 * 1024 * 1024;
+const MAX_PAGE_POINTS = 1700;
+const MAX_RENDER_PIXELS = 10_000_000;
+
+export const templateSizeProblem = (bytes: Uint8Array, kind: 'DOCX' | 'PDF') => {
+  if (bytes.length > MAX_TEMPLATE_BYTES) return 'The file is larger than 10 MB.';
+  if (kind === 'DOCX') {
+    const unpacked = Object.values(new PizZip(bytes).files).reduce(
+      (total, entry) => total + ((entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0),
+      0,
+    );
+    if (unpacked > MAX_DOCX_UNPACKED_BYTES) return 'The Word file unpacks to more than 50 MB.';
+  }
+  return null;
+};
+
+// Remote images, embedded objects, sub-documents and INCLUDE fields would make the converter fetch URLs or local
+// files. Hyperlinks stay.
+const FETCHING_RELATIONSHIP = /<Relationship\b[^>]*Type="[^"]*\/(image|oleObject|attachedTemplate|subDocument|frame|package|audio|video)"[^>]*TargetMode="External"[^>]*\/>|<Relationship\b[^>]*TargetMode="External"[^>]*Type="[^"]*\/(image|oleObject|attachedTemplate|subDocument|frame|package|audio|video)"[^>]*\/>/g;
+const INCLUDE_FIELD = /\b(INCLUDEPICTURE|INCLUDETEXT|INCLUDE|LINK|DDEAUTO|DDE|IMPORT)\b/g;
+
+export const stripExternalReferences = (docx: Uint8Array) => {
+  const zip = new PizZip(docx);
+  for (const name of Object.keys(zip.files)) {
+    if (name.endsWith('.rels')) zip.file(name, (zip.file(name)?.asText() ?? '').replace(FETCHING_RELATIONSHIP, ''));
+    else if (/^word\/[^/]+\.xml$/.test(name)) {
+      const xml = zip.file(name)?.asText() ?? '';
+      if (INCLUDE_FIELD.test(xml)) zip.file(name, xml.replace(/<w:instrText([^>]*)>[^<]*\b(INCLUDEPICTURE|INCLUDETEXT|INCLUDE|LINK|DDEAUTO|DDE|IMPORT)\b[^<]*<\/w:instrText>/g, '<w:instrText$1></w:instrText>').replace(/w:instr="[^"]*\b(INCLUDEPICTURE|INCLUDETEXT|INCLUDE|LINK|DDEAUTO|DDE|IMPORT)\b[^"]*"/g, 'w:instr=""'));
+      INCLUDE_FIELD.lastIndex = 0;
+    }
+  }
+  return zip.generate({ type: 'uint8array' }) as Uint8Array;
+};
+
 // ---------- DOCX ----------
 
 const newDocx = (bytes: Uint8Array, modules: InspectModule[] = []) =>
@@ -100,7 +139,8 @@ export const convertDocxToPdf = async (docx: Uint8Array) => {
   const converter = process.env.DOCUMENT_CONVERTER_URL;
   if (!converter) throw new Error('No document converter configured (DOCUMENT_CONVERTER_URL).');
   const form = new FormData();
-  form.append('files', new Blob([docx.slice().buffer as ArrayBuffer]), 'document.docx');
+  const safe = stripExternalReferences(docx);
+  form.append('files', new Blob([safe.slice().buffer as ArrayBuffer]), 'document.docx');
   const response = await fetch(`${converter.replace(/\/$/, '')}/forms/libreoffice/convert`, {
     method: 'POST',
     body: form,
@@ -142,7 +182,9 @@ type CanvasFactory = { create(width: number, height: number): { canvas: unknown;
 
 const renderPage = async (pdf: PdfJsDocument, scale: number) => {
   const page = await pdf.getPage(1);
-  const viewport = page.getViewport({ scale });
+  const natural = page.getViewport({ scale: 1 });
+  if (natural.width > MAX_PAGE_POINTS || natural.height > MAX_PAGE_POINTS) throw new Error('The PDF page is larger than A3.');
+  const viewport = page.getViewport({ scale: Math.min(scale, Math.sqrt(MAX_RENDER_PIXELS / (natural.width * natural.height))) });
   const { canvas, context } = (pdf.canvasFactory as CanvasFactory).create(Math.ceil(viewport.width), Math.ceil(viewport.height));
   await page.render({ canvas: canvas as HTMLCanvasElement, canvasContext: context as CanvasRenderingContext2D, viewport }).promise;
   return { canvas: canvas as { toBuffer(type: string): Buffer }, context: context as PixelReader, width: Math.ceil(viewport.width), height: Math.ceil(viewport.height) };

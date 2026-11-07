@@ -1,7 +1,15 @@
-# TLS proxy for the multi-workspace server. One wildcard certificate covers every workspace subdomain
+# TLS proxy and edge cache for the multi-workspace server. One wildcard certificate covers every workspace subdomain
 # (DNS-01 through Cloudflare); the token arrives as a systemd credential, see caddy.service.
 {
-	admin localhost:2019
+	admin unix//run/caddy/admin.sock
+	order rate_limit before basic_auth
+	# Only responses the server marks shareable (s-maxage) are stored: hashed front-end assets, booking page shells,
+	# and the public booking API's read answers. Keys include host and request body, so workspaces never mix.
+	cache {
+		allowed_http_verbs GET HEAD POST
+		ttl 60s
+		default_cache_control no-store
+	}
 }
 
 crm.inventiveweb.studio, *.crm.inventiveweb.studio {
@@ -9,7 +17,55 @@ crm.inventiveweb.studio, *.crm.inventiveweb.studio {
 		dns cloudflare {file.{$CREDENTIALS_DIRECTORY}/cloudflare-dns-token}
 		resolvers 1.1.1.1 1.0.0.1
 	}
+
+	# No X-Frame-Options here: booking pages are embedded on clients' websites; the CRM sets its own frame-ancestors.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Content-Type-Options nosniff
+		-X-Powered-By
+		-Server
+	}
+
+	# One booking API caller cannot spend the app's API allowance, which every workspace shares.
+	rate_limit {
+		zone booking_api {
+			match {
+				method POST
+				path /s/booking/api
+			}
+			key {remote_host}
+			events 120
+			window 1m
+		}
+	}
+
+	# Front-end files have content hashes in their names, so browsers and this cache may keep them for a year.
+	@assets path /assets/*
+	route @assets {
+		cache {
+			ttl 24h
+		}
+		encode zstd gzip
+		reverse_proxy 127.0.0.1:3000 {
+			header_down Cache-Control "public, max-age=31536000, immutable"
+		}
+	}
+
 	encode zstd gzip
+
+	@shared path /s/book/* /s/booking/api /s/booking/embed.js
+	route @shared {
+		cache
+		reverse_proxy 127.0.0.1:3000
+	}
+
 	reverse_proxy 127.0.0.1:3000
-	log
+
+	# Manage links and map tickets grant access, so they never reach the log.
+	log {
+		format filter {
+			request>uri regexp "(/booking/manage/|ticket=)[^/?&]+" "${1}REDACTED"
+		}
+	}
 }

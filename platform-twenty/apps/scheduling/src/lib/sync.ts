@@ -93,8 +93,8 @@ export const syncAppointment = async (appointment: AppointmentRecord) => {
   for (const advisorId of participants) {
     const name = syncKey(appointment, advisorId);
     const row = rows.find((candidate) => candidate.name === name);
-    const advisorData = await gql<{ advisors: { edges: { node: { id: string; name: string; email: string; workspaceMemberId: string | null } }[] } }>(
-      `query($id: UUID!) { advisors(filter: { id: { eq: $id } }) { edges { node { id name email workspaceMemberId } } } }`,
+    const advisorData = await gql<{ advisors: { edges: { node: { id: string; name: string; email: string; workspaceMemberId: string | null; createdBy: { workspaceMemberId: string | null } | null } }[] } }>(
+      `query($id: UUID!) { advisors(filter: { id: { eq: $id } }) { edges { node { id name email workspaceMemberId createdBy { workspaceMemberId } } } } }`,
       { id: advisorId },
     );
     const advisor = nodes(advisorData.advisors)[0];
@@ -179,8 +179,8 @@ export const syncAppointment = async (appointment: AppointmentRecord) => {
 // so the advisor sees it rather than the customer losing the appointment silently.
 export const reconcileRow = async (row: SyncRow, appointment: AppointmentRecord) => {
   if (!row.externalEventId || row.status !== 'SYNCED' || appointment.status === 'CANCELLED') return 'skipped';
-  const advisorData = await gql<{ advisors: { edges: { node: { id: string; workspaceMemberId: string | null } }[] } }>(
-    `query($id: UUID!) { advisors(filter: { id: { eq: $id } }) { edges { node { id workspaceMemberId } } } }`,
+  const advisorData = await gql<{ advisors: { edges: { node: { id: string; workspaceMemberId: string | null; createdBy: { workspaceMemberId: string | null } | null } }[] } }>(
+    `query($id: UUID!) { advisors(filter: { id: { eq: $id } }) { edges { node { id workspaceMemberId createdBy { workspaceMemberId } } } } }`,
     { id: row.advisorId },
   );
   const advisor = nodes(advisorData.advisors)[0];

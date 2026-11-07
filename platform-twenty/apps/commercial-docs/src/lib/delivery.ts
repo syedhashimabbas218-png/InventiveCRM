@@ -5,7 +5,7 @@ import nodemailer from 'nodemailer';
 import { type DeliveryChannel, type DeliveryStatus } from 'src/constants/enums';
 import { downloadFile, gql, metadata, nodes } from 'src/lib/api';
 import { type BusinessProfile } from 'src/lib/compliance';
-import { formatUkDate } from 'src/lib/dates';
+import { formatUkDate, todayInLondon } from 'src/lib/dates';
 import { formatGbp, microsToPence } from 'src/lib/money';
 
 type DocumentKind = 'invoice' | 'quote';
@@ -145,6 +145,28 @@ const createDelivery = async (document: SendableDocument, data: Record<string, u
 
 const STATUS_ORDER: DeliveryStatus[] = ['QUEUED', 'SENT', 'FAILED', 'DELIVERED', 'READ'];
 
+const SENDABLE_STATUSES: Record<DocumentKind, string[]> = { invoice: ['ISSUED', 'PART_PAID', 'OVERDUE', 'PAID'], quote: ['SENT'] };
+const MAX_SENDS_PER_DOCUMENT_PER_DAY = 5;
+const MAX_SENDS_PER_WORKSPACE_PER_DAY = 300;
+
+const deliveriesSince = async (since: string, document?: SendableDocument) => {
+  const filter = { createdAt: { gte: since }, ...(document ? { [`${document.kind}Id`]: { eq: document.id } } : {}) };
+  const data = await gql<{ documentDeliveries: { totalCount: number } }>(
+    `query($filter: DocumentDeliveryFilterInput!) { documentDeliveries(filter: $filter) { totalCount } }`,
+    { filter },
+  );
+  return data.documentDeliveries.totalCount;
+};
+
+// Limits stop a script or a stolen API key from spamming a client's customers or burning our sending reputation.
+const assertWithinSendingLimits = async (document: SendableDocument) => {
+  const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  if ((await deliveriesSince(dayAgo, document)) >= MAX_SENDS_PER_DOCUMENT_PER_DAY)
+    throw new Error(`This document has already been sent ${MAX_SENDS_PER_DOCUMENT_PER_DAY} times in the last 24 hours.`);
+  if ((await deliveriesSince(dayAgo)) >= MAX_SENDS_PER_WORKSPACE_PER_DAY)
+    throw new Error(`The daily sending limit of ${MAX_SENDS_PER_WORKSPACE_PER_DAY} documents for this workspace has been reached. Contact support to raise it.`);
+};
+
 // WhatsApp callbacks can arrive out of order or before the hand-off returns, so a status only moves forward.
 export const updateDelivery = async (id: string, status: DeliveryStatus, extra: Record<string, unknown> = {}) => {
   const data = await gql<{ documentDeliveries: { edges: { node: { status: DeliveryStatus | null } }[] } }>(
@@ -172,7 +194,8 @@ const sendFromOurServer = async (document: SendableDocument, profile: BusinessPr
     auth: SMTP_USERNAME ? { user: SMTP_USERNAME, pass: SMTP_PASSWORD } : undefined,
   });
   const info = await transport.sendMail({
-    from: { name: businessName(profile), address: SMTP_FROM_ADDRESS },
+    // Our domain signs this mail, so the sender always shows it comes through us, whatever name the client chose.
+    from: { name: `${businessName(profile)} via InventiveCRM`, address: SMTP_FROM_ADDRESS },
     replyTo: profile.email || undefined,
     to,
     subject: email.subject,
@@ -265,7 +288,7 @@ const handOffToWhatsApp = async (document: SendableDocument, profile: BusinessPr
 
 export const verifyWhatsAppSignature = (rawBody: string, timestamp: string | undefined, signature: string | undefined) => {
   const secret = process.env.WHATSAPP_GATEWAY_SECRET;
-  if (!secret || !timestamp || !signature) return false;
+  if (!secret || !timestamp || !signature || !/^\d{1,12}$/.test(timestamp)) return false;
   if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
   const expected = `sha256=${createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex')}`;
   return expected.length === signature.length && timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
@@ -300,7 +323,10 @@ export const deliverDocument = async ({
   reminder?: boolean;
 }): Promise<DeliveryResult[]> => {
   const document = await loadDocument(kind, id);
-  if (!document || !document.number) return [];
+  if (!document || !document.number || !SENDABLE_STATUSES[kind].includes(document.status ?? '')) return [];
+  // A payment reminder only goes out for an invoice that is actually unpaid and past its due date.
+  if (reminder && !(kind === 'invoice' && ['OVERDUE', 'PART_PAID'].includes(document.status ?? '') && document.dueDate && document.dueDate < todayInLondon())) return [];
+  await assertWithinSendingLimits(document);
   const results: DeliveryResult[] = [];
   const label = `${reminder ? 'Reminder for ' : ''}${DOCUMENT_LABEL[document.type]} ${document.number}`;
 

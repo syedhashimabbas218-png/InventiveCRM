@@ -6,7 +6,7 @@ import { checkMapTicket } from 'src/lib/tokens';
 type Office = { id: string; name: string; streetAddress: string; postcode: string; latitude: number | null; longitude: number | null };
 
 const html = (body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Advisor map</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
 <style>html,body{margin:0;height:100%;font-family:Inter,system-ui,sans-serif;font-size:13px;color:#333}#map{position:absolute;inset:0}
 .legend{position:absolute;z-index:500;top:10px;right:10px;background:#fff;border-radius:8px;padding:8px 10px;box-shadow:0 1px 4px #0003;max-width:240px}
 .legend div{display:flex;align-items:center;gap:6px;margin:2px 0}.dot{width:10px;height:10px;border-radius:5px;display:inline-block}
@@ -34,7 +34,7 @@ export const staffMapPage = async (ticket: string) => {
   return {
     status: 200,
     body: html(`<div id="map"></div><div class="legend" id="legend"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 <script>
 var D=${payload};var COLORS=['#3e63dd','#30a46c','#6e56cf','#f76b15','#e5484d','#00a2c7','#d6409f','#46a758'];
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}

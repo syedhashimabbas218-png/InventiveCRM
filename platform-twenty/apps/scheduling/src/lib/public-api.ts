@@ -143,7 +143,9 @@ const slots = async (body: Body) => {
   try {
     const result = await searchAvailability({
       type,
-      fixedAdvisorId: link?.advisorId ?? (typeof body.advisorId === 'string' ? body.advisorId : null),
+      fixedAdvisorId:
+        link?.advisorId ??
+        ((type.assignment === 'CUSTOMER_CHOICE' || type.locationMode === 'CUSTOMER_CHOICE') && typeof body.advisorId === 'string' ? body.advisorId : null),
       from,
       to: from + days * 24 * 60 * MINUTE,
       now: Date.now(),
@@ -170,8 +172,9 @@ const nearbyAdvisors = async (body: Body) => {
     customer: { lat: location.point.lat, lng: location.point.lng, label: location.label },
     advisors: result.advisors.map((item) => ({
       ...publicAdvisor(item.advisor),
-      distanceKm: item.measure?.roadKm ?? (item.measure?.straightKm !== null && item.measure?.straightKm !== undefined ? Math.round(item.measure.straightKm * 10) / 10 : null),
-      travelMinutes: item.measure?.travelMinutes ?? null,
+      // Coarse on purpose: precise distances from chosen points would reveal an advisor's home base.
+      distanceKm: roundedKm(item.measure?.roadKm ?? item.measure?.straightKm ?? null),
+      travelMinutes: item.measure?.travelMinutes !== null && item.measure?.travelMinutes !== undefined ? Math.max(5, Math.round(item.measure.travelMinutes / 5) * 5) : null,
       routed: item.measure?.routed ?? false,
       earliest: item.starts[0] ? new Date(item.starts[0]).toISOString() : null,
     })),
@@ -223,6 +226,17 @@ const appointmentFromToken = async (token: string) => {
   return appointment;
 };
 
+// Links are shown on the manage page as a button, so only https links are passed on (never javascript: and the like).
+const roundedKm = (km: number | null) => (km === null || !Number.isFinite(km) ? null : Math.max(1, Math.round(km)));
+
+const safeMeetingUrl = (value: string | null | undefined) => {
+  try {
+    return value && new URL(value).protocol === 'https:' ? value : '';
+  } catch {
+    return '';
+  }
+};
+
 const summary = (appointment: AppointmentRecord) => {
   const type = appointment.appointmentType;
   const hoursLeft = (Date.parse(appointment.startsAt) - Date.now()) / 3600_000;
@@ -236,7 +250,7 @@ const summary = (appointment: AppointmentRecord) => {
     slug: type?.slug ?? '',
     advisorName: appointment.advisor?.name ?? '',
     location: appointment.location,
-    meetingUrl: appointment.meetingUrl,
+    meetingUrl: safeMeetingUrl(appointment.meetingUrl),
     canCancel: active && hoursLeft >= (type?.cancellationCutoffHours ?? 0),
     canReschedule: active && hoursLeft >= (type?.rescheduleCutoffHours ?? 0) && !appointment.sessionKey,
     cancellationCutoffHours: type?.cancellationCutoffHours ?? 0,
@@ -271,6 +285,7 @@ export const handlePublicApi = async (body: Body, headers: Headers) => {
     case 'cancel': {
       await rateLimit(headers, 'manage', 30, 60);
       const appointment = await appointmentFromToken(text(body.token, 120));
+      if (!summary(appointment).canCancel) throw new PublicError(400, 'TOO_LATE', 'This appointment can no longer be cancelled online. Please contact us.');
       await cancelAppointment(appointment, 'customer', text(body.reason, 500), { enforceCutoff: true });
       return summary({ ...appointment, status: 'CANCELLED' });
     }
@@ -279,6 +294,7 @@ export const handlePublicApi = async (body: Body, headers: Headers) => {
       const appointment = await appointmentFromToken(text(body.token, 120));
       const start = Date.parse(text(body.start, 40));
       if (!Number.isFinite(start)) throw new PublicError(400, 'INVALID', 'Choose a new time.');
+      if (!summary(appointment).canReschedule) throw new PublicError(400, 'TOO_LATE', 'This appointment can no longer be moved online. Please contact us.');
       await rescheduleAppointment(appointment, start, 'customer', { enforceCutoff: true });
       return summary((await loadAppointment(appointment.id, TYPE_FIELDS)) as AppointmentRecord);
     }

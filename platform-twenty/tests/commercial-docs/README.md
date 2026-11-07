@@ -1,6 +1,6 @@
 # Quotes & Invoices and setup-by-prompt tests
 
-End-to-end checks against a running multi-workspace server at `http://localhost:3000` with logic functions enabled
+End-to-end checks against a running multi-workspace test server (never production), given in `SERVER_URL`, for example `http://localhost:3001`; the scripts refuse to start without it, with logic functions enabled
 (`LOGIC_FUNCTION_TYPE=LOCAL`). Provision two workspaces first and keep their API keys in `keys/`:
 
 ```bash

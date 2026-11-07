@@ -82,8 +82,13 @@ export const uploadFile = async ({
 export const metadata = <TData>(query: string, variables?: Record<string, unknown>) =>
   request<TData>('metadata', query, variables);
 
-export const downloadFile = async (url: string) => {
+const MAX_DOWNLOAD_BYTES = 15 * 1024 * 1024;
+
+export const downloadFile = async (url: string, maxBytes = MAX_DOWNLOAD_BYTES) => {
   const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   if (!response.ok) throw new Error(`Could not read the file (${response.status})`);
-  return new Uint8Array(await response.arrayBuffer());
+  if (Number(response.headers.get('content-length') ?? 0) > maxBytes) throw new Error('The file is too large.');
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.length > maxBytes) throw new Error('The file is too large.');
+  return bytes;
 };

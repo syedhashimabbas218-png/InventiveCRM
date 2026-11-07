@@ -9,7 +9,7 @@ curl -fsS --max-time 20 "$base/" | grep -q '<div id="root"' || die "smoke: the w
 
 for key_file in "${SMOKE_KEYS_DIR:-/nonexistent}"/*.key; do
   [ -f "$key_file" ] || continue
-  answer=$(curl -sS --max-time 20 "$base/graphql" -H 'Content-Type: application/json' -H "Authorization: Bearer $(tr -d '\n' <"$key_file")" \
+  answer=$(curl -sS --max-time 20 "$base/graphql" -H 'Content-Type: application/json' -H @<(printf 'Authorization: Bearer %s\n' "$(tr -d '\n' <"$key_file")") \
     -d '{"query":"{ companies(first: 1) { totalCount } }"}')
   jq -e '.data.companies.totalCount >= 0' <<<"$answer" >/dev/null || die "smoke: $(basename "$key_file") could not read its workspace: $answer"
 done

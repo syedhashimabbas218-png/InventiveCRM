@@ -30,6 +30,10 @@ node browser.cjs state.json acme.key shots
 node restricted-role.mjs state.json acme.key
 ```
 
+```bash
+node security.mjs state.json acme.key
+```
+
 `e2e.mjs` clears the app's appointments, reservations, sync rows, audit events and rate-limit counters first, so it can be rerun. `glow.key` is a second workspace, used to check isolation. `browser.cjs` saves screenshots to `shots/` and undoes the changes it makes to Alice's availability. `restricted-role.mjs` gives Bob a role without permanent delete for the duration of the check, then puts his role back.
 
 ## What is covered
@@ -50,5 +54,6 @@ node restricted-role.mjs state.json acme.key
 | Booking, manage and phone layout; map selector; inline, popup and floating embeds; domain allowlist | browser |
 | Overview, calendar connections, appointment calendar, availability editor, advisor map, quick appointment type | browser |
 | A member whose role cannot permanently delete records books and cancels; the held time is still freed | restricted-role |
+| Attacks from the 2026-11 security review are refused: map ticket or manage link used in another workspace, choosing an advisor the type does not offer, replaying someone's booking key, `javascript:` meeting links, acting on a cancelled appointment, LIKE wildcards in emails | security |
 
 What the double cannot prove: real Google and Microsoft consent screens, token refresh against their servers, and the exact Meet and Teams link behaviour. Check those once with real accounts before going live.

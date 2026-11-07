@@ -14,6 +14,12 @@ if [ "$(manifest_value "$backup" encryptionKeyFingerprint)" != "$(key_fingerprin
   die "ENCRYPTION_KEY in .env differs from the one this backup was taken with; put the original key back first"
 fi
 docker image inspect "$backup_image" >/dev/null 2>&1 || docker pull "$backup_image" >/dev/null || die "image $backup_image is not available"
+# A backup records the exact image it ran; refuse to start anything else under that name (a swapped tag or an edited
+# manifest). Older backups without imageId are accepted.
+backup_image_id=$(manifest_value "$backup" imageId)
+if [ -n "$backup_image_id" ] && [ "$backup_image_id" != null ] && [ "$(docker image inspect --format '{{.Id}}' "$backup_image")" != "$backup_image_id" ]; then
+  die "image $backup_image is not the one this backup was taken with ($backup_image_id)"
+fi
 
 confirm "This replaces every workspace's data with the backup from $(manifest_value "$backup" createdAt) and runs $backup_image."
 take_lock
@@ -31,6 +37,7 @@ compose run --rm --no-deps -T --entrypoint sh server -c "find $STORAGE_PATH -min
 compose run --rm --no-deps -T --entrypoint sh mail -c "find $DKIM_PATH -mindepth 1 -delete && tar -xzf - -C $DKIM_PATH" <"$backup/mail-dkim.tar.gz"
 # Cached metadata and queued jobs belong to the replaced state.
 compose exec -T redis redis-cli FLUSHALL >/dev/null
+compose exec -T redis-queue redis-cli FLUSHALL >/dev/null
 
 set_env_value IMAGE "$backup_image"
 compose up -d mail server

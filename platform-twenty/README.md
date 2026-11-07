@@ -77,7 +77,7 @@ The product name is the single `productName` value in `brand.config.json`. Upstr
 
 One instance hosts every client. Each client gets its own workspace at `<subdomain>.crm.inventiveweb.studio`; sign-in is at `app.crm.inventiveweb.studio`.
 
-1. Point `crm.inventiveweb.studio` and `*.crm.inventiveweb.studio` at the server and put a TLS proxy in front of port 3000. `deploy/caddy/` holds the Caddy config and systemd unit we run: one wildcard certificate through Cloudflare DNS-01, with a DNS-edit token in `/root/secrets/cloudflare-dns-token`. Caddy is built with `xcaddy build v2.11.7 --with github.com/caddy-dns/cloudflare@v0.2.4`.
+1. Point `crm.inventiveweb.studio` and `*.crm.inventiveweb.studio` at the server and put a TLS proxy in front of port 3000. `deploy/caddy/` holds the Caddy config and systemd unit we run: one wildcard certificate through Cloudflare DNS-01, with a DNS-edit token in `/root/secrets/cloudflare-dns-token`. Caddy is built with `xcaddy build v2.11.7 --with github.com/caddy-dns/cloudflare@v0.2.4 --with github.com/caddyserver/cache-handler@v0.17.0 --with github.com/mholt/caddy-ratelimit@v0.1.0`. It adds security headers, rate-limits the public booking API per visitor, keeps hashed front-end files cached for a year, and briefly caches the responses the server marks shareable (booking page shells and the booking API's read answers), which took booking pages from about 10 to over 200 requests a second in the load test.
 2. Copy `deploy/.env.example` to `deploy/.env`, set `IMAGE` to a built tag and fill in the secrets.
 3. Run `docker compose up -d` in `deploy/`. Migrations run when the server starts.
 4. Sign up first: the first account on a fresh instance becomes server admin. With `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS=true`, only server admins can create workspaces; clients join by invitation.
@@ -127,3 +127,16 @@ Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restor
    skips anything that already exists and never deletes, so it can be re-run safely.
 
 Keep API keys out of the repository. The MCP key has the Admin role of that one workspace only.
+
+### Client roles (security)
+
+App and workflow code runs inside the shared server container (`LOGIC_FUNCTION_TYPE=LOCAL`), and Node's permission
+model is the only boundary around it. Anyone who can write code there can be assumed to reach the server's secrets and
+every workspace. So:
+
+- Clients join as **Member** (the workspace default role). Never give a client user or a client's API key the Admin
+  role, or any role with the **Workflows**, **Applications** or **Roles** permission. We build their workflows,
+  with `scripts/apply-setup-spec.mjs`, which refuses code, HTTP and delete steps.
+- Keep `CODE_INTERPRETER_TYPE=DISABLED` (in `.env.example`).
+- A client who needs to author workflows or apps themselves needs code isolated from the server first (a separate
+  function runner or the Lambda driver); decide that before offering it.

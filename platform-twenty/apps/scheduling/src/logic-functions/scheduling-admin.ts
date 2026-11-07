@@ -13,7 +13,8 @@ const handler = async (event: RoutePayload<Record<string, unknown>>) => {
     const status = error instanceof AdminError ? error.status : error instanceof BookingError ? (error.code === 'SLOT_TAKEN' ? 409 : 400) : 500;
     if (status === 500) await recordSystemError('scheduling-admin', error);
     if (status === 500) console.error(`scheduling admin: ${(error as Error).stack ?? error}`);
-    return new Response(JSON.stringify({ error: (error as Error).message }), { status, headers: { 'content-type': 'application/json' } });
+    const message = status === 500 ? 'Something went wrong. It has been recorded; please try again.' : (error as Error).message;
+    return new Response(JSON.stringify({ error: message }), { status, headers: { 'content-type': 'application/json' } });
   }
 };
 

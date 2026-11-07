@@ -181,12 +181,16 @@ const orderedPlans = async (request: BookingRequest, candidates: AdvisorAvailabi
 
 export type BookingResult = { appointmentId: string; nonce: string; start: number; end: number; advisorName: string; status: AppointmentStatus; existing: boolean };
 
-const existingByKey = async (idempotencyKey: string) => {
-  const data = await gql<{ appointments: { edges: { node: { id: string; manageNonce: string; startsAt: string; endsAt: string; status: AppointmentStatus; advisor: { name: string } | null } }[] } }>(
-    `query($key: String!) { appointments(filter: { idempotencyKey: { eq: $key } }, first: 1) { edges { node { id manageNonce startsAt endsAt status advisor { name } } } } }`,
-    { key: idempotencyKey },
+// A repeated submit returns the same booking, but only to the same customer for the same type: the key alone is not
+// a secret (staff can read it), so it must never hand out someone else's manage link.
+const existingByKey = async (request: BookingRequest) => {
+  const data = await gql<{ appointments: { edges: { node: { id: string; manageNonce: string; startsAt: string; endsAt: string; status: AppointmentStatus; customerEmail: string; appointmentTypeId: string | null; advisor: { name: string } | null } }[] } }>(
+    `query($key: String!) { appointments(filter: { idempotencyKey: { eq: $key } }, first: 1) { edges { node { id manageNonce startsAt endsAt status customerEmail appointmentTypeId advisor { name } } } } }`,
+    { key: request.idempotencyKey },
   );
   const found = nodes(data.appointments)[0];
+  if (found && (found.customerEmail !== request.customer.email.trim().toLowerCase() || found.appointmentTypeId !== request.type.id))
+    throw new BookingError('SLOT_TAKEN', 'That time is no longer available. Please pick another.');
   return found
     ? { appointmentId: found.id, nonce: found.manageNonce, start: Date.parse(found.startsAt), end: Date.parse(found.endsAt), advisorName: found.advisor?.name ?? '', status: found.status, existing: true }
     : null;
@@ -205,7 +209,7 @@ const locationText = (request: BookingRequest) => {
 export const bookAppointment = async (request: BookingRequest): Promise<BookingResult> => {
   const now = request.now ?? Date.now();
   const { type } = request;
-  const repeat = await existingByKey(request.idempotencyKey);
+  const repeat = await existingByKey(request);
   if (repeat) return repeat;
   if (type.status !== 'ACTIVE') throw new BookingError('NOT_BOOKABLE', 'This appointment type is not taking bookings.');
   if (request.link && !request.link.isActive) throw new BookingError('NOT_BOOKABLE', 'This booking link is switched off.');
@@ -288,7 +292,7 @@ export const bookAppointment = async (request: BookingRequest): Promise<BookingR
     await releaseReservations({ keys: plan.rows.map((row) => row.key) });
     // Two identical submissions at once: the second hits the unique idempotency key, so return the first booking.
     if (isUniqueViolation(error)) {
-      const winner = await existingByKey(request.idempotencyKey);
+      const winner = await existingByKey(request);
       if (winner) return winner;
     }
     throw error;
@@ -322,14 +326,14 @@ export type AppointmentRecord = {
   customerLatitude: number | null;
   customerLongitude: number | null;
   customerPostcode: string;
-  advisor: { id: string; name: string; email: string; timeZone: string; workspaceMemberId: string | null } | null;
+  advisor: { id: string; name: string; email: string; timeZone: string; workspaceMemberId: string | null; createdBy?: { workspaceMemberId: string | null } | null } | null;
   appointmentType: AppointmentTypeRecord | null;
   participants: { edges: { node: { advisorId: string; participantRole: string } }[] };
 };
 
 export const APPOINTMENT_FIELDS = `id title status startsAt endsAt customerName customerEmail customerPhone customerTimeZone meetingFormat location meetingUrl manageNonce
   sessionKey seat cancelledAt remindersSent notifiedStartsAt calendarStatus intakeAnswers appointmentTypeId advisorId personId customerLatitude customerLongitude customerPostcode
-  advisor { id name email timeZone workspaceMemberId }
+  advisor { id name email timeZone workspaceMemberId createdBy { workspaceMemberId } }
   participants(first: 50) { edges { node { advisorId participantRole } } }`;
 
 export const loadAppointment = async (id: string, typeFields: string) => {

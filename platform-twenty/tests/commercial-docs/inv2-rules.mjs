@@ -48,7 +48,8 @@ const recurringId = await createInvoice({ companyId: state.companyId, personId: 
   [{ description: 'Monthly heating maintenance plan', quantity: 1, unitPrice: money(4_900), vatRate: 'STANDARD_20' }]);
 const recurringTemplate = await issueAndWait(recurringId, '58.80');
 const callRoute = (host, path, body) => new Promise((resolve) => {
-  const request = http.request({ host: '127.0.0.1', port: 3000, path, method: 'POST', headers: { Host: `${host}:3000`, 'Content-Type': 'application/json', Authorization: `Bearer ${key}` } }, (response) => {
+  const port = Number(new URL(process.env.SERVER_URL).port || 80);
+  const request = http.request({ host: '127.0.0.1', port, path, method: 'POST', headers: { Host: `${host}:${port}`, 'Content-Type': 'application/json', Authorization: `Bearer ${key}` } }, (response) => {
     let data = ''; response.on('data', (chunk) => (data += chunk)); response.on('end', () => resolve({ status: response.statusCode, body: data }));
   });
   request.end(JSON.stringify(body));

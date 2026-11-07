@@ -37,7 +37,8 @@ const SCRIPT = `
 var C=window.__BOOKING__,API=C.base+'/booking/api',root=document.getElementById('main'),side=document.getElementById('side');
 var qs=new URLSearchParams(location.search),embed=qs.get('embed')==='1',parentOrigin=qs.get('parent')||'';
 if(embed)document.body.classList.add('embed');
-var S={tz:Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/London',month:null,date:null,slots:[],location:null,advisor:null,page:null,key:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now())};
+function newKey(){if(crypto.randomUUID)return crypto.randomUUID();var a=new Uint8Array(16);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(b){return('0'+b.toString(16)).slice(-2)}).join('')}
+var S={tz:Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/London',month:null,date:null,slots:[],location:null,advisor:null,page:null,key:newKey()};
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function post(body){return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok){var e=new Error(j.message||'Error');e.code=j.error;throw e}return j})})}
 function height(){if(embed&&window.parent!==window)window.parent.postMessage({type:'crm-booking:height',height:document.documentElement.scrollHeight},'*')}
@@ -63,8 +64,8 @@ function renderSide(p){var t=p.type;document.documentElement.style.setProperty('
 
 // ---- location step (map selector)
 var leaflet=null;
-function loadLeaflet(cb){if(window.L)return cb();var css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
- var s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=cb;s.onerror=function(){cb()};document.head.appendChild(s)}
+function loadLeaflet(cb){if(window.L)return cb();var css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';css.integrity='sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';css.crossOrigin='anonymous';document.head.appendChild(css);
+ var s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.integrity='sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';s.crossOrigin='anonymous';s.onload=cb;s.onerror=function(){cb()};document.head.appendChild(s)}
 function locationStep(){var p=S.page;root.innerHTML='<h2>Where should we meet?</h2><p class="muted">Search for your address, or click the map to drop a pin.</p>'+
  '<input id="q" placeholder="Address or postcode" autocomplete="off"><div id="sug"></div>'+(p.map.tileUrl?'<div id="map"></div>':'')+'<div id="adv"></div>';
  var q=document.getElementById('q'),timer=null;
@@ -124,7 +125,7 @@ function formStep(start){var t=S.page.type,pre=S.page.presets||{answers:{}};
  document.getElementById('f').onsubmit=function(ev){ev.preventDefault();var btn=document.getElementById('sub');btn.disabled=true;btn.textContent='Booking…';var answers={};(t.intakeQuestions||[]).forEach(function(q){answers[q.id]=document.getElementById('q_'+q.id).value});
   post({action:'book',slug:C.slug,ticket:C.ticket,start:start,advisorId:S.advisor&&S.advisor.id,location:S.location,answers:answers,website:document.getElementById('w').value,idempotencyKey:S.key,embed:embed,parentOrigin:parentOrigin,
    customer:{name:document.getElementById('n').value,email:document.getElementById('e').value,phone:document.getElementById('p').value,timeZone:S.tz}})
-  .then(function(r){done(r)}).catch(function(e){btn.disabled=false;btn.textContent='Book';fail(e);if(e.code==='SLOT_TAKEN'){S.key=String(Math.random()).slice(2)+Date.now();setTimeout(function(){S.date=null;loadMonth()},1800)}})};height()}
+  .then(function(r){done(r)}).catch(function(e){btn.disabled=false;btn.textContent='Book';fail(e);if(e.code==='SLOT_TAKEN'){S.key=newKey();setTimeout(function(){S.date=null;loadMonth()},1800)}})};height()}
 function done(r){root.innerHTML='<h2 class="ok">'+(r.status==='PENDING'?'Request sent':'You are booked')+'</h2><p>'+esc(fmt(r.start,{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}))+' ('+esc(S.tz)+')'+(r.advisorName?' with '+esc(r.advisorName):'')+'</p>'+
  (r.confirmationMessage?'<p>'+esc(r.confirmationMessage)+'</p>':'')+'<p class="muted">A confirmation email with a calendar invitation is on its way.</p><p><a class="btn" href="'+esc(r.manageUrl)+'" target="_top">Reschedule or cancel</a></p>';
  if(embed&&window.parent!==window)window.parent.postMessage({type:'crm-booking:booked'},'*');height()}

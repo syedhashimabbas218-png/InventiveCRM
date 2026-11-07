@@ -6,7 +6,26 @@ const secret = () => {
   return value;
 };
 
-const mac = (value: string) => createHmac('sha256', secret()).update(value).digest('base64url').slice(0, 32);
+// The secret is shared by the whole server, so every token is signed with a key derived for this workspace: a link
+// or ticket issued in one client's workspace is refused in every other.
+export const workspaceIdFromToken = (token: string | undefined) => {
+  const payload = token?.split('.')[1];
+  if (!payload) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { workspaceId?: unknown };
+    return typeof claims.workspaceId === 'string' && claims.workspaceId ? claims.workspaceId : null;
+  } catch {
+    return null;
+  }
+};
+
+const workspaceKey = () => {
+  const workspaceId = workspaceIdFromToken(process.env.TWENTY_APP_APPLICATION_ACCESS_TOKEN) ?? workspaceIdFromToken(process.env.TWENTY_APP_ACCESS_TOKEN);
+  if (!workspaceId) throw new Error('The workspace of this request is unknown, so no link can be signed or checked.');
+  return createHmac('sha256', secret()).update(`workspace:${workspaceId}`).digest();
+};
+
+const mac = (value: string) => createHmac('sha256', workspaceKey()).update(value).digest('base64url').slice(0, 32);
 
 export const newNonce = () => randomBytes(12).toString('base64url');
 

@@ -11,6 +11,7 @@ import {
   readDocx,
   readPdf,
   templateData,
+  templateSizeProblem,
 } from 'src/lib/template-files';
 import {
   casesCovered,
@@ -72,6 +73,11 @@ const inspectTemplate = async (id: string) => {
   const kind = detectFileKind(bytes);
   if (!kind) {
     await updateTemplate(id, { status: 'NEEDS_ATTENTION', checkReport: `${file.label} is not a Word (.docx) or PDF file.`, checkedAt });
+    return { status: 'NEEDS_ATTENTION' };
+  }
+  const tooBig = templateSizeProblem(bytes, kind);
+  if (tooBig) {
+    await updateTemplate(id, { status: 'NEEDS_ATTENTION', checkReport: tooBig, checkedAt });
     return { status: 'NEEDS_ATTENTION' };
   }
 
@@ -170,6 +176,8 @@ export const renderDocumentPdf = async (model: PdfModel, context: LayoutContext)
 
   try {
     const bytes = await downloadFile(file.url);
+    const tooBig = templateSizeProblem(bytes, chosen.format === 'DOCX_MERGE' ? 'DOCX' : 'PDF');
+    if (tooBig) throw new Error(tooBig);
     const pdf =
       chosen.format === 'DOCX_MERGE'
         ? await convertDocxToPdf(fillDocx(bytes, templateData(model)))

@@ -87,7 +87,7 @@ const mails = await waitFor('email in Mailpit', async () => ((await mailTo(email
 const mail = mails[0];
 assert(
   'email names the business as sender, replies go to the business, subject carries the number',
-  mail.From.Name === businessName && mail.Subject === `Invoice ${first.invoiceNumber} from ${businessName}` && mail.ReplyTo?.[0]?.Address === 'accounts@acmeplumbing.test',
+  mail.From.Name === `${businessName} via InventiveCRM` && mail.Subject === `Invoice ${first.invoiceNumber} from ${businessName}` && mail.ReplyTo?.[0]?.Address === 'accounts@acmeplumbing.test',
   `${mail.From.Name} <${mail.From.Address}> reply-to ${mail.ReplyTo?.[0]?.Address}: ${mail.Subject}`,
 );
 assert('email has the invoice PDF attached', mail.Attachments.some((file) => file.FileName === `Invoice ${first.invoiceNumber}.pdf` && file.ContentType === 'application/pdf'), mail.Attachments.map((file) => `${file.FileName} ${file.Size}B`).join(', '));

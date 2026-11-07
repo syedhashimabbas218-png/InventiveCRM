@@ -10,14 +10,17 @@ const FREE_MAIL = new Set([
 
 type PersonNode = { id: string; companyId: string | null };
 
+// Customers type these values, so LIKE wildcards in them must match literally.
+const likeLiteral = (value: string) => value.replace(/[\\%_]/g, (character) => `\\${character}`);
+
 // Matching is exact on email (and optionally the full phone number). Names alone never merge two people.
 export const findOrCreateContact = async (customer: Customer, settings: SettingsRecord): Promise<{ personId: string | null; companyId: string | null; matched: string }> => {
   const email = customer.email.trim().toLowerCase();
   const byEmail = await gql<{ people: { edges: { node: PersonNode }[] } }>(
-    `query($email: String!) { people(filter: { or: [{ emails: { primaryEmail: { ilike: $email } } }, { emails: { additionalEmails: { like: $quoted } } }] }, first: 2) { edges { node { id companyId } } } }`,
-    { email, quoted: `%"${email}"%` },
+    `query($email: String!, $quoted: String!) { people(filter: { or: [{ emails: { primaryEmail: { ilike: $email } } }, { emails: { additionalEmails: { like: $quoted } } }] }, first: 2) { edges { node { id companyId } } } }`,
+    { email: likeLiteral(email), quoted: `%"${likeLiteral(email)}"%` },
   ).catch(() =>
-    gql<{ people: { edges: { node: PersonNode }[] } }>(`query($email: String!) { people(filter: { emails: { primaryEmail: { ilike: $email } } }, first: 2) { edges { node { id companyId } } } }`, { email }),
+    gql<{ people: { edges: { node: PersonNode }[] } }>(`query($email: String!) { people(filter: { emails: { primaryEmail: { ilike: $email } } }, first: 2) { edges { node { id companyId } } } }`, { email: likeLiteral(email) }),
   );
   let person = nodes(byEmail.people)[0] ?? null;
   let matched = person ? 'email' : 'none';
@@ -40,8 +43,9 @@ export const findOrCreateContact = async (customer: Customer, settings: Settings
   const domain = email.split('@')[1] ?? '';
   if (!companyId && settings.linkCompanyByEmailDomain && domain && !FREE_MAIL.has(domain)) {
     const companies = await gql<{ companies: { edges: { node: { id: string } }[] } }>(
-      `query($domain: String!) { companies(filter: { domainName: { primaryLinkUrl: { ilike: $domain } } }, first: 2) { edges { node { id } } } }`,
-      { domain: `%${domain}%` },
+      `query($patterns: [CompanyFilterInput!]) { companies(filter: { or: $patterns }, first: 2) { edges { node { id } } } }`,
+      // The whole host or a subdomain of it, with or without a scheme and trailing slash; never a substring.
+      { patterns: [`${likeLiteral(domain)}`, `%/${likeLiteral(domain)}`, `%/${likeLiteral(domain)}/`, `%.${likeLiteral(domain)}`, `%.${likeLiteral(domain)}/`].map((pattern) => ({ domainName: { primaryLinkUrl: { ilike: pattern } } })) },
     );
     const found = nodes(companies.companies);
     if (found.length === 1) companyId = found[0].id;

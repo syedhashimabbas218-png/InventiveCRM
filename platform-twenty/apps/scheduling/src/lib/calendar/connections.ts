@@ -45,11 +45,30 @@ export const updateSetting = (id: string, data: Record<string, unknown>) =>
 
 // The app reads connections with its own token, so this sees every advisor's accounts; callers that serve a signed-in
 // user must only show that user's own.
-export const loadAdvisorCalendars = async (advisor: { id: string; workspaceMemberId: string | null }): Promise<AdvisorCalendar[]> => {
+type AdvisorRef = { id: string; workspaceMemberId: string | null; createdBy?: { workspaceMemberId: string | null } | null };
+
+// workspaceMemberId is an ordinary editable field, so a member's calendar accounts are only used by an advisor that
+// member created (Create my advisor profile does). Pointing someone else's advisor at you gives it nothing.
+const linkedMember = async (advisor: AdvisorRef) => {
+  if (!advisor.workspaceMemberId) return null;
+  const createdBy =
+    advisor.createdBy !== undefined
+      ? advisor.createdBy
+      : nodes(
+          (
+            await gql<{ advisors: { edges: { node: { createdBy: { workspaceMemberId: string | null } | null } }[] } }>(
+              `query($id: UUID!) { advisors(filter: { id: { eq: $id } }) { edges { node { createdBy { workspaceMemberId } } } } }`,
+              { id: advisor.id },
+            )
+          ).advisors,
+        )[0]?.createdBy;
+  return createdBy?.workspaceMemberId === advisor.workspaceMemberId ? advisor.workspaceMemberId : null;
+};
+
+export const loadAdvisorCalendars = async (advisor: AdvisorRef): Promise<AdvisorCalendar[]> => {
+  const memberId = await linkedMember(advisor);
   const [connections, settingsData] = await Promise.all([
-    advisor.workspaceMemberId
-      ? allCalendarConnections().then((list) => list.filter((connection) => connection.workspaceMemberId === advisor.workspaceMemberId))
-      : Promise.resolve([]),
+    memberId ? allCalendarConnections().then((list) => list.filter((connection) => connection.workspaceMemberId === memberId)) : Promise.resolve([]),
     gql<{ calendarSettings: { edges: { node: CalendarSettingRecord }[] } }>(
       `query($advisorId: UUID!) { calendarSettings(filter: { advisorId: { eq: $advisorId } }) { edges { node { ${SETTING_FIELDS} } } } }`,
       { advisorId: advisor.id },

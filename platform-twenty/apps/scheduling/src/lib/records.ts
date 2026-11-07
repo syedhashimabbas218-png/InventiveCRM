@@ -20,6 +20,7 @@ export type AdvisorRecord = {
   id: string;
   name: string;
   workspaceMemberId: string | null;
+  createdBy?: { workspaceMemberId: string | null } | null;
   email: string;
   phone: string;
   timeZone: string;
@@ -101,7 +102,7 @@ export type BookingLinkRecord = {
 
 const OFFICE = 'id name streetAddress postcode latitude longitude timeZone isPublic';
 const SCHEDULE = 'id name timeZone weeklyHours isDefault overrides(first: 200) { edges { node { startDate endDate kind windows } } }';
-export const ADVISOR_FIELDS = `id name workspaceMemberId email phone timeZone isActive publicBio bookingSlug weight priority dailyLimit weeklyLimit inPerson remote
+export const ADVISOR_FIELDS = `id name workspaceMemberId createdBy { workspaceMemberId } email phone timeZone isActive publicBio bookingSlug weight priority dailyLimit weeklyLimit inPerson remote
   travelsToCustomers baseLatitude baseLongitude publicLocationLabel serviceRadiusKm maxTravelMinutes travelBufferMinutes postcodeTerritory serviceArea
   office { ${OFFICE} } schedule { ${SCHEDULE} } schedules(first: 20) { edges { node { id isDefault } } }`;
 export const TYPE_FIELDS = `id name slug description status color icon durationMinutes meetingFormat conferencing meetingUrl assignment roundRobinStrategy locationMode
@@ -218,12 +219,18 @@ export const loadAdvisors = async (ids: string[]) => {
 };
 
 // Advisors who may take this type: its owner, or the team's active members.
+// A requested advisor is only accepted if they are one of these, so customers cannot pick anyone by id.
 export const candidateAdvisorIds = (type: AppointmentTypeRecord, fixedAdvisorId?: string | null) => {
-  if (fixedAdvisorId) return [fixedAdvisorId];
-  if (type.assignment === 'ONE_TO_ONE' || !type.team) return type.ownerId ? [type.ownerId] : [];
-  return nodes(type.team.memberships)
-    .filter((membership) => membership.isActive && membership.advisorId)
-    .map((membership) => membership.advisorId);
+  const eligible =
+    type.assignment === 'ONE_TO_ONE' || !type.team
+      ? type.ownerId
+        ? [type.ownerId]
+        : []
+      : nodes(type.team.memberships)
+          .filter((membership) => membership.isActive && membership.advisorId)
+          .map((membership) => membership.advisorId);
+  if (!fixedAdvisorId) return eligible;
+  return eligible.includes(fixedAdvisorId) ? [fixedAdvisorId] : [];
 };
 
 export const membershipOf = (type: AppointmentTypeRecord, advisorId: string) =>

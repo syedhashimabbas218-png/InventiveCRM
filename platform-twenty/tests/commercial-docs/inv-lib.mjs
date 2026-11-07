@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
+// No default: a forgotten variable must not send test traffic to a live server on the usual port.
+const SERVER_URL = process.env.SERVER_URL;
+if (!SERVER_URL) throw new Error('Set SERVER_URL to the throwaway test server, for example http://localhost:3001');
 export const client = (keyFile) => {
   const key = readFileSync(keyFile, 'utf8').trim();
   const gql = async (query, variables = {}) => {
-    const response = await fetch('http://localhost:3000/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify({ query, variables }) });
+    const response = await fetch(`${SERVER_URL}/graphql`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify({ query, variables }) });
     const payload = await response.json();
     if (payload.errors) throw new Error(JSON.stringify(payload.errors.map((error) => error.message)));
     return payload.data;

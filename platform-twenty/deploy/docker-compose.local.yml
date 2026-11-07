@@ -3,3 +3,4 @@
 services:
   worker:
     network_mode: service:server
+    networks: !reset []

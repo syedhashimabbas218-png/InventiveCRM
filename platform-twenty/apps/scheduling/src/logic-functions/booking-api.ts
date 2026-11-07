@@ -5,10 +5,19 @@ import { IDS } from 'src/constants/ids';
 import { recordSystemError } from 'src/lib/lifecycle';
 import { errorResponse, handlePublicApi } from 'src/lib/public-api';
 
+// Public read answers are the same for every visitor, so the proxy may share them briefly (browsers never keep them).
+// A booking always re-checks availability live, so a cached slot list can never cause a double booking.
+const SHARED_SECONDS: Record<string, number> = { page: 60, slots: 30, advisors: 30, geocode: 3600 };
+
+const cacheControl = (action: unknown) => {
+  const seconds = typeof action === 'string' ? SHARED_SECONDS[action] : undefined;
+  return seconds ? `public, max-age=0, s-maxage=${seconds}` : 'no-store';
+};
+
 const handler = async (event: RoutePayload<Record<string, unknown>>) => {
   try {
     const result = await handlePublicApi(event.body ?? {}, event.headers);
-    return new Response(JSON.stringify(result), { status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    return new Response(JSON.stringify(result), { status: 200, headers: { 'content-type': 'application/json', 'cache-control': cacheControl(event.body?.action) } });
   } catch (error) {
     const { status, body } = errorResponse(error);
     if (status === 500) await recordSystemError('booking-api', error);
