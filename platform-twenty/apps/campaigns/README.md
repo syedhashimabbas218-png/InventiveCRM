@@ -12,11 +12,11 @@ self-hosted community edition, so this app has its own sending engine. It does n
 
 | Part | Behaviour |
 |---|---|
-| Connect | Settings, Accounts, **Resend (email campaigns)**: the client pastes a Full access API key on our page. It is checked against Resend (`GET /domains`), stored encrypted by Twenty, and a webhook for delivery events is registered when the CRM has a public https address |
+| Connect | Settings, Accounts, **Resend (email campaigns)**: a workspace admin pastes a Full access API key on our page. It is one connection for the whole workspace (members who are not admins cannot add or replace it). It is checked against Resend (`GET /domains`), stored encrypted by Twenty, and a webhook for delivery events is registered when the CRM has a public https address |
 | Consent | Two contact fields: **Agreed to marketing emails** and **Agreed to marketing on WhatsApp**. Campaigns only go to contacts with the matching box ticked. Nothing ticks it automatically |
 | Audience | A mailing list (Marketing, Mailing lists, or the Lists screen in the studio) or everyone who agreed. Contacts without consent, without a usable address or on the do-not-contact list are skipped and counted |
 | Design | Blocks: heading, text (bold, italic, links), image, button, two columns, divider, space, social links. `{{firstName|there}}` style personalisation. The brand kit adds the logo, colours, the footer address and the unsubscribe link to every email; the footer address is required before sending |
-| Sending | Scheduled or immediate. A job every two minutes prepares recipients and sends batches of 100 through `POST /emails/batch` with an idempotency key per batch, so a retried batch is never sent twice. Rate limits, quota limits and outages pause the campaign and it carries on by itself |
+| Sending | Scheduled or immediate. A job every two minutes works on one campaign at a time under a lease, so overlapping runs never double-send. It first prepares the audience page by page (Preparing), then claims up to 100 queued recipients at a time, re-checks their consent and the do-not-contact list, and sends them through `POST /emails/batch` under one idempotency key. A batch interrupted by a crash or a rate limit is retried with the same key within Resend's 24-hour window; after that it is marked failed rather than risked. Rate limits, quota limits and outages pause the campaign and it carries on by itself. Stop sending skips everyone not yet sent; Resume picks them up again |
 | Headers | Every email has `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058, required by Gmail and Yahoo for bulk senders) and tags with the campaign and recipient ids |
 | Unsubscribe | `<workspace>/s/campaigns/unsubscribe/<token>`, signed per workspace. Opening the link only shows a button (link scanners must not unsubscribe people); the button and mail providers' one-click POST unsubscribe. The address goes on the do-not-contact list and consent is removed |
 | Events | Resend webhooks (delivered, opened, clicked, bounced, complained, failed, suppressed) at `<workspace>/s/campaigns/webhook/<token>`; the token is a per-workspace MAC. Hard bounces and spam complaints go on the do-not-contact list; complaints also remove consent |
@@ -25,6 +25,12 @@ self-hosted community edition, so this app has its own sending engine. It does n
 
 Open and click tracking are switched on per domain in the Resend dashboard. They need a tracking subdomain,
 which Resend asks for when you switch them on.
+
+## Hardening for a workspace
+
+Campaign and recipient records are ordinary CRM records. For full protection, a workspace admin can remove the Member
+role's edit rights on the Campaign, Campaign recipient and Do-not-contact objects (Settings, Roles). Sending re-checks
+consent and the do-not-contact list before each batch either way.
 
 ## Server variables
 
@@ -45,4 +51,5 @@ Same flow as the other apps (see `../../UPDATES.md`, "Releasing an app"). Applic
 
 `yarn test` covers the email compiler (escaping, unsafe links, personalisation, plain text, footer and unsubscribe),
 input limits, address handling and link signing across workspaces. `../../tests/campaigns/e2e.mjs` runs the whole loop
-on the throwaway test server against the Resend and WhatsApp double (32 checks).
+on the throwaway test server against the Resend and WhatsApp double (36 checks, including parallel job runs,
+a batch retried after a rate limit and consent withdrawn while a campaign waits).

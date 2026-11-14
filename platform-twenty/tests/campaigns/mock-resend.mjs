@@ -1,6 +1,6 @@
 // Test double for the Resend API and the InventiveChat WhatsApp gateway, for the throwaway test server only.
 // Usage: WHATSAPP_GATEWAY_SECRET=... node mock-resend.mjs [port]
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 8097);
@@ -41,7 +41,7 @@ createServer(async (request, response) => {
       return send(response, 200, { ok: true });
     }
     if (url.pathname === '/admin/fail-next') {
-      failNext = body.mode;
+      failNext = { path: body.path ?? '/emails/batch', skip: body.skip ?? 0 };
       return send(response, 200, { ok: true });
     }
     if (url.pathname === '/admin/emails') return send(response, 200, emails);
@@ -60,6 +60,14 @@ createServer(async (request, response) => {
 
   if (!authorised(request)) return send(response, 401, { name: 'restricted_api_key', message: 'This API key is restricted.' });
 
+  if (failNext && failNext.path === url.pathname) {
+    if (failNext.skip > 0) failNext.skip -= 1;
+    else {
+      failNext = null;
+      return send(response, 429, { name: 'rate_limit_exceeded', message: 'Too many requests.' }, { 'retry-after': '1' });
+    }
+  }
+
   if (request.method === 'GET' && url.pathname === '/domains') return send(response, 200, { object: 'list', has_more: false, data: DOMAINS });
   if (request.method === 'GET' && url.pathname === '/webhooks') return send(response, 200, { object: 'list', data: webhooks });
   if (request.method === 'POST' && url.pathname === '/webhooks') {
@@ -70,16 +78,12 @@ createServer(async (request, response) => {
   if (request.method === 'POST' && (url.pathname === '/emails/batch' || url.pathname === '/emails')) {
     const key = request.headers['idempotency-key'];
     if (key && idempotent.has(key)) return send(response, 200, idempotent.get(key));
-    if (failNext === '429') {
-      failNext = null;
-      return send(response, 429, { name: 'rate_limit_exceeded', message: 'Too many requests.' }, { 'retry-after': '1' });
-    }
     const batch = url.pathname === '/emails/batch' ? body : [body];
     if (batch.length > 100) return send(response, 422, { name: 'validation_error', message: 'Too many emails.' });
     if (batch.some((email) => email.to.some((address) => address.startsWith('reject@')))) return send(response, 422, { name: 'validation_error', message: 'Invalid `to` field.' });
     if (batch.some((email) => !email.from || !email.subject || !email.html)) return send(response, 422, { name: 'validation_error', message: 'Missing fields.' });
     const ids = batch.map((email) => {
-      const id = `email_${++counter}`;
+      const id = randomUUID();
       emails.push({ id, ...email });
       return { id };
     });

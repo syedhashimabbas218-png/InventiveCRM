@@ -7,6 +7,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export const isUuid = (value: unknown): value is string => typeof value === 'string' && UUID.test(value);
 
+export const LINKABLE_OBJECTS = ['person', 'company', 'opportunity'] as const;
+
 export type RecordLink = { objectNameSingular: string; recordId: string; label: string };
 
 export const cleanBody = (value: unknown) => (typeof value === 'string' ? value.replace(/\r\n/g, '\n').replace(/\n{4,}/g, '\n\n\n').trim().slice(0, MAX_MESSAGE_LENGTH) : '');
@@ -29,8 +31,6 @@ export const cleanLinks = (value: unknown): RecordLink[] => {
 // Only people who can see the channel can be mentioned, each once.
 export const cleanMentions = (value: unknown, allowed: Set<string>) =>
   Array.isArray(value) ? [...new Set(value.filter((id): id is string => isUuid(id) && allowed.has(id)))].slice(0, MAX_MENTIONS) : [];
-
-export const directKey = (first: string, second: string) => [first, second].sort().join(':');
 
 export const channelName = (value: unknown) =>
   typeof value === 'string'

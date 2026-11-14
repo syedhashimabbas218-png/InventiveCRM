@@ -16,7 +16,8 @@ export default defineObject({
   labelIdentifierFieldMetadataUniversalIdentifier: field.name,
   fields: [
     textField({ universalIdentifier: field.name, name: 'name', label: 'Name', icon: 'IconTag' }),
-    textField({ universalIdentifier: field.workspaceMemberId, name: 'workspaceMemberId', label: 'Member id', icon: 'IconUser' }),
+    textField({ universalIdentifier: field.workspaceMemberId, name: 'workspaceMemberId', label: 'Member (key)', icon: 'IconUser' }),
+    textField({ universalIdentifier: field.seal, name: 'seal', label: 'Seal', icon: 'IconShieldCheck' }),
     dateTimeField({ universalIdentifier: field.lastReadAt, name: 'lastReadAt', label: 'Read up to', icon: 'IconEye' }),
     numberField({ universalIdentifier: field.unreadMentions, name: 'unreadMentions', label: 'Unread mentions', icon: 'IconAt' }, { integer: true, defaultValue: 0 }),
     booleanField({ universalIdentifier: field.muted, name: 'muted', label: 'Muted', icon: 'IconBellOff' }, false),

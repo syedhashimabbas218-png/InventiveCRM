@@ -75,3 +75,13 @@ export const checkMapTicket = (ticket: string, now = Date.now()) => {
   const expected = Buffer.from(mac(`map:${memberId}:${issuedAt}`));
   return expected.length === Buffer.from(signature).length && timingSafeEqual(expected, Buffer.from(signature));
 };
+
+// Proves the CRM user themselves linked this advisor to their account: workspaceMemberId is an ordinary editable field,
+// and the record's creator is not visible to the app, so only this seal tells the app whose calendars it may use.
+export const advisorMemberSeal = (advisorId: string, memberId: string) => mac(`advisor-member:${advisorId}:${memberId}`);
+
+export const verifyAdvisorMemberSeal = (advisorId: string, memberId: string, seal: string | null | undefined) => {
+  const expected = Buffer.from(advisorMemberSeal(advisorId, memberId));
+  const given = Buffer.from(seal ?? '');
+  return expected.length === given.length && timingSafeEqual(expected, given);
+};

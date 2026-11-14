@@ -40,7 +40,7 @@ const connect = async (providerName, secretKey) => {
   const html = await page.text();
   const action = /<form[^>]* action="([^"]+)"/.exec(html)?.[1]?.replace(/&#38;/g, '&');
   const callback = await fetch(action, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ secretKey }), redirect: 'manual' });
-  const status = await (await fetch(`${W}/s/payments/connect-status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: providerName === 'stripe-payments' ? 'STRIPE' : 'REVOLUT', fingerprint: createHash('sha256').update(secretKey).digest('hex').slice(0, 16) }) })).json();
+  const status = await (await fetch(`${W}/s/payments/connect-status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: providerName === 'stripe-account' ? 'STRIPE' : 'REVOLUT', fingerprint: createHash('sha256').update(secretKey).digest('hex').slice(0, 16) }) })).json();
   return { authorizeStatus: authorize.status, pageStatus: page.status, pageUrl, action, callbackStatus: callback.status, connected: status.connected, html };
 };
 
@@ -64,11 +64,18 @@ assert('the connect page refuses a callback that is not Twenty’s own', foreign
 await setProvider('STRIPE');
 const stripeConnections = async () => (await call(`${W}/metadata`, userToken, `{ myConnectedAccounts { handle } }`)).myConnectedAccounts.filter((account) => account.handle.startsWith('Stripe')).length;
 const before = await stripeConnections();
-const bad = await connect('stripe-payments', 'rk_test_wrongkey1234567890');
+const bad = await connect('stripe-account', 'rk_test_wrongkey1234567890');
 const after = await stripeConnections();
 assert('a key Stripe refuses is not stored, and the page is told so', bad.pageStatus === 200 && after === before && bad.connected === false, `${before} -> ${after} Stripe connections, connected=${bad.connected}`);
-const good = await connect('stripe-payments', `rk_test_valid${run}abcdefghij`);
+const good = await connect('stripe-account', `rk_test_valid${run}abcdefghij`);
 assert('a valid Stripe key connects through Twenty’s custom connection flow', good.authorizeStatus === 302 && good.pageStatus === 200 && /type="password"/.test(good.html) && good.connected === true, `${good.authorizeStatus}/${good.pageStatus}/${good.callbackStatus} connected=${good.connected}`);
+
+// The payment account is one per workspace, and only an admin can connect it: a member cannot route payments elsewhere.
+const bobLogin = (await call(`${W}/metadata`, null, `mutation($email: String!, $password: String!, $origin: String!) { getLoginTokenFromCredentials(email: $email, password: $password, origin: $origin) { loginToken { token } } }`, { email: 'bob@inventiveweb.test', password: 'Bob-Pass-1234!', origin })).getLoginTokenFromCredentials.loginToken.token;
+const bobToken = (await call(`${W}/metadata`, null, `mutation($loginToken: String!, $origin: String!) { getAuthTokensFromLoginToken(loginToken: $loginToken, origin: $origin) { tokens { accessOrWorkspaceAgnosticToken { token } } } }`, { loginToken: bobLogin, origin })).getAuthTokensFromLoginToken.tokens.accessOrWorkspaceAgnosticToken.token;
+const bobTransient = (await call(`${W}/metadata`, bobToken, `mutation { generateTransientToken { transientToken { token } } }`)).generateTransientToken.transientToken.token;
+const bobAuthorize = await fetch(`${SERVER_URL}/auth/apps/authorize?${new URLSearchParams({ applicationId, providerName: 'stripe-account', transientToken: bobTransient })}`, { redirect: 'manual' });
+assert('a member who is not an admin cannot connect the payment account', bobAuthorize.status === 302 && /errorMessage=/.test(bobAuthorize.headers.get('location') ?? '') && !/\/payments\/connect/.test(bobAuthorize.headers.get('location') ?? ''), bobAuthorize.headers.get('location'));
 
 // Issuing creates the link for the full amount and the first email carries it.
 const stripeInvoice = await newIssuedInvoice(10_000);
@@ -96,7 +103,7 @@ assert('a completed Stripe payment marks the invoice paid and closes the link', 
 
 // Revolut: the same through a Merchant API order.
 await setProvider('REVOLUT');
-const revolutConnect = await connect('revolut-payments', `sk_sandbox_valid${run}abcdefghij`);
+const revolutConnect = await connect('revolut-account', `sk_sandbox_valid${run}abcdefghij`);
 const revolutInvoice = await newIssuedInvoice(5_000);
 const order = (await mock('/admin/log')).filter((entry) => entry.provider === 'revolut' && entry.method === 'POST' && entry.path === '/api/orders').pop();
 assert('with Revolut, issuing creates a Merchant API order for what is owed', revolutConnect.connected === true && revolutInvoice.paymentProvider === 'REVOLUT' && /^https:\/\/checkout\.revolut\.test\//.test(revolutInvoice.paymentLinkUrl) && order?.body.amount === 6000 && order.body.currency === 'GBP' && Boolean(order.version), `${revolutInvoice.paymentLinkStatus} ${order?.body.amount} ${order?.version}`);

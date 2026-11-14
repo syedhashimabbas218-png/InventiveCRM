@@ -29,7 +29,7 @@ import {
 type Member = { id: string; name: string; email: string; avatarUrl: string };
 type ChannelSummary = { id: string; name: string; topic: string; kind: 'CHANNEL' | 'DIRECT'; visibility: 'PUBLIC' | 'PRIVATE'; partnerId: string | null; lastMessageAt: string | null; unread: number; unreadMentions: number; muted: boolean };
 type RecordLink = { objectNameSingular: string; recordId: string; label: string };
-type Message = { id: string; createdAt: string; authorId: string; text: string; unreadable: boolean; mentions: string[]; links: RecordLink[]; editedAt: string | null };
+type Message = { id: string; createdAt: string; authorId: string; text: string; mentions: string[]; links: RecordLink[]; editedAt: string | null };
 type Bootstrap = { me: string; members: Member[]; channels: ChannelSummary[] };
 type Overlay = null | 'create' | 'browse' | 'direct' | 'invite';
 
@@ -305,7 +305,10 @@ const Chat = () => {
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [sending, setSending] = useState(false);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+  const [mentionable, setMentionable] = useState<Set<string> | null>(null);
   const latest = useRef<string | null>(null);
+  const lastPoll = useRef<number>(Date.now());
   const activeRef = useRef<string | null>(null);
 
   const members = new Map((boot?.members ?? []).map((member) => [member.id, member]));
@@ -318,13 +321,24 @@ const Chat = () => {
       .then((result) => setBoot((current) => (current ? { ...current, channels: result.channels } : current)))
       .catch(() => {});
 
+  // Everything tied to the previous channel is cleared, so a draft can never be sent to the wrong conversation.
   const openChannel = async (channelId: string) => {
     activeRef.current = channelId;
     setActiveId(channelId);
     setMessages([]);
+    setHasMore(false);
+    setJoined(true);
     setEditing(null);
     setOverlay(null);
+    setNotice('');
+    setDraft('');
+    setDraftMentions([]);
+    setDraftLinks([]);
+    setLinkSearch(null);
+    setLinkResults([]);
+    setMentionable(null);
     latest.current = null;
+    lastPoll.current = Date.now();
     try {
       const result = await callChat<{ messages: Message[]; hasMore: boolean; joined: boolean }>({ action: 'messages', channelId });
       if (activeRef.current !== channelId) return;
@@ -332,7 +346,12 @@ const Chat = () => {
       setHasMore(result.hasMore);
       setJoined(result.joined);
       latest.current = result.messages[result.messages.length - 1]?.createdAt ?? null;
-      if (result.joined) await callChat({ action: 'markRead', channelId });
+      const summary = boot?.channels.find((channel) => channel.id === channelId);
+      if (summary && (summary.kind === 'DIRECT' || summary.visibility === 'PRIVATE'))
+        callChat<{ memberIds: string[] }>({ action: 'channelMembers', channelId })
+          .then((members) => activeRef.current === channelId && setMentionable(new Set(members.memberIds)))
+          .catch(() => {});
+      if (result.joined) await callChat({ action: 'markRead', channelId, ...(latest.current ? { upTo: latest.current } : {}) });
       refreshChannels();
     } catch (openError) {
       setNotice((openError as Error).message);
@@ -358,15 +377,26 @@ const Chat = () => {
     const fast = setInterval(async () => {
       const channelId = activeRef.current;
       if (!channelId || (typeof document !== 'undefined' && document.hidden)) return;
+      // A few seconds of overlap catch messages saved just before the last poll; known ids are skipped.
+      const after = latest.current ? new Date(Date.parse(latest.current) - 5000).toISOString() : undefined;
+      const changesSince = new Date(lastPoll.current - 10_000).toISOString();
+      lastPoll.current = Date.now();
       try {
-        const result = await callChat<{ messages: Message[] }>({ action: 'messages', channelId, ...(latest.current ? { after: latest.current } : {}) });
-        if (activeRef.current !== channelId || result.messages.length === 0) return;
+        const result = await callChat<{ messages: Message[]; changed?: Message[]; removed?: string[] }>({ action: 'messages', channelId, changesSince, ...(after ? { after } : {}) });
+        if (activeRef.current !== channelId) return;
+        const changed = new Map((result.changed ?? []).map((message) => [message.id, message]));
+        const removed = new Set(result.removed ?? []);
+        const fresh = result.messages;
+        if (fresh.length === 0 && changed.size === 0 && removed.size === 0) return;
         setMessages((current) => {
           const known = new Set(current.map((message) => message.id));
-          return [...current, ...result.messages.filter((message) => !known.has(message.id))];
+          return [...current.filter((message) => !removed.has(message.id)).map((message) => changed.get(message.id) ?? message), ...fresh.filter((message) => !known.has(message.id) && !removed.has(message.id))];
         });
-        latest.current = result.messages[result.messages.length - 1].createdAt;
-        callChat({ action: 'markRead', channelId }).catch(() => {});
+        if (fresh.length) {
+          const newest = fresh[fresh.length - 1].createdAt;
+          if (!latest.current || newest > latest.current) latest.current = newest;
+          callChat({ action: 'markRead', channelId, upTo: latest.current }).catch(() => {});
+        }
       } catch {
         // The next poll tries again.
       }
@@ -381,17 +411,27 @@ const Chat = () => {
   }, []);
 
   const loadEarlier = async () => {
-    if (!activeId || messages.length === 0) return;
-    const result = await callChat<{ messages: Message[]; hasMore: boolean }>({ action: 'messages', channelId: activeId, before: messages[0].createdAt });
-    setMessages((current) => [...result.messages, ...current]);
-    setHasMore(result.hasMore);
+    const channelId = activeId;
+    if (!channelId || messages.length === 0 || loadingEarlier) return;
+    setLoadingEarlier(true);
+    try {
+      const result = await callChat<{ messages: Message[]; hasMore: boolean }>({ action: 'messages', channelId, before: messages[0].createdAt });
+      if (activeRef.current !== channelId) return;
+      setMessages((current) => {
+        const known = new Set(current.map((message) => message.id));
+        return [...result.messages.filter((message) => !known.has(message.id)), ...current];
+      });
+      setHasMore(result.hasMore);
+    } finally {
+      setLoadingEarlier(false);
+    }
   };
 
   const mentionQuery = /(?:^|\s)@([^\s@]{0,30})$/.exec(draft)?.[1];
   const mentionChoices =
     mentionQuery === undefined
       ? []
-      : (boot?.members ?? []).filter((member) => member.id !== me && member.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6);
+      : (boot?.members ?? []).filter((member) => member.id !== me && (!mentionable || mentionable.has(member.id)) && member.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6);
 
   const chooseMention = (member: Member) => {
     setDraft(draft.replace(/@([^\s@]{0,30})$/, `@${member.name} `));
@@ -399,13 +439,15 @@ const Chat = () => {
   };
 
   const send = async () => {
-    if (!activeId || sending || (!draft.trim() && draftLinks.length === 0)) return;
+    const channelId = activeId;
+    if (!channelId || sending || (!draft.trim() && draftLinks.length === 0)) return;
     setSending(true);
     const mentions = draftMentions.filter((id) => draft.includes(`@${members.get(id)?.name ?? ''}`));
     try {
-      const { message } = await callChat<{ message: Message }>({ action: 'post', channelId: activeId, text: draft, mentions, links: draftLinks });
-      setMessages((current) => (current.some((existing) => existing.id === message.id) ? current : [...current, message]));
-      latest.current = message.createdAt;
+      const { message } = await callChat<{ message: Message | null }>({ action: 'post', channelId, text: draft, mentions, links: draftLinks });
+      // The poll cursor is left alone: moving it here would skip messages others posted since the last poll.
+      if (message && activeRef.current === channelId) setMessages((current) => (current.some((existing) => existing.id === message.id) ? current : [...current, message]));
+      if (activeRef.current !== channelId) return;
       setDraft('');
       setDraftMentions([]);
       setDraftLinks([]);
@@ -503,8 +545,6 @@ const Chat = () => {
                 <QuietButton onClick={() => setEditing(null)}>Cancel</QuietButton>
               </Row>
             </Stack>
-          ) : message.unreadable ? (
-            <Hint>This message can no longer be read.</Hint>
           ) : (
             message.text && <Body>{renderText(message.text, message.mentions, members, me)}</Body>
           )}
@@ -601,7 +641,7 @@ const Chat = () => {
               {timeline}
               {hasMore && (
                 <Row style={{ justifyContent: 'center' }}>
-                  <QuietButton onClick={loadEarlier}>Load earlier messages</QuietButton>
+                  <QuietButton disabled={loadingEarlier} onClick={loadEarlier}>Load earlier messages</QuietButton>
                 </Row>
               )}
               {messages.length === 0 && <Hint>{active.kind === 'DIRECT' ? 'This is the start of your conversation.' : `This is the start of #${active.name}.`}</Hint>}
@@ -732,11 +772,16 @@ const OverlayPanel = ({
 
   const others = boot.members.filter((member) => member.id !== boot.me && member.name.toLowerCase().includes(filter.toLowerCase()));
   const toggle = (id: string) => setPicked((current) => (current.includes(id) ? current.filter((existing) => existing !== id) : [...current, id]));
+  const [busy, setBusy] = useState(false);
   const run = async <TResult,>(body: Record<string, unknown>, after: (result: TResult) => void) => {
+    if (busy) return;
+    setBusy(true);
     try {
       after(await callChat<TResult>(body));
     } catch (error) {
       setProblem((error as Error).message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -785,7 +830,7 @@ const OverlayPanel = ({
                 {channel.joined ? (
                   <QuietButton onClick={() => onOpen(channel.id)}>Open</QuietButton>
                 ) : (
-                  <SecondaryButton onClick={() => run({ action: 'join', channelId: channel.id }, () => onOpen(channel.id))}>Join</SecondaryButton>
+                  <SecondaryButton disabled={busy} onClick={() => run({ action: 'join', channelId: channel.id }, () => onOpen(channel.id))}>Join</SecondaryButton>
                 )}
               </Row>
             ))
@@ -796,11 +841,11 @@ const OverlayPanel = ({
             <Input value={filter} placeholder="Find people" onChange={(event) => setFilter(event.target.value)} />
             <Stack style={{ maxHeight: 320, overflowY: 'auto' }}>
               {overlay === 'direct' && (
-                <QuietButton onClick={() => run<{ id: string }>({ action: 'openDirect', memberId: boot.me }, (result) => onOpen(result.id))}>Notes to self</QuietButton>
+                <QuietButton disabled={busy} onClick={() => run<{ id: string }>({ action: 'openDirect', memberId: boot.me }, (result) => onOpen(result.id))}>Notes to self</QuietButton>
               )}
               {others.map((member) =>
                 overlay === 'direct' ? (
-                  <QuietButton key={member.id} onClick={() => run<{ id: string }>({ action: 'openDirect', memberId: member.id }, (result) => onOpen(result.id))}>
+                  <QuietButton key={member.id} disabled={busy} onClick={() => run<{ id: string }>({ action: 'openDirect', memberId: member.id }, (result) => onOpen(result.id))}>
                     {member.name}
                   </QuietButton>
                 ) : (
@@ -816,14 +861,14 @@ const OverlayPanel = ({
 
         {overlay === 'create' && (
           <Row>
-            <PrimaryButton disabled={name.trim().length < 2} onClick={() => run<{ id: string }>({ action: 'createChannel', name, topic, visibility: isPrivate ? 'PRIVATE' : 'PUBLIC', memberIds: picked }, (result) => onOpen(result.id))}>
+            <PrimaryButton disabled={busy || name.trim().length < 2} onClick={() => run<{ id: string }>({ action: 'createChannel', name, topic, visibility: isPrivate ? 'PRIVATE' : 'PUBLIC', memberIds: picked }, (result) => onOpen(result.id))}>
               Create channel
             </PrimaryButton>
           </Row>
         )}
         {overlay === 'invite' && active && (
           <Row>
-            <PrimaryButton disabled={picked.length === 0} onClick={() => run<{ added: number }>({ action: 'invite', channelId: active.id, memberIds: picked }, (result) => onDone(`Added ${result.added} ${result.added === 1 ? 'person' : 'people'}.`))}>
+            <PrimaryButton disabled={busy || picked.length === 0} onClick={() => run<{ added: number }>({ action: 'invite', channelId: active.id, memberIds: picked }, (result) => onDone(`Added ${result.added} ${result.added === 1 ? 'person' : 'people'}.`))}>
               Add
             </PrimaryButton>
           </Row>

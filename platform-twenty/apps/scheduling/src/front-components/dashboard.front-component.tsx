@@ -47,7 +47,7 @@ type AppointmentRow = {
 
 type Overview = {
   member: { name: string; email: string };
-  advisor: { id: string; name: string; personalUrl: string | null } | null;
+  advisor: { id: string; name: string; personalUrl: string | null; linked: boolean } | null;
   today: AppointmentRow[];
   mine: AppointmentRow[];
   team: AppointmentRow[];
@@ -349,6 +349,16 @@ const Dashboard = () => {
     }
   };
 
+  const claim = async () => {
+    try {
+      await callAdmin({ action: 'claimAdvisor' });
+      enqueueSnackbar({ message: 'Your calendar is now used for this advisor profile', variant: 'success' });
+      load();
+    } catch (claimError) {
+      enqueueSnackbar({ message: (claimError as Error).message, variant: 'error' });
+    }
+  };
+
   const toggleMap = async () => {
     if (mapUrl) return setMapUrl(null);
     try {
@@ -405,6 +415,14 @@ const Dashboard = () => {
           title="Take bookings yourself"
           description="You do not have an advisor profile yet. Create one with default working hours, then adjust them under Availability."
           action={<PrimaryButton onClick={setup}>Create my advisor profile</PrimaryButton>}
+        />
+      )}
+      {data.advisor && !data.advisor.linked && (
+        <Callout
+          status="warning"
+          title={`Is "${data.advisor.name}" you?`}
+          description="This advisor profile points at your login but was set up by someone else, so your connected calendars are not used for it yet. Confirm only if it is your profile."
+          action={<PrimaryButton onClick={claim}>Yes, use my calendar</PrimaryButton>}
         />
       )}
       {(needsAttention.length > 0 || data.failingSyncs > 0) && (

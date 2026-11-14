@@ -55,7 +55,11 @@ const runJob = () => fetch(`${W}/s/campaigns/run`, { method: 'POST', headers: { 
 
 const workspaceKey = createHmac('sha256', vars.CAMPAIGN_LINK_SECRET).update(`workspace:${workspaceId}`).digest();
 const webhookUrl = `${W}/s/campaigns/webhook/${createHmac('sha256', workspaceKey).update('resend-webhook').digest('base64url').slice(0, 32)}`;
-const resendEvent = (type, emailId, data = {}) => fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, created_at: new Date().toISOString(), data: { email_id: emailId, ...data } }) });
+// Resend echoes the tags we sent with each email back in its events.
+const resendEvent = async (type, emailId, data = {}) => {
+  const tags = Object.fromEntries(((await mock('/admin/emails')).find((email) => email.id === emailId)?.tags ?? []).map((tag) => [tag.name, tag.value]));
+  return fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, created_at: new Date().toISOString(), data: { email_id: emailId, tags, ...data } }) });
+};
 
 await mock('/admin/reset', {});
 
@@ -88,7 +92,7 @@ await gql(`mutation($data: CampaignSuppressionCreateInput!) { createCampaignSupp
 // 1. Connecting Resend: a sending-only or wrong key connects nothing; a full-access key connects.
 const connect = async (secretKey) => {
   const { generateTransientToken } = await call(`${W}/metadata`, userToken, `mutation { generateTransientToken { transientToken { token } } }`);
-  const authorize = await fetch(`${SERVER_URL}/auth/apps/authorize?${new URLSearchParams({ applicationId, providerName: 'resend-email', transientToken: generateTransientToken.transientToken.token })}`, { redirect: 'manual' });
+  const authorize = await fetch(`${SERVER_URL}/auth/apps/authorize?${new URLSearchParams({ applicationId, providerName: 'resend-campaigns', transientToken: generateTransientToken.transientToken.token })}`, { redirect: 'manual' });
   const page = await fetch(authorize.headers.get('location'));
   const html = await page.text();
   const action = /<form[^>]* action="([^"]+)"/.exec(html)?.[1]?.replace(/&#38;/g, '&');
@@ -162,7 +166,7 @@ assert('the email is personalised and escaped', annMail?.subject === 'News for A
 const unsubscribeLink = annMail?.headers['List-Unsubscribe']?.slice(1, -1) ?? '';
 assert('the email carries one-click unsubscribe headers and the footer', annMail?.headers['List-Unsubscribe-Post'] === 'List-Unsubscribe=One-Click' && unsubscribeLink.startsWith(`${W}/s/campaigns/unsubscribe/`) && annMail.html.includes('1 High Street, London') && annMail.text.includes(unsubscribeLink), annMail?.headers['List-Unsubscribe']);
 const batchCalls = (await mock('/admin/log')).filter((entry) => entry.path === '/emails/batch');
-assert('batches are sent with an idempotency key', batchCalls.length > 0 && batchCalls.every((entry) => entry.idempotencyKey?.startsWith(`campaign-${draft.id}`)), JSON.stringify(batchCalls));
+assert('batches are sent with an idempotency key', batchCalls.length > 0 && batchCalls.every((entry) => entry.idempotencyKey?.startsWith(`${draft.id}:`)), JSON.stringify(batchCalls));
 
 // 5. Webhook events.
 const messageFor = (address) => delivered.find((email) => email.to[0] === address)?.id;
@@ -202,21 +206,59 @@ const counts = report?.campaign.counts ?? {};
 assert('the report counts deliveries, opens, clicks, bounces, complaints and unsubscribes', counts.deliveredCount === 2 && counts.openedCount === 1 && counts.clickedCount === 1 && counts.bouncedCount === 1 && counts.complainedCount === 1 && counts.unsubscribedCount === 1, JSON.stringify(counts));
 assert('the report lists the failed and bounced addresses', report?.problems.some((problem) => problem.address === `reject@${domain}` && problem.status === 'FAILED') && report.problems.some((problem) => problem.address === `ben@${domain}`), JSON.stringify(report?.problems));
 
-// 7. A second campaign skips everyone who left, and survives a rate limit.
+// 7. A second campaign skips everyone who left, survives a rate limit, and re-checks consent before each batch.
 const second = (await admin({ action: 'duplicate', id: draft.id })).body;
-await mock('/admin/fail-next', { mode: '429' });
+// Domain checks: scheduling, the job's start check, then the one right before sending, which is made to fail.
+await mock('/admin/fail-next', { path: '/domains', skip: 2 });
 await admin({ action: 'schedule', id: second.id });
 await runJob();
 const paused = await getCampaign(second.id);
 assert('a rate limit pauses sending instead of failing', paused.status === 'SENDING' && /slow down/.test(paused.lastError ?? ''), JSON.stringify(paused));
+await gql(`mutation($id: UUID!) { updatePerson(id: $id, data: { emailMarketingConsent: false }) { id } }`, { id: ids.reject });
 await runJob();
 const secondDone = await waitFor('second campaign', async () => {
   const campaign = await getCampaign(second.id);
-  if (campaign.status === 'SENDING') await runJob();
+  if (campaign.status === 'SENDING' || campaign.status === 'PREPARING') await runJob();
   return campaign.status === 'SENT' ? campaign : null;
 }, 90_000).catch(() => getCampaign(second.id));
 const secondMails = (await mock('/admin/emails')).filter((email) => email.tags?.some((tag) => tag.name === 'campaign' && tag.value === second.id)).map((email) => email.to[0]);
-assert('unsubscribed, bounced and complaining contacts are not emailed again', secondDone.status === 'SENT' && secondMails.length === 0 && secondDone.recipientCount === 1 && secondDone.failedCount === 1, `${JSON.stringify(secondDone)} ${secondMails.join(',')}`);
+const rejectRow = (await gql(`query($campaign: UUID, $person: UUID) { campaignRecipients(filter: { campaignId: { eq: $campaign }, personId: { eq: $person } }) { edges { node { status error } } } }`, { campaign: second.id, person: ids.reject })).campaignRecipients.edges[0]?.node;
+assert('unsubscribed, bounced and complaining contacts are not emailed again', secondDone.status === 'SENT' && secondMails.length === 0 && secondDone.skippedCount === people.length, `${JSON.stringify(secondDone)} ${secondMails.join(',')}`);
+assert('consent withdrawn while a campaign waits is respected', rejectRow?.status === 'SKIPPED' && /Withdrew consent/.test(rejectRow.error ?? ''), JSON.stringify(rejectRow));
+
+// 7b. Two runs started at the same moment send each email once.
+const fresh = [];
+for (const name of ['Dee', 'Eve', 'Fay']) {
+  const { createPerson } = await gql(`mutation($data: PersonCreateInput!) { createPerson(data: $data) { id } }`, { data: { name: { firstName: name, lastName: run }, emails: { primaryEmail: `${name.toLowerCase()}@${domain}` }, emailMarketingConsent: true } });
+  fresh.push(createPerson.id);
+}
+const raceList = (await admin({ action: 'createList', name: `Race ${run}` })).body;
+await admin({ action: 'addToList', listId: raceList.id, personIds: fresh });
+const third = (await admin({ action: 'duplicate', id: draft.id })).body;
+await admin({ action: 'saveDraft', id: third.id, changes: { listId: raceList.id } });
+await admin({ action: 'schedule', id: third.id });
+await mock('/admin/fail-next', { path: '/emails/batch' });
+await Promise.all([runJob(), runJob(), runJob()]);
+const midway = await getCampaign(third.id);
+const thirdDone = await waitFor('third campaign', async () => {
+  const campaign = await getCampaign(third.id);
+  if (campaign.status === 'SENDING' || campaign.status === 'PREPARING') await runJob();
+  return campaign.status === 'SENT' ? campaign : null;
+}, 90_000).catch(() => getCampaign(third.id));
+const thirdMails = (await mock('/admin/emails')).filter((email) => email.tags?.some((tag) => tag.name === 'campaign' && tag.value === third.id)).map((email) => email.to[0]);
+
+const thirdBatchKeys = (await mock('/admin/log')).filter((entry) => entry.path === '/emails/batch' && entry.idempotencyKey?.startsWith(`${third.id}:`)).map((entry) => entry.idempotencyKey);
+assert('a batch cut off by a rate limit is retried with the same idempotency key', thirdBatchKeys.length >= 2 && new Set(thirdBatchKeys).size === 1 && ['SENDING', 'SENT'].includes(midway.status), `${midway.status} ${JSON.stringify(thirdBatchKeys)}`);
+assert('parallel job runs never send an email twice', thirdDone.status === 'SENT' && thirdMails.length === 3 && new Set(thirdMails).size === 3 && thirdDone.recipientCount === 3, `${JSON.stringify(thirdDone)} ${thirdMails.join(',')}`);
+
+// 7c. Unscheduling returns a campaign to draft; a draft cannot be scheduled twice at once.
+const fourth = (await admin({ action: 'duplicate', id: draft.id })).body;
+await admin({ action: 'saveDraft', id: fourth.id, changes: { listId: raceList.id } });
+const later = new Date(Date.now() + 86_400_000).toISOString();
+const [firstSchedule, secondSchedule] = await Promise.all([admin({ action: 'schedule', id: fourth.id, sendAt: later }), admin({ action: 'schedule', id: fourth.id, sendAt: later })]);
+const unscheduled = await admin({ action: 'cancel', id: fourth.id });
+const afterCancel = await getCampaign(fourth.id);
+assert('unscheduling returns the campaign to draft', [firstSchedule.status, secondSchedule.status].includes(200) && unscheduled.status === 200 && afterCancel.status === 'DRAFT', `${firstSchedule.status} ${secondSchedule.status} ${afterCancel.status}`);
 
 // 8. WhatsApp campaign through the gateway.
 const whatsappDraft = (await admin({ action: 'createDraft', channel: 'WHATSAPP', name: `WhatsApp ${run}` })).body;

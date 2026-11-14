@@ -72,7 +72,7 @@ export const handleResendEvent = async (event: ResendEvent) => {
       await updateRecipient(recipient.id, { clickedAt: at, openedAt: at });
       break;
     case 'email.bounced': {
-      const permanent = event.data?.bounce?.type !== 'Temporary';
+      const permanent = event.data?.bounce?.type === 'Permanent';
       await updateRecipient(recipient.id, { bouncedAt: at, status: 'BOUNCED', error: (event.data?.bounce?.message ?? 'The email bounced.').slice(0, 300) });
       if (permanent) await addSuppression(recipient.address, 'EMAIL', 'BOUNCED', recipient.campaignId, event.data?.bounce?.subType ?? '');
       break;

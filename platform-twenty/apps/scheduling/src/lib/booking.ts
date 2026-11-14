@@ -326,14 +326,14 @@ export type AppointmentRecord = {
   customerLatitude: number | null;
   customerLongitude: number | null;
   customerPostcode: string;
-  advisor: { id: string; name: string; email: string; timeZone: string; workspaceMemberId: string | null; createdBy?: { workspaceMemberId: string | null } | null } | null;
+  advisor: { id: string; name: string; email: string; timeZone: string; workspaceMemberId: string | null; memberSeal?: string | null } | null;
   appointmentType: AppointmentTypeRecord | null;
   participants: { edges: { node: { advisorId: string; participantRole: string } }[] };
 };
 
 export const APPOINTMENT_FIELDS = `id title status startsAt endsAt customerName customerEmail customerPhone customerTimeZone meetingFormat location meetingUrl manageNonce
   sessionKey seat cancelledAt remindersSent notifiedStartsAt calendarStatus intakeAnswers appointmentTypeId advisorId personId customerLatitude customerLongitude customerPostcode
-  advisor { id name email timeZone workspaceMemberId createdBy { workspaceMemberId } }
+  advisor { id name email timeZone workspaceMemberId memberSeal }
   participants(first: 50) { edges { node { advisorId participantRole } } }`;
 
 export const loadAppointment = async (id: string, typeFields: string) => {

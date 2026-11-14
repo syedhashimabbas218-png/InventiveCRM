@@ -3,6 +3,7 @@ import { listConnections, reportConnectionAuthFailure } from 'twenty-sdk/logic-f
 import { type Provider } from 'src/constants/enums';
 import { type Interval } from 'src/engine/availability';
 import { cachedForRun, gql, nodes } from 'src/lib/api';
+import { verifyAdvisorMemberSeal } from 'src/lib/tokens';
 import { googleCalendar } from 'src/lib/calendar/google';
 import { microsoftCalendar } from 'src/lib/calendar/microsoft';
 import { GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME } from 'src/lib/calendar/provider-names';
@@ -20,11 +21,14 @@ export type CalendarSettingRecord = {
   conferencing: string;
   status: string;
   advisorId: string | null;
+  lastCheckedAt?: string | null;
 };
 
 export type AdvisorCalendar = { setting: CalendarSettingRecord; provider: Provider; adapter: CalendarAdapter | null; permissions: CalendarPermissions };
 
-const SETTING_FIELDS = 'id name connectionId provider accountEmail availabilityCalendarIds bookingCalendarId conferencing status advisorId';
+const SETTING_FIELDS = 'id name connectionId provider accountEmail availabilityCalendarIds bookingCalendarId conferencing status advisorId lastCheckedAt';
+
+const FORGET_AFTER_MS = 7 * 86_400_000;
 
 const PROVIDER_BY_NAME: Record<string, Provider> = { [GOOGLE_PROVIDER_NAME]: 'GOOGLE', [MICROSOFT_PROVIDER_NAME]: 'MICROSOFT' };
 
@@ -45,24 +49,17 @@ export const updateSetting = (id: string, data: Record<string, unknown>) =>
 
 // The app reads connections with its own token, so this sees every advisor's accounts; callers that serve a signed-in
 // user must only show that user's own.
-type AdvisorRef = { id: string; workspaceMemberId: string | null; createdBy?: { workspaceMemberId: string | null } | null };
+type AdvisorRef = { id: string; workspaceMemberId: string | null; memberSeal?: string | null };
 
-// workspaceMemberId is an ordinary editable field, so a member's calendar accounts are only used by an advisor that
-// member created (Create my advisor profile does). Pointing someone else's advisor at you gives it nothing.
-const linkedMember = async (advisor: AdvisorRef) => {
+// workspaceMemberId is an ordinary editable field, so a member's calendar accounts are only used by an advisor the
+// member created or confirmed themselves (the seal). Pointing someone else's advisor at you gives it nothing.
+export const linkedMember = async (advisor: AdvisorRef) => {
   if (!advisor.workspaceMemberId) return null;
-  const createdBy =
-    advisor.createdBy !== undefined
-      ? advisor.createdBy
-      : nodes(
-          (
-            await gql<{ advisors: { edges: { node: { createdBy: { workspaceMemberId: string | null } | null } }[] } }>(
-              `query($id: UUID!) { advisors(filter: { id: { eq: $id } }) { edges { node { createdBy { workspaceMemberId } } } } }`,
-              { id: advisor.id },
-            )
-          ).advisors,
-        )[0]?.createdBy;
-  return createdBy?.workspaceMemberId === advisor.workspaceMemberId ? advisor.workspaceMemberId : null;
+  const seal =
+    advisor.memberSeal !== undefined
+      ? advisor.memberSeal
+      : nodes((await gql<{ advisors: { edges: { node: { memberSeal: string | null } }[] } }>(`query($id: UUID!) { advisors(filter: { id: { eq: $id } }) { edges { node { memberSeal } } } }`, { id: advisor.id })).advisors)[0]?.memberSeal;
+  return verifyAdvisorMemberSeal(advisor.id, advisor.workspaceMemberId, seal) ? advisor.workspaceMemberId : null;
 };
 
 export const loadAdvisorCalendars = async (advisor: AdvisorRef): Promise<AdvisorCalendar[]> => {
@@ -94,18 +91,21 @@ export const loadAdvisorCalendars = async (advisor: AdvisorRef): Promise<Advisor
     calendars.push({ setting, provider, adapter, permissions });
   }
 
-  // Disconnecting removes what the app kept about the account: its address and calendar ids. The row stays so history
-  // and sync rows still point somewhere.
-  for (const orphan of settings.filter((setting) => !connections.some((connection) => connection.id === setting.connectionId)))
-    if (orphan.status !== 'DISCONNECTED' || orphan.accountEmail)
+  // Twenty also leaves a connection out of its list while a token refresh fails, so a missing account is first only
+  // marked disconnected. After a week away it is treated as gone: the address and calendar ids the app kept are
+  // removed, and the row stays so history and sync rows still point somewhere.
+  const now = Date.now();
+  for (const orphan of settings.filter((setting) => !connections.some((connection) => connection.id === setting.connectionId))) {
+    if (orphan.status !== 'DISCONNECTED') await updateSetting(orphan.id, { status: 'DISCONNECTED', lastError: 'The account is not connected.', lastCheckedAt: new Date(now).toISOString() });
+    else if (orphan.accountEmail && orphan.lastCheckedAt && now - Date.parse(orphan.lastCheckedAt) > FORGET_AFTER_MS)
       await updateSetting(orphan.id, {
-        status: 'DISCONNECTED',
         lastError: 'The account was disconnected.',
         name: `${orphan.provider === 'GOOGLE' ? 'Google' : 'Microsoft'}: disconnected account`,
         accountEmail: '',
         availabilityCalendarIds: [],
         bookingCalendarId: '',
       });
+  }
   return calendars;
 };
 

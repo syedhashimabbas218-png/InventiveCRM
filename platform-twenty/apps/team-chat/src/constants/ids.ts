@@ -3,11 +3,11 @@ export const IDS = {
   role: '456c9073-9867-4ea5-8c1e-4ed961d6bce9',
   channel: {
     object: '78eb225a-a8bf-47dd-a2a9-4652d06a75fe',
-    fields: { name: '4d060acf-e750-4ed9-8590-c5190b3e313e', topic: '5210a8bb-5918-4079-a24e-cadbe3894d98', kind: '2f4a3637-c229-44ad-bb38-a4e74e6c0ccc', visibility: '78b245a3-fca0-46e4-b80b-c62a144d5e09', directKey: 'b3cff0bb-3077-4361-b41a-9c8be29aafb9', lastMessageAt: '1cafe867-492d-42bf-9201-e8f4e2668d21', archived: '6a25884b-aedc-4ccc-b501-12f29d122af1', createdByMemberId: '8148431a-3fe5-4af8-bac0-a6f496a8e2c9', messages: 'adaefeaa-0293-485e-8fd1-eb434a0b9b32', memberships: 'a02d0d20-15bf-4a73-ab9b-ce8986392c40' },
+    fields: { name: '4d060acf-e750-4ed9-8590-c5190b3e313e', topic: '5210a8bb-5918-4079-a24e-cadbe3894d98', kind: '2f4a3637-c229-44ad-bb38-a4e74e6c0ccc', visibility: '78b245a3-fca0-46e4-b80b-c62a144d5e09', directKey: 'b3cff0bb-3077-4361-b41a-9c8be29aafb9', lastMessageAt: '1cafe867-492d-42bf-9201-e8f4e2668d21', archived: '6a25884b-aedc-4ccc-b501-12f29d122af1', seal: '7a12415e-6412-44db-9c03-f1d73a5e5e84', createdByMemberId: '8148431a-3fe5-4af8-bac0-a6f496a8e2c9', messages: 'adaefeaa-0293-485e-8fd1-eb434a0b9b32', memberships: 'a02d0d20-15bf-4a73-ab9b-ce8986392c40' },
   },
   membership: {
     object: '8541e8d0-b831-4ab5-8680-35df4dfe881f',
-    fields: { name: '5110f26c-7d07-48c3-8583-66787c04c7f1', channel: 'd3236026-5d18-4d5c-912e-3f433945012e', workspaceMemberId: '8b82886d-e54b-4c08-b693-9e355d513544', lastReadAt: 'c5c65fe7-bbc7-48cc-907b-573ec597647e', unreadMentions: '14b52282-9cf1-424a-96df-6ba80b103e8e', muted: 'fe28f9c9-4fc0-4c43-98a2-873feb6f5a91' },
+    fields: { name: '5110f26c-7d07-48c3-8583-66787c04c7f1', channel: 'd3236026-5d18-4d5c-912e-3f433945012e', workspaceMemberId: '8b82886d-e54b-4c08-b693-9e355d513544', lastReadAt: 'c5c65fe7-bbc7-48cc-907b-573ec597647e', seal: '17245901-f444-457f-86ff-46987b2ae934', unreadMentions: '14b52282-9cf1-424a-96df-6ba80b103e8e', muted: 'fe28f9c9-4fc0-4c43-98a2-873feb6f5a91' },
   },
   message: {
     object: 'b3a1e22d-6415-4a99-bc74-fd77fd51215c',

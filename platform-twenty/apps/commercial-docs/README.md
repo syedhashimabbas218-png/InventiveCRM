@@ -113,7 +113,8 @@ WHATSAPP_GATEWAY_SECRET=<openssl rand -hex 32, shared with the WhatsApp service>
 Each client takes card payments into **their own** Stripe or Revolut Business account; InventiveCRM never holds the
 money and takes no fee.
 
-1. **Connect the account**: Settings, Accounts, Applications, Quotes & Invoices, then **Stripe (payments)** or
+1. **Connect the account** (a workspace admin; there is one payment account per workspace and members who are not
+   admins cannot add or replace it): Settings, Accounts, Applications, Quotes & Invoices, then **Stripe (payments)** or
    **Revolut Business (payments)**. The page explains which key to create and checks it with the provider before Twenty
    stores it encrypted. For Stripe use a restricted key with write access to Payment Links, Prices and Products and read
    access to Checkout Sessions (if a permission is missing, Stripe's error names it). For Revolut use the Merchant API

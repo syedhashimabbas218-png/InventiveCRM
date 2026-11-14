@@ -43,7 +43,8 @@ const adminBoot = (await admin({ action: 'bootstrap' })).body;
 const bobBoot = (await bob({ action: 'bootstrap' })).body;
 const general = adminBoot?.channels.find((channel) => channel.name === 'general');
 assert('everyone starts in #general, and there is only one', general && bobBoot?.channels.some((channel) => channel.id === general.id), JSON.stringify(adminBoot?.channels));
-const generals = await call(`${SERVER_URL}/graphql`, apiKey, `{ chatChannels(filter: { name: { eq: "general" } }) { totalCount } }`);
+const generalKey = (await call(`${SERVER_URL}/graphql`, apiKey, `query($id: UUID!) { chatChannel(filter: { id: { eq: $id } }) { directKey } }`, { id: general.id })).chatChannel.directKey;
+const generals = await call(`${SERVER_URL}/graphql`, apiKey, `query($key: String) { chatChannels(filter: { directKey: { eq: $key } }) { totalCount } }`, { key: generalKey });
 assert('there is exactly one #general', generals.chatChannels.totalCount === 1, String(generals.chatChannels.totalCount));
 const adminId = adminBoot.me;
 const bobId = bobBoot.me;
@@ -53,8 +54,19 @@ const bobName = adminBoot.members.find((member) => member.id === bobId).name;
 // 2. Posting, mentions, links and unread counts.
 const person = (await call(`${SERVER_URL}/graphql`, apiKey, `mutation($data: PersonCreateInput!) { createPerson(data: $data) { id } }`, { data: { name: { firstName: 'Chat', lastName: run } } })).createPerson;
 await bob({ action: 'markRead', channelId: general.id });
-const posted = await admin({ action: 'post', channelId: general.id, text: `Hi @${bobName}, can you call this customer? ${run}`, mentions: [bobId, 'not-a-member'], links: [{ objectNameSingular: 'person', recordId: person.id, label: `Chat ${run}` }] });
+const posted = await admin({
+  action: 'post',
+  channelId: general.id,
+  text: `Hi @${bobName}, can you call this customer? ${run}`,
+  mentions: [bobId, 'not-a-member'],
+  links: [
+    { objectNameSingular: 'person', recordId: person.id, label: 'Acme: contract signed' },
+    { objectNameSingular: 'person', recordId: '00000000-0000-4000-8000-000000000000', label: 'Does not exist' },
+    { objectNameSingular: 'workspaceMember', recordId: bobId, label: 'Not linkable' },
+  ],
+});
 assert('a message is posted with its mention and record link', posted.status === 200 && posted.body.message.mentions.join() === bobId && posted.body.message.links[0]?.recordId === person.id, JSON.stringify(posted.body));
+assert('record links take their label from the record, and unknown or other records are dropped', posted.body.message.links.length === 1 && posted.body.message.links[0].label === `Chat ${run}`, JSON.stringify(posted.body.message.links));
 const bobChannels = (await bob({ action: 'channels' })).body.channels;
 const bobGeneral = bobChannels.find((channel) => channel.id === general.id);
 assert('the mentioned person sees an unread message and an unread mention', bobGeneral?.unread >= 1 && bobGeneral.unreadMentions === 1, JSON.stringify(bobGeneral));
@@ -69,8 +81,9 @@ const polled = (await admin({ action: 'messages', channelId: general.id, after: 
 assert('polling after the last message returns only newer ones', polled.length === 1 && polled[0].id === reply.body.message.id, JSON.stringify(polled.map((message) => message.text)));
 
 // 3. Messages are encrypted at rest, including mentions and links.
-const raw = (await call(`${SERVER_URL}/graphql`, apiKey, `query($id: UUID!) { chatMessage(filter: { id: { eq: $id } }) { name body } }`, { id: posted.body.message.id })).chatMessage;
-assert('the stored record holds no readable text, mention or link', raw.body.startsWith('v1.') && !raw.body.includes(run) && !raw.body.includes(person.id) && raw.name === 'Message', JSON.stringify(raw));
+const raw = (await call(`${SERVER_URL}/graphql`, apiKey, `query($id: UUID!) { chatMessage(filter: { id: { eq: $id } }) { name body authorMemberId } }`, { id: posted.body.message.id })).chatMessage;
+assert('the stored record holds no readable text, mention, link or author id', raw.body.startsWith('v1.') && !raw.body.includes(run) && !raw.body.includes(person.id) && raw.name === 'Message' && raw.authorMemberId !== adminId, JSON.stringify(raw));
+const pollSince = new Date(Date.now() - 1000).toISOString();
 
 // 4. Editing and deleting: own messages only.
 const bobEdits = await bob({ action: 'edit', messageId: posted.body.message.id, text: 'hacked' });
@@ -81,6 +94,8 @@ assert('the author can edit; mentions and links are kept', edited.status === 200
 const removed = await bob({ action: 'remove', messageId: reply.body.message.id });
 const remaining = (await admin({ action: 'messages', channelId: general.id })).body.messages.map((message) => message.id);
 assert('the author can delete', removed.status === 200 && !remaining.includes(reply.body.message.id), String(removed.status));
+const caughtUp = (await bob({ action: 'messages', channelId: general.id, after: new Date().toISOString(), changesSince: pollSince })).body;
+assert('open screens learn about edits and deletions', caughtUp.changed?.some((message) => message.id === posted.body.message.id && message.text.startsWith('Edited')) && caughtUp.removed?.includes(reply.body.message.id), JSON.stringify({ changed: caughtUp.changed?.length, removed: caughtUp.removed }));
 
 // 5. Private channels and direct messages stay private.
 const privateChannel = await admin({ action: 'createChannel', name: `Board ${run}`, visibility: 'PRIVATE', topic: 'Owners only' });
@@ -90,6 +105,26 @@ const bobPostsPrivate = await bob({ action: 'post', channelId: privateChannel.bo
 const bobJoinsPrivate = await bob({ action: 'join', channelId: privateChannel.body.id });
 const bobBrowse = (await bob({ action: 'browse' })).body.channels.map((channel) => channel.id);
 assert('a private channel cannot be read, posted to, joined or browsed by others', secret.status === 200 && bobReadsPrivate.status === 403 && bobPostsPrivate.status === 403 && bobJoinsPrivate.status === 403 && !bobBrowse.includes(privateChannel.body.id), `${bobReadsPrivate.status} ${bobPostsPrivate.status} ${bobJoinsPrivate.status}`);
+// Writing chat records straight through Twenty's API gets nobody in: the app ignores rows it did not seal.
+const asBob = (query, variables) => call(`${W}/graphql`, bobToken, query, variables);
+const privateRecord = (await asBob(`query($id: UUID!) { chatChannel(filter: { id: { eq: $id } }) { name topic directKey } }`, { id: privateChannel.body.id })).chatChannel;
+assert('private channel names and topics are not readable through the API', privateRecord && !privateRecord.name?.includes(run) && !privateRecord.topic?.includes('Owners'), JSON.stringify(privateRecord));
+const forgedMembership = await asBob(`mutation($data: ChatMembershipCreateInput!) { createChatMembership(data: $data) { id } }`, { data: { name: 'x', channelId: privateChannel.body.id, workspaceMemberId: bobId } });
+const copiedKey = (await asBob(`query($channel: UUID) { chatMemberships(filter: { channelId: { eq: $channel } }) { edges { node { workspaceMemberId seal } } } }`, { channel: general.id })).chatMemberships.edges.map((edge) => edge.node);
+const forgedCopy = await asBob(`mutation($data: ChatMembershipCreateInput!) { createChatMembership(data: $data) { id } }`, { data: { name: 'x', channelId: privateChannel.body.id, workspaceMemberId: copiedKey[0]?.workspaceMemberId, seal: copiedKey[0]?.seal } });
+const afterForgery = await bob({ action: 'messages', channelId: privateChannel.body.id });
+assert('a membership written straight through the API does not open a private channel', Boolean(forgedMembership.createChatMembership && forgedCopy.createChatMembership) && afterForgery.status === 403, String(afterForgery.status));
+const forgedChannel = (await asBob(`mutation($data: ChatChannelCreateInput!) { createChatChannel(data: $data) { id } }`, { data: { name: `fake-${run}`, kind: 'CHANNEL', visibility: 'PUBLIC' } })).createChatChannel;
+const browseAfterForgery = (await admin({ action: 'browse' })).body.channels.map((channel) => channel.id);
+assert('a channel written straight through the API does not show up', forgedChannel && !browseAfterForgery.includes(forgedChannel.id), JSON.stringify(forgedChannel));
+const forgedMessage = await asBob(`mutation($data: ChatMessageCreateInput!) { createChatMessage(data: $data) { id } }`, { data: { name: 'Message', channelId: general.id, authorMemberId: raw.authorMemberId, body: raw.body } });
+const generalNow = (await admin({ action: 'messages', channelId: general.id })).body.messages.map((message) => message.id);
+assert('a message copied or forged through the API is not shown', Boolean(forgedMessage.createChatMessage) && !generalNow.includes(forgedMessage.createChatMessage.id), JSON.stringify(forgedMessage));
+await asBob(`mutation($id: UUID!) { updateChatChannel(id: $id, data: { visibility: PUBLIC }) { id } }`, { id: privateChannel.body.id });
+const tampered = await bob({ action: 'messages', channelId: privateChannel.body.id });
+assert('making a private channel public through the API does not open it', tampered.status === 404 || tampered.status === 403, String(tampered.status));
+await asBob(`mutation($id: UUID!) { updateChatChannel(id: $id, data: { visibility: PRIVATE }) { id } }`, { id: privateChannel.body.id });
+
 const mentionOutsider = await admin({ action: 'post', channelId: privateChannel.body.id, text: `@${bobName} look`, mentions: [bobId] });
 const stillOut = await bob({ action: 'messages', channelId: privateChannel.body.id });
 assert('mentioning someone in a private channel does not let them in', mentionOutsider.body.message.mentions.length === 0 && stillOut.status === 403, JSON.stringify(mentionOutsider.body.message.mentions));

@@ -159,7 +159,7 @@ Never remove an object or field from the app: the server deletes undeclared ones
 
 ## Using it
 
-1. **Overview**: click **Create my advisor profile** (Mon to Fri, 9 to 5). Today, upcoming (mine or team), connection health, recent activity, booking pages with links and embed codes, **Schedule an appointment** for phone bookings, **New appointment type**, **Advisor map**.
+1. **Overview**: click **Create my advisor profile** (Mon to Fri, 9 to 5). A person's connected calendars are only used for an advisor profile they created or confirmed themselves: when someone else set up the profile, the Overview asks **Is "name" you?** and the person confirms. If a calendar account drops out of Twenty's list (for example while a token refresh fails), its settings are kept for 7 days so nothing has to be set up again when it comes back. Today, upcoming (mine or team), connection health, recent activity, booking pages with links and embed codes, **Schedule an appointment** for phone bookings, **New appointment type**, **Advisor map**.
 2. **Calendar connections**: connect Google or Microsoft, choose calendars, test the connection. A revoked or expired account shows **Reconnect**, and the advisor's times are withdrawn until then.
 3. **Availability**: weekly hours, time zone, daily and weekly limits, time off and special hours.
 4. **New appointment type** creates a draft with sensible defaults; open it to fine-tune, then set the status to **Active** to publish its page at `/s/book/<slug>`.

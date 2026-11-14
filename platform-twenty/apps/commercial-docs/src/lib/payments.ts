@@ -9,7 +9,7 @@ import { gbp, microsToPence } from 'src/lib/money';
 
 // Each client connects their own Stripe or Revolut account; the secret key is stored encrypted by Twenty as the
 // connection's token and only read here, on the server, when a link is created or checked.
-export const PAYMENT_CONNECTION_NAMES: Record<Exclude<PaymentProvider, 'NONE'>, string> = { STRIPE: 'stripe-payments', REVOLUT: 'revolut-payments' };
+export const PAYMENT_CONNECTION_NAMES: Record<Exclude<PaymentProvider, 'NONE'>, string> = { STRIPE: 'stripe-account', REVOLUT: 'revolut-account' };
 
 const stripeBase = () => (process.env.STRIPE_API_URL || 'https://api.stripe.com').replace(/\/$/, '');
 const revolutBase = () => (process.env.REVOLUT_API_URL || 'https://merchant.revolut.com').replace(/\/$/, '');
@@ -21,12 +21,12 @@ const keyFingerprint = (key: string) => createHash('sha256').update(key).digest(
 
 // Whether the key with this fingerprint (computed by the person who has the key) is stored and working.
 export const isKeyConnected = async (provider: Exclude<PaymentProvider, 'NONE'>, fingerprint: string) =>
-  (await listConnections({ providerName: PAYMENT_CONNECTION_NAMES[provider] }).catch(() => [])).some(
+  (await listConnections({ providerName: PAYMENT_CONNECTION_NAMES[provider], scope: 'WORKSPACE' }).catch(() => [])).some(
     (connection) => connection.externalAccountId === `${provider.toLowerCase()}-${fingerprint}` && connection.accessToken && !connection.authFailedAt,
   );
 
 export const paymentKey = async (provider: Exclude<PaymentProvider, 'NONE'>) => {
-  const connections = (await listConnections({ providerName: PAYMENT_CONNECTION_NAMES[provider] }).catch(() => [])).filter((connection) => connection.accessToken && !connection.authFailedAt);
+  const connections = (await listConnections({ providerName: PAYMENT_CONNECTION_NAMES[provider], scope: 'WORKSPACE' }).catch(() => [])).filter((connection) => connection.accessToken && !connection.authFailedAt);
   const newest = connections[connections.length - 1];
   if (!newest?.accessToken) throw new PaymentError(`No ${provider === 'STRIPE' ? 'Stripe' : 'Revolut'} account is connected. Connect one under Settings, Accounts.`);
   return newest.accessToken;

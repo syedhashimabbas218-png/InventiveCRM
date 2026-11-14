@@ -253,7 +253,7 @@ export const IDS = {
     paymentsReconcile: '42652410-b706-4f86-b0c8-d4cb1332a658',
   },
   connectionProviders: {
-    stripe: 'aa3a5baa-961b-4c44-b188-219701058874',
-    revolut: '384e5e98-4bff-4b00-a107-514bb8addc24',
+    stripe: 'bc150ec9-64a2-4df2-bf41-c098311e8d25',
+    revolut: 'ed208efb-d640-4e37-b169-a8fb0efd0451',
   },
 } as const;

@@ -7,7 +7,7 @@ export default defineField({
   objectUniversalIdentifier: STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS.person.universalIdentifier,
   type: FieldType.RELATION,
   name: 'campaignRecipients',
-  label: 'Campaigns received',
+  label: 'Campaign history',
   icon: 'IconSpeakerphone',
   relationTargetObjectMetadataUniversalIdentifier: IDS.recipient.object,
   relationTargetFieldMetadataUniversalIdentifier: IDS.recipient.fields.person,

@@ -16,7 +16,7 @@ export default defineObject({
   labelIdentifierFieldMetadataUniversalIdentifier: field.name,
   fields: [
     textField({ universalIdentifier: field.name, name: 'name', label: 'Name', icon: 'IconTag' }),
-    textField({ universalIdentifier: field.authorMemberId, name: 'authorMemberId', label: 'Author (member id)', icon: 'IconUser' }),
+    textField({ universalIdentifier: field.authorMemberId, name: 'authorMemberId', label: 'Author (key)', icon: 'IconUser' }),
     textField({ universalIdentifier: field.body, name: 'body', label: 'Encrypted text', icon: 'IconLock' }),
     dateTimeField({ universalIdentifier: field.editedAt, name: 'editedAt', label: 'Edited', icon: 'IconPencil' }),
   ],

@@ -20,8 +20,8 @@ describe('payments', () => {
   });
 
   it('maps connection names to providers', () => {
-    expect(providerFromConnectionName('stripe-payments')).toBe('STRIPE');
-    expect(providerFromConnectionName('revolut-payments')).toBe('REVOLUT');
+    expect(providerFromConnectionName('stripe-account')).toBe('STRIPE');
+    expect(providerFromConnectionName('revolut-account')).toBe('REVOLUT');
     expect(providerFromConnectionName('google-calendar')).toBeNull();
   });
 

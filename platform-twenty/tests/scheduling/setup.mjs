@@ -15,7 +15,12 @@ const adminToken = await userToken(workspaceUrl, 'admin@inventiveweb.test', 'Adm
 const bobToken = await addMember(workspaceUrl, adminToken, 'bob@inventiveweb.test', 'Bob-Pass-1234!', 'Bob Outlook');
 
 const one = async (query, variables) => Object.values(await api.gql(query, variables))[0];
-const setupFor = async (token) => (await admin(workspaceUrl, token, { action: 'setupAdvisor' })).body.advisorId;
+// Advisors made before calendar-link seals existed are confirmed by their own user, as the dashboard asks them to.
+const setupFor = async (token) => {
+  const advisorId = (await admin(workspaceUrl, token, { action: 'setupAdvisor' })).body.advisorId;
+  await admin(workspaceUrl, token, { action: 'claimAdvisor' });
+  return advisorId;
+};
 const alice = await setupFor(adminToken);
 const bob = await setupFor(bobToken);
 await api.gql(`mutation($id: UUID!, $data: AdvisorUpdateInput!) { updateAdvisor(id: $id, data: $data) { id } }`, { id: alice, data: { name: 'Alice Google', email: 'alice@inventiveweb.test' } });

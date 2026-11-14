@@ -11,7 +11,7 @@ import { loadAdvisorCalendars, updateSetting } from 'src/lib/calendar/connection
 import { missingPermissionMessage } from 'src/lib/calendar/permissions';
 import { GOOGLE_PROVIDER_NAME, MICROSOFT_PROVIDER_NAME } from 'src/lib/calendar/provider-names';
 import { publicBaseUrl } from 'src/lib/notify';
-import { mapTicket } from 'src/lib/tokens';
+import { advisorMemberSeal, mapTicket, verifyAdvisorMemberSeal } from 'src/lib/tokens';
 import { ADVISOR_FIELDS, type AdvisorRecord, loadSettings, loadType } from 'src/lib/records';
 
 export class AdminError extends Error {
@@ -91,7 +91,7 @@ const overview = async () => {
   const connections = advisor ? await connectionSummaries(advisor) : [];
   return {
     member: { name: `${member.name.firstName} ${member.name.lastName}`.trim(), email: member.userEmail },
-    advisor: advisor ? { id: advisor.id, name: advisor.name, bookingSlug: advisor.bookingSlug, personalUrl: advisor.bookingSlug ? `${base}/book/${advisor.bookingSlug}` : null } : null,
+    advisor: advisor ? { id: advisor.id, name: advisor.name, bookingSlug: advisor.bookingSlug, personalUrl: advisor.bookingSlug ? `${base}/book/${advisor.bookingSlug}` : null, linked: verifyAdvisorMemberSeal(advisor.id, member.id, advisor.memberSeal) } : null,
     today: upcoming.filter((row) => Date.parse(row.startsAt) < startOfDay.getTime() + DAY),
     mine: advisor ? upcoming.filter((row) => row.advisor?.id === advisor.id) : [],
     team: upcoming,
@@ -204,8 +204,18 @@ const setupAdvisor = async () => {
     `mutation($data: AvailabilityScheduleCreateInput!) { createAvailabilitySchedule(data: $data) { id } }`,
     { data: { name: `${name}: working hours`, timeZone, weeklyHours: DEFAULT_WEEK, isDefault: true, ownerId: createAdvisor.id } },
   );
-  await gql(`mutation($id: UUID!, $data: AdvisorUpdateInput!) { updateAdvisor(id: $id, data: $data) { id } }`, { id: createAdvisor.id, data: { scheduleId: createAvailabilitySchedule.id } });
+  await gql(`mutation($id: UUID!, $data: AdvisorUpdateInput!) { updateAdvisor(id: $id, data: $data) { id } }`, { id: createAdvisor.id, data: { scheduleId: createAvailabilitySchedule.id, memberSeal: advisorMemberSeal(createAdvisor.id, member.id) } });
   return { advisorId: createAdvisor.id, created: true };
+};
+
+// Someone else may have set up the advisor record that points at this user. Only the user can confirm it is theirs,
+// and only then are their calendars used for it.
+const claimAdvisor = async () => {
+  const member = await currentMember();
+  const advisor = await myAdvisor(member.id);
+  if (!advisor) throw new AdminError(404, 'Create your advisor profile first.');
+  await gql(`mutation($id: UUID!, $data: AdvisorUpdateInput!) { updateAdvisor(id: $id, data: $data) { id } }`, { id: advisor.id, data: { memberSeal: advisorMemberSeal(advisor.id, member.id) } });
+  return { advisorId: advisor.id, linked: true };
 };
 
 // Booking from inside the CRM goes through the same checks and reservation as a customer booking.
@@ -342,6 +352,8 @@ export const handleAdmin = async (body: Record<string, unknown>) => {
       return connections();
     case 'saveConnection':
       return saveConnection(body);
+    case 'claimAdvisor':
+      return claimAdvisor();
     case 'setupAdvisor':
       return setupAdvisor();
     case 'manualBook':

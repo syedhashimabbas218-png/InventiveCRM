@@ -62,6 +62,7 @@ Marketing campaigns arrive in batches of up to 100 and have their own shape: no 
 {
   "event": "campaign.message",
   "campaignId": "8e76131c-88c2-41cd-8c79-e881a8f193bb",
+  "batchId": "8e76131c-88c2-41cd-8c79-e881a8f193bb:4f1c0a52-7d0e-4c5e-9a43-0b6f8c2d9e11",
   "template": { "name": "spring_offer", "language": "en_GB" },
   "messages": [
     { "recipientId": "21bc1b08-4524-4ef2-b0fc-ba5818be5044", "to": "+447700900111", "variables": ["Ann", "20%"], "optOutUrl": "https://.../s/campaigns/unsubscribe/..." }
@@ -73,6 +74,9 @@ Marketing campaigns arrive in batches of up to 100 and have their own shape: no 
 `template.name` is a Meta-approved marketing template; `variables` fill `{{1}}`, `{{2}}`, … in order. Answer 200 with
 the messages you accepted: `{ "accepted": [{ "recipientId": "…", "messageId": "wamid…" }] }`. Messages left out are
 marked failed. Campaign Studio only sends to contacts with **Agreed to marketing on WhatsApp** ticked.
+
+A batch whose request timed out is sent again with the same `batchId`. Remember accepted `batchId`s for at least a
+day and answer a repeat with the original `accepted` list instead of sending again; never send one `recipientId` twice.
 
 Status callbacks go to `statusCallbackUrl`, signed as above:
 `{ "recipientId": "…", "status": "delivered" | "read" | "failed" | "opted_out", "error": "…" }`. Send `opted_out` when

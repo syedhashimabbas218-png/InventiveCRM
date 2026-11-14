@@ -103,13 +103,28 @@ const VARIABLES: Record<string, (contact: Contact) => string | undefined> = {
 
 export const VARIABLE_NAMES = Object.keys(VARIABLES);
 
+const VARIABLE_PATTERN = /\{\{\s*([a-zA-Z]+)\s*(?:\|([^}]*))?\}\}/g;
+
+const valueOf = (contact: Contact, name: string, fallback?: string) => {
+  const read = VARIABLES[name];
+  return read ? read(contact)?.trim() || (fallback ?? '').trim() : null;
+};
+
 // {{firstName}} or {{firstName|there}}: the text after the bar is used when the contact has no value.
-export const fillVariables = (text: string, contact: Contact) =>
-  text.replace(/\{\{\s*([a-zA-Z]+)\s*(?:\|([^}]*))?\}\}/g, (match, name: string, fallback?: string) => {
-    const read = VARIABLES[name];
-    if (!read) return match;
-    return read(contact)?.trim() || (fallback ?? '').trim();
+export const fillVariables = (text: string, contact: Contact) => text.replace(VARIABLE_PATTERN, (match, name: string, fallback?: string) => valueOf(contact, name, fallback) ?? match);
+
+// Text blocks take light markup, so contact values go in only after the markup is turned into HTML: a contact named
+// "[Win](https://...)" stays text instead of becoming a link in the client's email.
+const markedUp = (text: string, contact: Contact, render: (template: string) => string, encode: (value: string) => string = escapeHtml) => {
+  const values: string[] = [];
+  const template = text.replace(VARIABLE_PATTERN, (match, name: string, fallback?: string) => {
+    const value = valueOf(contact, name, fallback);
+    if (value === null) return match;
+    values.push(value);
+    return `\u0000${values.length - 1}\u0000`;
   });
+  return render(template).replace(/\u0000(\d+)\u0000/g, (match, index: string) => encode(values[Number(index)] ?? ''));
+};
 
 export const unknownVariables = (design: Design, subject: string) => {
   const texts = [subject, ...design.blocks.flatMap(blockTexts)];
@@ -165,8 +180,13 @@ const columnHtml = (column: ColumnContent, theme: Theme, contact: Contact) => {
   const image = safeImage(column.imageUrl);
   if (image) parts.push(`<img src="${escapeHtml(image)}" alt="${escapeHtml(column.imageAlt ?? '')}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border:0;border-radius:4px;margin:0 0 12px">`);
   if (column.heading) parts.push(`<h3 style="margin:0 0 8px;font-family:${theme.font};font-size:17px;line-height:1.3;color:${theme.text}">${escapeHtml(fillVariables(column.heading, contact))}</h3>`);
-  for (const paragraph of paragraphs(fillVariables(column.text ?? '', contact)))
-    parts.push(`<p style="margin:0 0 12px;font-family:${theme.font};font-size:15px;line-height:1.55;color:${theme.text}">${inlineHtml(paragraph, theme.primary)}</p>`);
+  parts.push(
+    markedUp(column.text ?? '', contact, (template) =>
+      paragraphs(template)
+        .map((paragraph) => `<p style="margin:0 0 12px;font-family:${theme.font};font-size:15px;line-height:1.55;color:${theme.text}">${inlineHtml(paragraph, theme.primary)}</p>`)
+        .join(''),
+    ),
+  );
   if (column.buttonLabel && column.buttonUrl) parts.push(buttonHtml(fillVariables(column.buttonLabel, contact), column.buttonUrl, 'left', theme));
   return parts.join('');
 };
@@ -183,9 +203,11 @@ const blockHtml = (block: Block, theme: Theme, contact: Contact, placeholders = 
     }
     case 'text':
       return cell(
-        paragraphs(fillVariables(block.text, contact))
-          .map((paragraph) => `<p style="margin:0 0 14px;font-family:${theme.font};font-size:16px;line-height:1.6;color:${theme.text};text-align:${block.align ?? 'left'}">${inlineHtml(paragraph, theme.primary)}</p>`)
-          .join(''),
+        markedUp(block.text, contact, (template) =>
+          paragraphs(template)
+            .map((paragraph) => `<p style="margin:0 0 14px;font-family:${theme.font};font-size:16px;line-height:1.6;color:${theme.text};text-align:${block.align ?? 'left'}">${inlineHtml(paragraph, theme.primary)}</p>`)
+            .join(''),
+        ),
         '8px 32px 0',
       );
     case 'image': {
@@ -225,7 +247,7 @@ const blockText = (block: Block, contact: Contact): string => {
     case 'heading':
       return fillVariables(block.text, contact).toUpperCase();
     case 'text':
-      return paragraphs(fillVariables(block.text, contact)).map(inlineText).join('\n\n');
+      return markedUp(block.text, contact, (template) => paragraphs(template).map(inlineText).join('\n\n'), (value) => value);
     case 'image':
       return block.alt && safeImage(block.url) ? `[${block.alt}]` : '';
     case 'button':
@@ -237,7 +259,7 @@ const blockText = (block: Block, contact: Contact): string => {
     case 'columns':
       return [block.left, block.right]
         .map((column) =>
-          [column.heading ? fillVariables(column.heading, contact) : '', inlineText(fillVariables(column.text ?? '', contact)), column.buttonLabel && safeLink(column.buttonUrl) ? `${column.buttonLabel}: ${safeLink(column.buttonUrl)}` : '']
+          [column.heading ? fillVariables(column.heading, contact) : '', markedUp(column.text ?? '', contact, inlineText, (value) => value), column.buttonLabel && safeLink(column.buttonUrl) ? `${column.buttonLabel}: ${safeLink(column.buttonUrl)}` : '']
             .filter(Boolean)
             .join('\n'),
         )

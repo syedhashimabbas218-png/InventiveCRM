@@ -33,6 +33,8 @@ export const IDS = {
       whatsappTemplate: '4d269fe6-08cb-412d-ab3f-5ab6c4a2b2cb',
       whatsappVariables: '3e3c1e9a-c8b0-41db-8715-86cd04c08df0',
       lastError: '8df2a135-38dd-4430-ad6f-3a60346f5c14',
+      lockedUntil: '7c510207-5a4d-4789-b6de-f018b1610f99',
+      prepareCursor: 'a4075ce5-d121-4bc7-b37a-d274a6190185',
       recipients: 'be86ad58-50bb-40e7-8e3d-37043cf0fdbf'
     }
   },
@@ -53,6 +55,7 @@ export const IDS = {
       bouncedAt: 'facbb519-89c0-4bdc-baec-d40c6d141f4f',
       complainedAt: '31008467-d29e-44eb-93d1-36cc9e387484',
       unsubscribedAt: 'aeca7489-b97d-4c70-a592-90686911fd75',
+      batchKey: 'd8eb0a85-140d-4363-ac05-582faca96b94',
       nonce: 'fcff81b5-2ce4-46d4-b93b-4dddaf53e257'
     }
   },
@@ -150,6 +153,6 @@ export const IDS = {
     whatsappStatus: '210d1be3-d4f2-473d-90b6-00f51fede863'
   },
   connectionProviders: {
-    resend: '0faa8fd6-39a8-4790-b53b-7c9f1b6b07f1'
+    resend: '3cd0f078-6423-42d2-9028-731766509b77'
   }
 } as const;

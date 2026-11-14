@@ -6,6 +6,7 @@ export const CAMPAIGN_CHANNELS = {
 export const CAMPAIGN_STATUSES = {
   DRAFT: { label: 'Draft', color: 'gray' },
   SCHEDULED: { label: 'Scheduled', color: 'blue' },
+  PREPARING: { label: 'Preparing', color: 'sky' },
   SENDING: { label: 'Sending', color: 'sky' },
   SENT: { label: 'Sent', color: 'green' },
   CANCELLED: { label: 'Cancelled', color: 'gray' },
@@ -14,6 +15,7 @@ export const CAMPAIGN_STATUSES = {
 
 export const RECIPIENT_STATUSES = {
   QUEUED: { label: 'Queued', color: 'gray' },
+  SENDING: { label: 'Sending', color: 'sky' },
   SENT: { label: 'Sent', color: 'blue' },
   DELIVERED: { label: 'Delivered', color: 'green' },
   BOUNCED: { label: 'Bounced', color: 'red' },

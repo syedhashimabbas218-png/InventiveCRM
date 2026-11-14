@@ -4,7 +4,7 @@ export type CampaignSummary = {
   id: string;
   name: string;
   channel: 'EMAIL' | 'WHATSAPP';
-  status: 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PREPARING' | 'SENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
   subject: string | null;
   listName: string | null;
   scheduledAt: string | null;
@@ -61,6 +61,7 @@ export type Campaign = {
   whatsappTemplate: string;
   whatsappVariables: Record<string, string>;
   lastError: string;
+  prepareCursor: string;
   counts: Record<string, number>;
 };
 

@@ -256,7 +256,6 @@ export const CampaignReport = ({ campaignId, onBack, onOpenCampaign, openRecipie
   if (!report) return <NarrowPage><LoadingState /></NarrowPage>;
   const { campaign } = report;
   const counts = campaign.counts;
-  const queued = Math.max(0, counts.recipientCount - counts.sentCount - counts.failedCount);
 
   return (
     <Page>
@@ -268,8 +267,8 @@ export const CampaignReport = ({ campaignId, onBack, onOpenCampaign, openRecipie
             <QuietButton startIcon={<IconArrowLeft size={14} />} onClick={onBack}>
               All campaigns
             </QuietButton>
-            {(campaign.status === 'SCHEDULED' || campaign.status === 'SENDING') && <SecondaryButton onClick={() => act('cancel')}>{campaign.status === 'SCHEDULED' ? 'Unschedule' : 'Stop sending'}</SecondaryButton>}
-            {(campaign.status === 'FAILED' || campaign.status === 'CANCELLED') && campaign.startedAt && queued > 0 && <SecondaryButton onClick={() => act('resume')}>Resume</SecondaryButton>}
+            {(campaign.status === 'SCHEDULED' || campaign.status === 'PREPARING' || campaign.status === 'SENDING') && <SecondaryButton onClick={() => act('cancel')}>{campaign.status === 'SCHEDULED' ? 'Unschedule' : 'Stop sending'}</SecondaryButton>}
+            {(campaign.status === 'FAILED' || campaign.status === 'CANCELLED') && campaign.startedAt && <SecondaryButton onClick={() => act('resume')}>Resume</SecondaryButton>}
             <SecondaryButton onClick={() => act('duplicate')}>Duplicate</SecondaryButton>
             <SecondaryButton onClick={() => openRecipients(campaign.id)}>All recipients</SecondaryButton>
           </Row>
@@ -277,9 +276,10 @@ export const CampaignReport = ({ campaignId, onBack, onOpenCampaign, openRecipie
       />
       {campaign.lastError && <Callout status={campaign.status === 'FAILED' ? 'error' : 'info'} title={campaign.status === 'FAILED' ? 'Sending stopped' : 'Sending paused'} description={campaign.lastError} />}
       {campaign.status === 'SCHEDULED' && campaign.scheduledAt && <Callout status="info" title={`Sends ${when(campaign.scheduledAt)}`} description="Unschedule it to make changes." />}
+      {campaign.status === 'PREPARING' && <Callout status="info" title="Preparing the audience" description="Checking consent and addresses for everyone on the list. Sending starts as soon as that is done." />}
       {campaign.status === 'SENDING' && <Callout status="info" title={`Sending: ${counts.sentCount} of ${counts.recipientCount} sent`} description="Results update every couple of minutes." />}
       <TileRow>
-        <Tile label="Recipients" value={String(counts.recipientCount)} hint={counts.skippedCount ? `${counts.skippedCount} skipped (no consent, no address or do-not-contact)` : undefined} />
+        <Tile label="Recipients" value={String(counts.recipientCount)} hint={counts.skippedCount ? `${counts.skippedCount} skipped: no consent, no address, do-not-contact or stopped` : undefined} />
         <Tile label="Delivered" value={percent(counts.deliveredCount, counts.sentCount)} hint={`${counts.deliveredCount} of ${counts.sentCount} sent`} />
         <Tile label={campaign.channel === 'EMAIL' ? 'Opened' : 'Read'} value={percent(counts.openedCount, counts.deliveredCount)} hint={`${counts.openedCount} people`} />
         {campaign.channel === 'EMAIL' && <Tile label="Clicked" value={percent(counts.clickedCount, counts.deliveredCount)} hint={`${counts.clickedCount} people`} />}

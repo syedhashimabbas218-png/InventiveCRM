@@ -37,6 +37,7 @@ export const IDS = {
       weeklyLimit: '3dd33feb-56d4-4f27-a498-e9431133bfd1',
       weight: 'a86cc74d-fda9-4da4-b104-69091d5036a6',
       workspaceMemberId: 'ff4da013-d667-4dfd-9f4a-28d19aea5484',
+      memberSeal: '7754dcd6-b564-4463-b4c3-c2c05ec3cdfb',
     },
     object: 'dc7c99ce-e2bb-4f93-a670-0df7590e1cec',
   },

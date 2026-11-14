@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { STARTER_TEMPLATES } from 'src/constants/starter-templates';
 import { DEFAULT_BRAND, designProblems, fillVariables, parseDesign, renderEmail, safeImage, safeLink, unknownVariables, type Design } from 'src/lib/design';
-import { fromAddress, isEmail } from 'src/lib/engine';
+import { fromAddress, isEmail, isTransient, phoneOf } from 'src/lib/engine';
+import { ResendError } from 'src/lib/resend';
 import { normaliseAddress } from 'src/lib/store';
 import { newNonce, recipientToken, verifyRecipientToken, verifyWebhookToken, webhookToken } from 'src/lib/tokens';
 
@@ -79,6 +80,38 @@ describe('rendering', () => {
       expect(rendered.html).toContain('<!doctype html>');
       expect(designProblems(template.design, brand).every((problem) => /button|image/.test(problem))).toBe(true);
     }
+  });
+});
+
+describe('contact values in text', () => {
+  it('cannot inject markup or links through a contact name', () => {
+    const design: Design = { version: 1, blocks: [{ id: 't', type: 'text', text: 'Hi {{firstName}}, see [our offer](https://acme.example/offer)' }] };
+    const { html, text } = renderEmail(design, brand, { ...options, contact: { firstName: '[Claim prize](https://evil.example) **now** <b>' } });
+    expect(html).not.toContain('evil.example"');
+    expect(html).not.toContain('<strong>now</strong>');
+    expect(html).toContain('[Claim prize](https://evil.example) **now** &#60;b&#62;');
+    expect(html).toContain('href="https://acme.example/offer"');
+    expect(text).toContain('Hi [Claim prize](https://evil.example) **now** <b>');
+  });
+});
+
+describe('phone numbers', () => {
+  it('needs a calling code and does not add one twice', () => {
+    expect(phoneOf({ primaryPhoneNumber: '07700 900111', primaryPhoneCallingCode: '+44' })).toBe('+447700900111');
+    expect(phoneOf({ primaryPhoneNumber: '+44 7700 900111', primaryPhoneCallingCode: '+44' })).toBe('+447700900111');
+    expect(phoneOf({ primaryPhoneNumber: '07700900111', primaryPhoneCallingCode: '' })).toBe('');
+    expect(phoneOf(null)).toBe('');
+  });
+});
+
+describe('retry decisions', () => {
+  it('retries only rate limits, outages and network failures', () => {
+    expect(isTransient(new ResendError('x', 429, 'rate_limit_exceeded'))).toBe(true);
+    expect(isTransient(new ResendError('x', 503, ''))).toBe(true);
+    expect(isTransient(new ResendError('x', 422, 'validation_error'))).toBe(false);
+    expect(isTransient(Object.assign(new TypeError('fetch failed')))).toBe(true);
+    expect(isTransient(new TypeError("Cannot read properties of undefined (reading 'x')"))).toBe(false);
+    expect(isTransient(new Error('GraphQL error'))).toBe(false);
   });
 });
 

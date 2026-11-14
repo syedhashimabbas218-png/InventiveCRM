@@ -21,6 +21,7 @@ export default defineObject({
     selectField({ universalIdentifier: field.status, name: 'status', label: 'Status', icon: 'IconProgress' }, RECIPIENT_STATUSES, 'QUEUED'),
     textField({ universalIdentifier: field.providerMessageId, name: 'providerMessageId', label: 'Provider message id', icon: 'IconHash' }),
     textField({ universalIdentifier: field.error, name: 'error', label: 'Problem', icon: 'IconAlertTriangle' }),
+    textField({ universalIdentifier: field.batchKey, name: 'batchKey', label: 'Batch', icon: 'IconStack' }),
     textField({ universalIdentifier: field.nonce, name: 'nonce', label: 'Link key', icon: 'IconKey' }),
     dateTimeField({ universalIdentifier: field.sentAt, name: 'sentAt', label: 'Sent', icon: 'IconSend' }),
     dateTimeField({ universalIdentifier: field.deliveredAt, name: 'deliveredAt', label: 'Delivered', icon: 'IconMailCheck' }),

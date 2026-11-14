@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { listConnections } from 'twenty-sdk/logic-function';
 
-export const RESEND_CONNECTION_NAME = 'resend-email';
+export const RESEND_CONNECTION_NAME = 'resend-campaigns';
 export const BATCH_SIZE = 100;
 
 export const WEBHOOK_EVENTS = ['email.delivered', 'email.bounced', 'email.complained', 'email.opened', 'email.clicked', 'email.failed', 'email.suppressed'];
@@ -62,7 +62,7 @@ export const validateKey = async (key: string) => {
   }
 };
 
-const workingConnections = async () => (await listConnections({ providerName: RESEND_CONNECTION_NAME }).catch(() => [])).filter((connection) => connection.accessToken && !connection.authFailedAt);
+const workingConnections = async () => (await listConnections({ providerName: RESEND_CONNECTION_NAME, scope: 'WORKSPACE' }).catch(() => [])).filter((connection) => connection.accessToken && !connection.authFailedAt);
 
 export const isKeyConnected = async (fingerprint: string) => (await workingConnections()).some((connection) => connection.externalAccountId === `resend-${fingerprint}`);
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { decryptMessage, encryptMessage } from 'src/lib/crypto';
-import { channelName, cleanBody, cleanLinks, cleanMentions, directKey, MAX_MESSAGE_LENGTH } from 'src/lib/rules';
+import { channelSeal, decryptText, directConversationKey, encryptText, memberKey, membershipSeal, sealMatches } from 'src/lib/crypto';
+import { channelName, cleanBody, cleanLinks, cleanMentions, MAX_MESSAGE_LENGTH } from 'src/lib/rules';
 
 const tokenFor = (workspaceId: string) => `x.${Buffer.from(JSON.stringify({ workspaceId })).toString('base64url')}.y`;
 const A = '11111111-1111-4111-8111-111111111111';
@@ -17,22 +17,39 @@ describe('message encryption', () => {
   it('round-trips, and fails in another channel, another workspace or after tampering', () => {
     process.env.CHAT_SECRET = 'k'.repeat(40);
     process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-a');
-    const sealed = encryptMessage('Lunch at 1? 🍕', A);
+    const sealed = encryptText('Lunch at 1? 🍕', A);
     expect(sealed).not.toContain('Lunch');
-    expect(encryptMessage('Lunch at 1? 🍕', A)).not.toBe(sealed);
-    expect(decryptMessage(sealed, A)).toBe('Lunch at 1? 🍕');
-    expect(decryptMessage(sealed, B)).toBeNull();
+    expect(encryptText('Lunch at 1? 🍕', A)).not.toBe(sealed);
+    expect(decryptText(sealed, A)).toBe('Lunch at 1? 🍕');
+    expect(decryptText(sealed, B)).toBeNull();
     const parts = sealed.split('.');
-    expect(decryptMessage(`${parts[0]}.${parts[1]}.${parts[2].slice(0, -2)}AA`, A)).toBeNull();
-    expect(decryptMessage('plain text', A)).toBeNull();
+    expect(decryptText(`${parts[0]}.${parts[1]}.${parts[2].slice(0, -2)}AA`, A)).toBeNull();
+    expect(decryptText('plain text', A)).toBeNull();
     process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-b');
-    expect(decryptMessage(sealed, A)).toBeNull();
+    expect(decryptText(sealed, A)).toBeNull();
+  });
+
+  it('makes member keys and seals that only the app can produce', () => {
+    process.env.CHAT_SECRET = 'k'.repeat(40);
+    process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-a');
+    expect(memberKey(A)).not.toContain(A);
+    expect(memberKey(A)).toBe(memberKey(A));
+    expect(membershipSeal(C, A)).not.toBe(membershipSeal(C, B));
+    expect(sealMatches(membershipSeal(C, A), membershipSeal(C, A))).toBe(true);
+    expect(sealMatches(membershipSeal(C, A), 'forged')).toBe(false);
+    expect(sealMatches(membershipSeal(C, A), null)).toBe(false);
+    const channel = { id: C, kind: 'CHANNEL', visibility: 'PRIVATE', directKey: 'x', createdByMemberId: memberKey(A) };
+    expect(channelSeal({ ...channel, visibility: 'PUBLIC' })).not.toBe(channelSeal(channel));
+    expect(directConversationKey(A, B)).toBe(directConversationKey(B, A));
+    const before = memberKey(A);
+    process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-b');
+    expect(memberKey(A)).not.toBe(before);
   });
 
   it('refuses to work without a long secret', () => {
     process.env.CHAT_SECRET = 'short';
     process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-a');
-    expect(() => encryptMessage('x', A)).toThrow(/CHAT_SECRET/);
+    expect(() => encryptText('x', A)).toThrow(/CHAT_SECRET/);
   });
 });
 
@@ -59,10 +76,6 @@ describe('message rules', () => {
   it('only lets people who can see the channel be mentioned', () => {
     expect(cleanMentions([A, B, B, C, 'x'], new Set([A, B]))).toEqual([A, B]);
     expect(cleanMentions('nope', new Set([A]))).toEqual([]);
-  });
-
-  it('names direct conversations the same way from both sides', () => {
-    expect(directKey(B, A)).toBe(directKey(A, B));
   });
 
   it('turns channel names into slugs', () => {

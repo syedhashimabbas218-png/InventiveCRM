@@ -2,7 +2,7 @@ import { type CampaignChannel, TEMPLATE_CATEGORIES } from 'src/constants/enums';
 import { STARTER_TEMPLATES } from 'src/constants/starter-templates';
 import { gql, nodes } from 'src/lib/api';
 import { type Brand, FONTS, parseDesign, renderEmail, unknownVariables } from 'src/lib/design';
-import { campaignProblems, functionsBaseUrl, fromAddress, isEmail } from 'src/lib/engine';
+import { campaignProblems, functionsBaseUrl, fromAddress, isEmail, STOPPED } from 'src/lib/engine';
 import { connectionLabel, ensureWebhook, hasWebhook, listDomains, resendKey, sendOne } from 'src/lib/resend';
 import {
   ALL_CONSENTED,
@@ -17,6 +17,8 @@ import {
   type Person,
   saveBrand,
   updateCampaign,
+  updateCampaignIf,
+  updateRecipientsIf,
 } from 'src/lib/store';
 import { webhookToken } from 'src/lib/tokens';
 
@@ -163,24 +165,29 @@ const schedule = async (body: Record<string, unknown>) => {
   const now = Date.now();
   const sendAt = body.sendAt ? Date.parse(String(body.sendAt)) : now;
   if (Number.isNaN(sendAt) || sendAt < now - 60_000 || sendAt > now + 366 * 86_400_000) throw new AdminError('Choose a send time between now and one year ahead.');
-  await updateCampaign(campaign.id, { status: 'SCHEDULED', scheduledAt: new Date(Math.max(sendAt, now)).toISOString(), lastError: '' });
+  if (!(await updateCampaignIf(campaign.id, ['DRAFT'], { status: 'SCHEDULED', scheduledAt: new Date(Math.max(sendAt, now)).toISOString(), lastError: '' }))) throw new AdminError('This campaign is no longer a draft.');
   return { scheduled: true };
 };
 
 const cancel = async (body: Record<string, unknown>) => {
   const campaign = await getCampaign(id(body.id));
   if (!campaign) throw new AdminError('This campaign no longer exists.', 404);
-  if (campaign.status === 'SCHEDULED') await updateCampaign(campaign.id, { status: 'DRAFT', scheduledAt: null });
-  else if (campaign.status === 'SENDING') await updateCampaign(campaign.id, { status: 'CANCELLED', lastError: 'Stopped by a user. Contacts not reached yet were not sent anything.' });
-  else throw new AdminError('Only scheduled or sending campaigns can be stopped.');
-  return { cancelled: true };
+  if (campaign.status === 'SCHEDULED' && (await updateCampaignIf(campaign.id, ['SCHEDULED'], { status: 'DRAFT', scheduledAt: null }))) return { cancelled: true };
+  if (await updateCampaignIf(campaign.id, ['PREPARING', 'SENDING'], { status: 'CANCELLED', lastError: 'Stopped by a user. Contacts not reached yet were not sent anything.' })) {
+    // A batch already handed to the provider finishes; nothing after it is sent.
+    await updateRecipientsIf({ campaignId: campaign.id, status: 'QUEUED' }, { status: 'SKIPPED', error: STOPPED });
+    return { cancelled: true };
+  }
+  throw new AdminError('Only scheduled or sending campaigns can be stopped.');
 };
 
-// A failed or paused campaign carries on with the recipients still queued; nobody gets it twice.
+// A failed or stopped campaign carries on with the contacts not reached yet; nobody gets it twice.
 const resume = async (body: Record<string, unknown>) => {
   const campaign = await getCampaign(id(body.id));
-  if (!campaign || (campaign.status !== 'FAILED' && campaign.status !== 'CANCELLED') || !campaign.startedAt) throw new AdminError('Only a campaign that stopped part-way can be resumed.');
-  await updateCampaign(campaign.id, { status: 'SENDING', lastError: '' });
+  if (!campaign?.startedAt) throw new AdminError('Only a campaign that stopped part-way can be resumed.');
+  if (!(await updateCampaignIf(campaign.id, ['FAILED', 'CANCELLED'], { status: campaign.prepareCursor === 'DONE' ? 'SENDING' : 'PREPARING', lastError: '' })))
+    throw new AdminError('Only a campaign that stopped part-way can be resumed.');
+  await updateRecipientsIf({ campaignId: campaign.id, status: 'SKIPPED', error: STOPPED }, { status: 'QUEUED', error: '' });
   return { resumed: true };
 };
 

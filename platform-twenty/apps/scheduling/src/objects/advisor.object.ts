@@ -17,6 +17,7 @@ export default defineObject({
   fields: [
     textField({ universalIdentifier: field.name, name: 'name', label: "Name", icon: 'IconUser' }),
     textField({ universalIdentifier: field.workspaceMemberId, name: 'workspaceMemberId', label: "CRM user (workspace member id)", icon: 'IconUserCheck', description: "Links the advisor to their CRM login and calendar connections." }),
+    textField({ universalIdentifier: field.memberSeal, name: 'memberSeal', label: "Calendar link seal", icon: 'IconShieldCheck', description: "Set by the app when the CRM user creates or confirms this advisor profile. Editing it unlinks their calendars." }),
     textField({ universalIdentifier: field.email, name: 'email', label: "Email", icon: 'IconMail' }),
     textField({ universalIdentifier: field.phone, name: 'phone', label: "Phone", icon: 'IconPhone' }),
     textField({ universalIdentifier: field.timeZone, name: 'timeZone', label: "Time zone", icon: 'IconWorld', description: "IANA name, e.g. Europe/London." }),

@@ -43,6 +43,8 @@ export default defineObject({
     numberField({ universalIdentifier: field.skippedCount, name: 'skippedCount', label: 'Skipped', icon: 'IconPlayerSkipForward' }, { integer: true, defaultValue: 0 }),
     textField({ universalIdentifier: field.whatsappTemplate, name: 'whatsappTemplate', label: 'WhatsApp template', icon: 'IconBrandWhatsapp' }),
     jsonField({ universalIdentifier: field.whatsappVariables, name: 'whatsappVariables', label: 'WhatsApp template values', icon: 'IconBraces' }),
+    dateTimeField({ universalIdentifier: field.lockedUntil, name: 'lockedUntil', label: 'Being worked on until', icon: 'IconLock' }),
+    textField({ universalIdentifier: field.prepareCursor, name: 'prepareCursor', label: 'Preparation progress', icon: 'IconProgress' }),
     textField({ universalIdentifier: field.lastError, name: 'lastError', label: 'Problem', icon: 'IconAlertTriangle' }),
   ],
 });

@@ -1,6 +1,6 @@
 {
   "name": "inventivecrm-campaigns",
-  "version": "0.1.4",
+  "version": "0.2.3",
   "private": true,
   "packageManager": "yarn@4.18.1",
   "scripts": {

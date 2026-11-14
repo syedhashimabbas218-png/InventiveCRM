@@ -20,7 +20,7 @@ export type AdvisorRecord = {
   id: string;
   name: string;
   workspaceMemberId: string | null;
-  createdBy?: { workspaceMemberId: string | null } | null;
+  memberSeal?: string | null;
   email: string;
   phone: string;
   timeZone: string;
@@ -102,7 +102,7 @@ export type BookingLinkRecord = {
 
 const OFFICE = 'id name streetAddress postcode latitude longitude timeZone isPublic';
 const SCHEDULE = 'id name timeZone weeklyHours isDefault overrides(first: 200) { edges { node { startDate endDate kind windows } } }';
-export const ADVISOR_FIELDS = `id name workspaceMemberId createdBy { workspaceMemberId } email phone timeZone isActive publicBio bookingSlug weight priority dailyLimit weeklyLimit inPerson remote
+export const ADVISOR_FIELDS = `id name workspaceMemberId memberSeal email phone timeZone isActive publicBio bookingSlug weight priority dailyLimit weeklyLimit inPerson remote
   travelsToCustomers baseLatitude baseLongitude publicLocationLabel serviceRadiusKm maxTravelMinutes travelBufferMinutes postcodeTerritory serviceArea
   office { ${OFFICE} } schedule { ${SCHEDULE} } schedules(first: 20) { edges { node { id isDefault } } }`;
 export const TYPE_FIELDS = `id name slug description status color icon durationMinutes meetingFormat conferencing meetingUrl assignment roundRobinStrategy locationMode

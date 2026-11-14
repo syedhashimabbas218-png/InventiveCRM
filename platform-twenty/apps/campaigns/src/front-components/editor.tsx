@@ -66,9 +66,11 @@ export const Editor = ({ initial, overview, onBack, onSaved }: { initial: Campai
   const save = async () => {
     if (Object.keys(dirty).length === 0) return true;
     setBusy(true);
+    const sent = dirty;
     try {
-      await callAdmin({ action: 'saveDraft', id: campaign.id, changes: dirty });
-      setDirty({});
+      await callAdmin({ action: 'saveDraft', id: campaign.id, changes: sent });
+      // Keep anything typed while the save was on its way.
+      setDirty((current) => Object.fromEntries(Object.entries(current).filter(([field, value]) => value !== sent[field as keyof Campaign])) as Partial<Campaign>);
       return true;
     } catch (error) {
       setMessage({ status: 'error', text: (error as Error).message });
