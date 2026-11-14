@@ -19,6 +19,23 @@ export type InvoiceTemplate = keyof typeof INVOICE_TEMPLATES;
 
 export const INVOICE_KINDS = { INVOICE: 'Invoice', CREDIT_NOTE: 'Credit note' } as const;
 
+export const PAYMENT_PROVIDERS = {
+  NONE: { label: 'Off', color: 'gray' },
+  STRIPE: { label: 'Stripe', color: 'purple' },
+  REVOLUT: { label: 'Revolut Business', color: 'blue' },
+} as const;
+
+export const PAYMENT_LINK_STATUSES = {
+  NONE: { label: 'No link', color: 'gray' },
+  OPEN: { label: 'Waiting for payment', color: 'blue' },
+  PAID: { label: 'Paid online', color: 'green' },
+  CANCELLED: { label: 'Link closed', color: 'gray' },
+  FAILED: { label: 'Could not create link', color: 'red' },
+} as const;
+
+export type PaymentProvider = keyof typeof PAYMENT_PROVIDERS;
+export type PaymentLinkStatus = keyof typeof PAYMENT_LINK_STATUSES;
+
 export const INVOICE_STATUSES = {
   DRAFT: { label: 'Draft', color: 'gray' },
   ISSUED: { label: 'Issued', color: 'blue' },

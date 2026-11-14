@@ -108,9 +108,33 @@ WHATSAPP_GATEWAY_SECRET=<openssl rand -hex 32, shared with the WhatsApp service>
 
 `SMTP_SECURITY` is `TLS`, `STARTTLS` or `NONE` (only inside the private Docker network). `SMTP_USERNAME` and `SMTP_PASSWORD` are optional.
 
+## Online payments (pay-now links)
+
+Each client takes card payments into **their own** Stripe or Revolut Business account; InventiveCRM never holds the
+money and takes no fee.
+
+1. **Connect the account**: Settings, Accounts, Applications, Quotes & Invoices, then **Stripe (payments)** or
+   **Revolut Business (payments)**. The page explains which key to create and checks it with the provider before Twenty
+   stores it encrypted. For Stripe use a restricted key with write access to Payment Links, Prices and Products and read
+   access to Checkout Sessions (if a permission is missing, Stripe's error names it). For Revolut use the Merchant API
+   secret key (sandbox keys need `REVOLUT_API_URL=https://sandbox-merchant.revolut.com`).
+2. **Choose the provider** in the Business profile under **Online payments**.
+
+From then on every issued invoice (not credit notes) gets a pay-now link for what is still owed: a single-use Stripe
+Payment Link or a Revolut order. The invoice email shows a **Pay now** button and the WhatsApp hand-off carries the link.
+**Send pay-now link** (route `POST /s/payments/link`, workflow action and AI tool) creates or refreshes the link and can
+send it on its own by WhatsApp or email ("text payments"). A part payment recorded on the invoice replaces the link with
+one for the rest and closes the old one.
+
+Every 10 minutes (or `POST /s/payments/reconcile`) open links are checked with the provider: a paid one sets the invoice
+to **Paid** (or **Part paid**) with the amount and date, and Stripe links are closed. Links of invoices marked paid or
+void by hand are closed too. Polling means nothing has to be configured in the client's Stripe or Revolut dashboard.
+
+Invoice fields: **Online payment** (link status), **Pay-now link**, **Paid through**, **Payment reference**.
+
 ## Not included yet
 
-Payment links, accounting exports (Xero, QuickBooks, FreeAgent), e-signature, stock, multi-currency.
+Accounting exports (Xero, QuickBooks, FreeAgent), e-signature, stock, multi-currency.
 
 ## Install
 

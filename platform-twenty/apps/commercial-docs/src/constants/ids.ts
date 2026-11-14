@@ -5,6 +5,7 @@ export const IDS = {
   businessProfile: {
     object: '81f01e05-6024-43c8-b065-9ba676576bc1',
     fields: {
+      onlinePayments: '91aa5a3a-429d-4acc-8964-030df4e16f0f',
       emailSendingMethod: 'aa3ff3aa-dc28-4250-ad03-9123b7871018',
       clientMailbox: 'd229ebc8-6ec7-49a3-9f50-d6ee4ca735df',
       sendOnIssue: '59d32e89-65ec-4661-a5f6-8786a76643fe',
@@ -100,6 +101,12 @@ export const IDS = {
   invoice: {
     object: '816f5c16-1688-40df-992b-370130ca3e7b',
     fields: {
+      paymentProvider: '592ff78d-808d-49f3-945c-4b3bbc0bbbc7',
+      paymentLinkUrl: '19302bc4-0534-4158-a15f-9a34302d60d1',
+      paymentReference: '89fd3be6-9922-49d4-8766-308e79cc63c1',
+      paymentLinkStatus: 'dae8b5f0-0ad0-4a40-9af7-d429615054de',
+      paymentLinkAmountPence: 'c351aa6d-21e1-4b30-8d19-66fc62da5c02',
+      paymentLinkCreatedAt: 'e1e9cecd-26e5-4a15-9705-8b8566b3b930',
       layoutUsed: '03a87c0a-955b-4ce1-8c33-dda27879cef7',
       deliveries: '8eca2bfe-3963-432b-970e-972ba32573af',
       lastSentAt: '5dd5a4db-7d17-49d7-9473-14dc3b48c415',
@@ -238,5 +245,15 @@ export const IDS = {
     issueDocumentTool: '3c4fc4ab-102d-44a3-af5a-e1a3162f5bb3',
     checkNewDocumentTemplate: '570d0f8a-e5f2-4336-9f89-a09529a79c09',
     checkDocumentTemplate: '1cc2c765-967b-4ac6-87ba-6b2111566103',
+    paymentsAuthorize: 'a45eac79-4ba1-4265-8dff-3932adb15468',
+    paymentsCallback: '881674fb-821c-45af-8380-e38f0a45cf3c',
+    paymentsConnectPage: '91709696-077e-4e77-9417-ced30a737dda',
+    paymentLinkRoute: '81e8113b-5358-4968-b960-ea56ab4f9a9e',
+    paymentsConnectStatus: 'a2eebe79-a8f2-4762-8df1-bf5bb3e52443',
+    paymentsReconcile: '42652410-b706-4f86-b0c8-d4cb1332a658',
+  },
+  connectionProviders: {
+    stripe: 'aa3a5baa-961b-4c44-b188-219701058874',
+    revolut: '384e5e98-4bff-4b00-a107-514bb8addc24',
   },
 } as const;

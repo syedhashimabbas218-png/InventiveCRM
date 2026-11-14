@@ -45,6 +45,7 @@ export type BusinessProfile = {
   sendOnIssue: boolean | null;
   sendOverdueReminders: boolean | null;
   emailSendingMethod: 'OUR_SERVER' | 'CLIENT_MAILBOX' | null;
+  onlinePayments?: 'NONE' | 'STRIPE' | 'REVOLUT' | null;
   clientMailbox: string | null;
   emailMessage: string | null;
 };

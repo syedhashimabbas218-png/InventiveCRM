@@ -4,6 +4,7 @@ import { gql, nodes, uploadFile } from 'src/lib/api';
 import { type Address, type BusinessProfile, type Customer, checkInvoice, checkQuote } from 'src/lib/compliance';
 import { addDays, nextRecurrenceDate, todayInLondon } from 'src/lib/dates';
 import { computeLineNetPence, computeTotals, computeVatPence, gbp, microsToPence } from 'src/lib/money';
+import { ensurePaymentLink } from 'src/lib/payments';
 import { deliverDocument } from 'src/lib/delivery';
 import { renderDocumentPdf } from 'src/lib/document-layout';
 import { buildInvoicePdfModel, buildQuotePdfModel, type TemplateLine } from 'src/lib/templates';
@@ -52,7 +53,7 @@ export const loadProfile = async (): Promise<BusinessProfile | null> => {
       vatRegistered vatNumber email phone website bankName bankAccountName sortCode accountNumber iban bic
       invoicePrefix quotePrefix creditNotePrefix nextInvoiceNumber nextQuoteNumber nextCreditNoteNumber numberPadding
       defaultPaymentTermsDays quoteValidityDays vatRounding paymentInstructions invoiceFooter includeLatePaymentNotice
-      sendOnIssue sendOverdueReminders emailSendingMethod clientMailbox emailMessage
+      sendOnIssue sendOverdueReminders emailSendingMethod clientMailbox emailMessage onlinePayments
     } } }
   }`);
   return nodes(data.businessProfiles)[0] ?? null;
@@ -383,6 +384,9 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
     const creditedTotal = microsToPence(invoice.creditedInvoice.total?.amountMicros);
     if (creditedTotal > 0 && totals.totalPence >= creditedTotal) await updateInvoice(invoice.creditedInvoice.id, { status: 'VOID' });
   }
+  // A pay-now link goes into the first email; if the provider is down the invoice is still issued and sent.
+  if (kind !== 'CREDIT_NOTE' && (profile.onlinePayments === 'STRIPE' || profile.onlinePayments === 'REVOLUT'))
+    await ensurePaymentLink(invoiceId, profile.onlinePayments, profile.tradingName || profile.legalName || '').catch((error: Error) => console.error(`Could not create a payment link for invoice ${invoiceId}: ${error.message}`));
   await sendAfterIssue('invoice', invoiceId, profile);
   return { issued: true, issues: [], number };
 };

@@ -31,6 +31,7 @@ export type SendableDocument = {
   validUntil: string | null;
   pdf: PdfFile | null;
   recipient: Recipient | null;
+  paymentUrl: string | null;
 };
 
 type PdfFile = { fileId: string; label: string; url: string };
@@ -43,7 +44,7 @@ type DocumentNode = {
   person: Recipient | null;
 };
 
-type InvoiceNode = DocumentNode & { invoiceNumber: string; kind: string | null; dueDate: string | null };
+type InvoiceNode = DocumentNode & { invoiceNumber: string; kind: string | null; dueDate: string | null; paymentLinkUrl: string | null; paymentLinkStatus: string | null };
 type QuoteNode = DocumentNode & { quoteNumber: string; validUntil: string | null };
 
 const RECIPIENT = `person { id name { firstName lastName } emails { primaryEmail } phones { primaryPhoneNumber primaryPhoneCallingCode } preferredChannel whatsappOptIn }`;
@@ -51,7 +52,7 @@ const RECIPIENT = `person { id name { firstName lastName } emails { primaryEmail
 const loadDocument = async (kind: DocumentKind, id: string): Promise<SendableDocument | null> => {
   if (kind === 'invoice') {
     const data = await gql<{ invoices: { edges: { node: InvoiceNode }[] } }>(
-      `query($id: UUID!) { invoices(filter: { id: { eq: $id } }) { edges { node { id invoiceNumber kind status total { amountMicros } issueDate dueDate pdf { fileId label url } ${RECIPIENT} } } } }`,
+      `query($id: UUID!) { invoices(filter: { id: { eq: $id } }) { edges { node { id invoiceNumber kind status total { amountMicros } issueDate dueDate paymentLinkUrl paymentLinkStatus pdf { fileId label url } ${RECIPIENT} } } } }`,
       { id },
     );
     const invoice = nodes(data.invoices)[0];
@@ -68,6 +69,7 @@ const loadDocument = async (kind: DocumentKind, id: string): Promise<SendableDoc
       validUntil: null,
       pdf: invoice.pdf?.[0] ?? null,
       recipient: invoice.person,
+      paymentUrl: invoice.paymentLinkStatus === 'OPEN' && invoice.paymentLinkUrl?.startsWith('https://') ? invoice.paymentLinkUrl : null,
     };
   }
   const data = await gql<{ quotes: { edges: { node: QuoteNode }[] } }>(
@@ -88,6 +90,7 @@ const loadDocument = async (kind: DocumentKind, id: string): Promise<SendableDoc
     validUntil: quote.validUntil,
     pdf: quote.pdf?.[0] ?? null,
     recipient: quote.person,
+    paymentUrl: null,
   };
 };
 
@@ -106,12 +109,14 @@ export const toE164 = (phones: Recipient['phones']): string | null => {
   return `${callingCode.startsWith('+') ? callingCode : `+${callingCode}`}${number.replace(/^0+/, '')}`;
 };
 
-export const buildEmail = (document: SendableDocument, profile: BusinessProfile, { reminder }: { reminder: boolean }) => {
+export const buildEmail = (document: SendableDocument, profile: BusinessProfile, { reminder, paymentLink = false }: { reminder: boolean; paymentLink?: boolean }) => {
   const label = DOCUMENT_LABEL[document.type];
   const amount = formatGbp(document.totalPence);
-  const subject = reminder
-    ? `Reminder: invoice ${document.number} from ${businessName(profile)} is overdue`
-    : `${label} ${document.number} from ${businessName(profile)}`;
+  const subject = paymentLink
+    ? `Pay invoice ${document.number} from ${businessName(profile)} online`
+    : reminder
+      ? `Reminder: invoice ${document.number} from ${businessName(profile)} is overdue`
+      : `${label} ${document.number} from ${businessName(profile)}`;
   const lines = [
     `Hello ${firstName(document.recipient)},`,
     '',
@@ -122,6 +127,8 @@ export const buildEmail = (document: SendableDocument, profile: BusinessProfile,
         : document.type === 'CREDIT_NOTE'
           ? `Please find attached credit note ${document.number} for ${amount}.`
           : `Please find attached invoice ${document.number} for ${amount}${document.dueDate ? `, due on ${formatUkDate(document.dueDate)}` : ''}.`,
+    ...(paymentLink ? ['', `You can pay invoice ${document.number} (${amount}) securely online:`] : document.paymentUrl ? ['', 'Pay online:'] : []),
+    ...(document.paymentUrl ? [document.paymentUrl] : []),
     ...(profile.emailMessage ? ['', profile.emailMessage] : []),
     '',
     'Kind regards,',
@@ -131,7 +138,15 @@ export const buildEmail = (document: SendableDocument, profile: BusinessProfile,
   return {
     subject,
     text: lines.join('\n'),
-    html: lines.map((line) => (line ? `<p>${escape(line)}</p>` : '')).join(''),
+    html: lines
+      .map((line) =>
+        line === document.paymentUrl && line
+          ? `<p><a href="${escape(line)}" style="display:inline-block;padding:10px 18px;border-radius:4px;background:#3e63dd;color:#ffffff;text-decoration:none;font-weight:600">Pay ${escape(amount)} now</a></p>`
+          : line
+            ? `<p>${escape(line)}</p>`
+            : '',
+      )
+      .join(''),
   };
 };
 
@@ -245,7 +260,7 @@ const sendEmail = async (document: SendableDocument, profile: BusinessProfile, t
 };
 
 // Self-hosted servers without PUBLIC_DOMAIN_URL leave TWENTY_FUNCTIONS_URL empty and serve routes on <workspace URL>/s.
-const functionsBaseUrl = async () => {
+export const functionsBaseUrl = async () => {
   if (process.env.TWENTY_FUNCTIONS_URL) return process.env.TWENTY_FUNCTIONS_URL.replace(/\/$/, '');
   const { currentWorkspace } = await metadata<{ currentWorkspace: { workspaceUrls: { customUrl: string | null; subdomainUrl: string } } }>(
     `{ currentWorkspace { workspaceUrls { customUrl subdomainUrl } } }`,
@@ -254,11 +269,11 @@ const functionsBaseUrl = async () => {
 };
 
 // Hands the document to the WhatsApp (WABA) service, which owns templates, numbers and the Meta connection.
-const handOffToWhatsApp = async (document: SendableDocument, profile: BusinessProfile, phone: string, deliveryId: string, reminder: boolean) => {
+const handOffToWhatsApp = async (document: SendableDocument, profile: BusinessProfile, phone: string, deliveryId: string, reminder: boolean, paymentLink = false) => {
   const { WHATSAPP_GATEWAY_URL, WHATSAPP_GATEWAY_SECRET } = process.env;
   if (!WHATSAPP_GATEWAY_URL || !WHATSAPP_GATEWAY_SECRET) throw new Error('The WhatsApp service is not configured (WHATSAPP_GATEWAY_URL and WHATSAPP_GATEWAY_SECRET).');
   const body = JSON.stringify({
-    event: reminder ? 'invoice.overdue_reminder' : `${document.type.toLowerCase()}.send`,
+    event: paymentLink ? 'invoice.payment_link' : reminder ? 'invoice.overdue_reminder' : `${document.type.toLowerCase()}.send`,
     deliveryId,
     business: { name: businessName(profile), replyEmail: profile.email || null },
     recipient: { name: [document.recipient?.name?.firstName, document.recipient?.name?.lastName].filter(Boolean).join(' '), phone, whatsappOptIn: true },
@@ -270,6 +285,7 @@ const handOffToWhatsApp = async (document: SendableDocument, profile: BusinessPr
       dueDate: document.dueDate,
       validUntil: document.validUntil,
       pdf: document.pdf ? { url: document.pdf.url, filename: document.pdf.label } : null,
+      paymentUrl: document.paymentUrl,
     },
     statusCallbackUrl: `${await functionsBaseUrl()}/whatsapp/status`,
   });
@@ -315,12 +331,14 @@ export const deliverDocument = async ({
   profile,
   channels,
   reminder = false,
+  paymentLink = false,
 }: {
   kind: DocumentKind;
   id: string;
   profile: BusinessProfile;
   channels?: DeliveryChannel[];
   reminder?: boolean;
+  paymentLink?: boolean;
 }): Promise<DeliveryResult[]> => {
   const document = await loadDocument(kind, id);
   if (!document || !document.number || !SENDABLE_STATUSES[kind].includes(document.status ?? '')) return [];
@@ -328,7 +346,8 @@ export const deliverDocument = async ({
   if (reminder && !(kind === 'invoice' && ['OVERDUE', 'PART_PAID'].includes(document.status ?? '') && document.dueDate && document.dueDate < todayInLondon())) return [];
   await assertWithinSendingLimits(document);
   const results: DeliveryResult[] = [];
-  const label = `${reminder ? 'Reminder for ' : ''}${DOCUMENT_LABEL[document.type]} ${document.number}`;
+  if (paymentLink && !document.paymentUrl) return [];
+  const label = `${paymentLink ? 'Payment link for ' : reminder ? 'Reminder for ' : ''}${DOCUMENT_LABEL[document.type]} ${document.number}`;
 
   for (const channel of channels ?? channelsFor(document.recipient)) {
     const recipient =
@@ -352,8 +371,8 @@ export const deliverDocument = async ({
         );
       const sent =
         channel === 'WHATSAPP'
-          ? await handOffToWhatsApp(document, profile, recipient, deliveryId, reminder)
-          : await sendEmail(document, profile, recipient, buildEmail(document, profile, { reminder }));
+          ? await handOffToWhatsApp(document, profile, recipient, deliveryId, reminder, paymentLink)
+          : await sendEmail(document, profile, recipient, buildEmail(document, profile, { reminder, paymentLink }));
       await updateDelivery(deliveryId, 'SENT', { method: sent.method, providerMessageId: sent.providerMessageId ?? '', sentAt: new Date().toISOString() });
       results.push({ channel, status: 'SENT', recipient });
     } catch (error) {

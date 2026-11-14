@@ -1,3 +1,4 @@
-keys/
 inv-state.json
-*.pdf
+gateway.log
+keys/
+user.token

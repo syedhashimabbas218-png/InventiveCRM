@@ -1,6 +1,6 @@
 import { defineObject } from 'twenty-sdk/define';
 
-import { INVOICE_KINDS, INVOICE_STATUSES, INVOICE_TEMPLATES, RECURRENCE_FREQUENCIES } from 'src/constants/enums';
+import { INVOICE_KINDS, INVOICE_STATUSES, INVOICE_TEMPLATES, PAYMENT_LINK_STATUSES, PAYMENT_PROVIDERS, RECURRENCE_FREQUENCIES } from 'src/constants/enums';
 import { IDS } from 'src/constants/ids';
 import {
   booleanField,
@@ -41,6 +41,12 @@ export default defineObject({
     moneyField({ universalIdentifier: field.total, name: 'total', label: 'Total', icon: 'IconCurrencyPound' }),
     moneyField({ universalIdentifier: field.amountPaid, name: 'amountPaid', label: 'Amount paid', icon: 'IconCash' }),
     dateField({ universalIdentifier: field.paidDate, name: 'paidDate', label: 'Paid on', icon: 'IconCalendarCheck' }),
+    selectField({ universalIdentifier: field.paymentLinkStatus, name: 'paymentLinkStatus', label: 'Online payment', icon: 'IconCreditCard' }, PAYMENT_LINK_STATUSES, 'NONE'),
+    textField({ universalIdentifier: field.paymentLinkUrl, name: 'paymentLinkUrl', label: 'Pay-now link', icon: 'IconLink' }),
+    selectField({ universalIdentifier: field.paymentProvider, name: 'paymentProvider', label: 'Paid through', icon: 'IconBuildingBank' }, PAYMENT_PROVIDERS, 'NONE'),
+    textField({ universalIdentifier: field.paymentReference, name: 'paymentReference', label: 'Payment reference', icon: 'IconHash' }),
+    numberField({ universalIdentifier: field.paymentLinkAmountPence, name: 'paymentLinkAmountPence', label: 'Link amount (pence)', icon: 'IconCurrencyPound' }, { integer: true }),
+    dateTimeField({ universalIdentifier: field.paymentLinkCreatedAt, name: 'paymentLinkCreatedAt', label: 'Link created', icon: 'IconClock' }),
     filesField({ universalIdentifier: field.pdf, name: 'pdf', label: 'PDF', icon: 'IconFileTypePdf' }),
     dateTimeField({ universalIdentifier: field.lastSentAt, name: 'lastSentAt', label: 'Last sent to client', icon: 'IconSend' }),
     textField({ universalIdentifier: field.layoutUsed, name: 'layoutUsed', label: 'Layout used', icon: 'IconTemplate', description: 'Which template was picked for the PDF, and why.' }),

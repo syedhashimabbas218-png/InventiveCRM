@@ -52,6 +52,10 @@ Meta template in InventiveChat.
 | Event | App | Payload (besides `event`, `deliveryId`, `business`, `recipient`) |
 |---|---|---|
 | `feedback.survey` | Feedback | `survey: { url, question }`. A utility template with the question and a button to `url`. No status callback is required |
+| `invoice.payment_link` | Quotes & Invoices | The same `document` object as `invoice.send`, with `document.paymentUrl` set. A utility template ("pay invoice … online") with a button to `paymentUrl`. Status callbacks as for documents |
+
+Every `document` object also carries `paymentUrl` (null when the invoice has no open pay-now link); templates for
+`invoice.send` and `invoice.overdue_reminder` may show it as a button.
 
 ## 2. Status callback (WhatsApp service to app)
 
