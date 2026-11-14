@@ -54,6 +54,30 @@ Meta template in InventiveChat.
 | `feedback.survey` | Feedback | `survey: { url, question }`. A utility template with the question and a button to `url`. No status callback is required |
 | `invoice.payment_link` | Quotes & Invoices | The same `document` object as `invoice.send`, with `document.paymentUrl` set. A utility template ("pay invoice … online") with a button to `paymentUrl`. Status callbacks as for documents |
 
+### `campaign.message` (Campaign Studio)
+
+Marketing campaigns arrive in batches of up to 100 and have their own shape: no `deliveryId`, `business` or `recipient`.
+
+```json
+{
+  "event": "campaign.message",
+  "campaignId": "8e76131c-88c2-41cd-8c79-e881a8f193bb",
+  "template": { "name": "spring_offer", "language": "en_GB" },
+  "messages": [
+    { "recipientId": "21bc1b08-4524-4ef2-b0fc-ba5818be5044", "to": "+447700900111", "variables": ["Ann", "20%"], "optOutUrl": "https://.../s/campaigns/unsubscribe/..." }
+  ],
+  "statusCallbackUrl": "https://acme.crm.inventiveweb.studio/s/campaigns/whatsapp/status"
+}
+```
+
+`template.name` is a Meta-approved marketing template; `variables` fill `{{1}}`, `{{2}}`, … in order. Answer 200 with
+the messages you accepted: `{ "accepted": [{ "recipientId": "…", "messageId": "wamid…" }] }`. Messages left out are
+marked failed. Campaign Studio only sends to contacts with **Agreed to marketing on WhatsApp** ticked.
+
+Status callbacks go to `statusCallbackUrl`, signed as above:
+`{ "recipientId": "…", "status": "delivered" | "read" | "failed" | "opted_out", "error": "…" }`. Send `opted_out` when
+the contact replies STOP or blocks the number: the app adds them to the do-not-contact list and removes their consent.
+
 Every `document` object also carries `paymentUrl` (null when the invoice has no open pay-now link); templates for
 `invoice.send` and `invoice.overdue_reminder` may show it as a button.
 
@@ -69,4 +93,4 @@ Every `document` object also carries `paymentUrl` (null when the invoice has no 
 
 ## 3. What stays in the WhatsApp service
 
-Meta Business verification and the WABA, phone numbers per business (or one shared number), approved templates for each `event`, the 24-hour customer-service window, opt-out keywords (STOP), retries and rate limits. There is no opt-out callback yet: when a client opts out, untick **Agreed to WhatsApp messages** on the contact.
+Meta Business verification and the WABA, phone numbers per business (or one shared number), approved templates for each `event`, the 24-hour customer-service window, opt-out keywords (STOP), retries and rate limits. For documents there is no opt-out callback: when a client opts out, untick **Agreed to WhatsApp messages** on the contact. Campaign opt-outs use the `opted_out` status above.
