@@ -44,6 +44,15 @@ The service must reject a request with a wrong signature or a timestamp more tha
 
 Response: any 2xx with `{ "messageId": "wamid...." }` means accepted (the Delivery becomes **Sent**). Any other status, with an optional `{ "error": "..." }`, marks the Delivery **Failed** with that reason. Answer within 30 seconds; queue the Meta call if it may be slower.
 
+## 1a. Other events from other apps
+
+The same endpoint, headers and signature receive events from the other InventiveCRM apps. Each needs its own approved
+Meta template in InventiveChat.
+
+| Event | App | Payload (besides `event`, `deliveryId`, `business`, `recipient`) |
+|---|---|---|
+| `feedback.survey` | Feedback | `survey: { url, question }`. A utility template with the question and a button to `url`. No status callback is required |
+
 ## 2. Status callback (WhatsApp service to app)
 
 `POST {statusCallbackUrl}`, signed the same way with the same secret and headers.
