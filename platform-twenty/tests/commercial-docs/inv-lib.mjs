@@ -24,5 +24,8 @@ export const waitFor = async (label, check, timeoutMs = 60000) => {
 };
 const results = [];
 export const assert = (name, passed, detail = '') => { results.push(passed); console.log(`${passed ? 'PASS' : 'FAIL'} ${name}${detail ? ` -- ${detail}` : ''}`); };
-export const summary = () => console.log(`SUMMARY ${results.filter(Boolean).length}/${results.length} passed`);
+export const summary = () => {
+  console.log(`SUMMARY ${results.filter(Boolean).length}/${results.length} passed`);
+  if (!results.every(Boolean)) process.exitCode = 1;
+};
 export const pounds = (money) => (Number(money?.amountMicros ?? 0) / 1_000_000).toFixed(2);

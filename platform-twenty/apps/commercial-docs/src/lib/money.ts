@@ -44,15 +44,13 @@ export const computeTotals = (
   lines: LineInput[],
   { rounding, reverseCharge }: { rounding: VatRounding; reverseCharge: boolean },
 ): DocumentTotals => {
-  const computedLines = lines.map((line) => {
-    const netPence = computeLineNetPence(line);
-    return { netPence, vatPence: computeVatPence(netPence, line.vatRate, rounding) };
-  });
-
+  const computedLines: DocumentTotals['lines'] = [];
   const netByRate = new Map<VatRate, number>();
-  lines.forEach((line, index) => {
-    netByRate.set(line.vatRate, (netByRate.get(line.vatRate) ?? 0) + computedLines[index].netPence);
-  });
+  for (const line of lines) {
+    const netPence = computeLineNetPence(line);
+    computedLines.push({ netPence, vatPence: computeVatPence(netPence, line.vatRate, rounding) });
+    netByRate.set(line.vatRate, (netByRate.get(line.vatRate) ?? 0) + netPence);
+  }
 
   const breakdown = [...netByRate.entries()].map(([vatRate, netPence]) => ({
     vatRate,

@@ -53,7 +53,7 @@ type FairnessRow = { advisorId: string; status: string; createdAt: string; start
 
 // Fairness comes from the bookings themselves: cancelled ones do not count, so a cancelled assignment returns to the
 // pool (see README, "Round-robin fairness").
-const fairnessCandidates = async (type: AppointmentTypeRecord, available: AdvisorAvailability[], start: number, now: number): Promise<AssignmentCandidate[]> => {
+const fairnessCandidates = async (type: AppointmentTypeRecord, available: AdvisorAvailability[], now: number): Promise<AssignmentCandidate[]> => {
   const ids = available.map((item) => item.advisor.id);
   const windowDays = type.team?.fairnessWindowDays ?? 30;
   const data = await gql<{ appointments: { edges: { node: FairnessRow }[] } }>(
@@ -99,7 +99,7 @@ const tickRows = (advisorId: string, start: number, end: number, type: Appointme
   reservationKeys(advisorId, heldInterval(start, end, type.bufferBeforeMinutes ?? 0, type.bufferAfterMinutes ?? 0)).map((key) => ({
     key,
     advisorId,
-    startsAt: key.split('|')[1],
+    startsAt: key.slice(advisorId.length + 1),
   }));
 
 type Plan = { hostId: string; participants: string[]; rows: { key: string; advisorId: string; startsAt: string }[]; sessionKey: string; seat: number | null; reason: string };
@@ -121,10 +121,12 @@ const orderedPlans = async (request: BookingRequest, candidates: AdvisorAvailabi
   const { type } = request;
   const capacity = Math.max(1, type.capacity ?? 1);
   const at = new Date(start).toISOString();
+  const [first] = candidates;
+  if (!first) return [];
 
   if (type.assignment === 'COLLECTIVE') {
     const everyone = candidates.map((item) => item.advisor.id);
-    const hostId = type.ownerId && everyone.includes(type.ownerId) ? type.ownerId : everyone[0];
+    const hostId = type.ownerId && everyone.includes(type.ownerId) ? type.ownerId : first.advisor.id;
     return [
       {
         hostId,
@@ -139,7 +141,7 @@ const orderedPlans = async (request: BookingRequest, candidates: AdvisorAvailabi
 
   let ordered: { advisorId: string; reason: string }[];
   const geoRanked = ['NEAREST', 'FASTEST', 'FIRST_AVAILABLE_NEARBY', 'WITHIN_RADIUS', 'TERRITORY'].includes(type.locationMode);
-  if (candidates.length === 1) ordered = [{ advisorId: candidates[0].advisor.id, reason: request.advisorId ? 'Chosen by the customer' : 'Only eligible advisor' }];
+  if (candidates.length === 1) ordered = [{ advisorId: first.advisor.id, reason: request.advisorId ? 'Chosen by the customer' : 'Only eligible advisor' }];
   else if (geoRanked && type.locationMode !== 'WITHIN_RADIUS' && type.locationMode !== 'TERRITORY')
     ordered = candidates.map((item, index) => ({
       advisorId: item.advisor.id,
@@ -147,7 +149,7 @@ const orderedPlans = async (request: BookingRequest, candidates: AdvisorAvailabi
     }));
   else {
     const strategy = (type.assignment === 'FIRST_AVAILABLE' ? 'FIRST_AVAILABLE' : type.roundRobinStrategy || 'EQUAL') as RoundRobinStrategy;
-    const pick = pickAdvisor(await fairnessCandidates(type, candidates, start, now), strategy);
+    const pick = pickAdvisor(await fairnessCandidates(type, candidates, now), strategy);
     ordered = pick ? [pick.winner, ...pick.fallbacks].map((candidate, index) => ({ advisorId: candidate.advisorId, reason: index === 0 ? pick.reason : `${strategy}: next in line after a clash` })) : [];
   }
 
@@ -366,8 +368,8 @@ export const rescheduleAppointment = async (appointment: AppointmentRecord, newS
   if (appointment.status === 'CANCELLED') throw new BookingError('NOT_BOOKABLE', 'This appointment was cancelled.');
   if (enforceCutoff) assertBefore(appointment, type.rescheduleCutoffHours, 'reschedule', now);
   const end = newStart + type.durationMinutes * MINUTE;
-  const participants = nodes(appointment.participants).map((participant) => participant.advisorId);
-  const advisors = participants.length > 0 ? participants : [appointment.advisorId];
+  const [firstAdvisorId = appointment.advisorId, ...otherAdvisorIds] = nodes(appointment.participants).map((participant) => participant.advisorId);
+  const advisors = [firstAdvisorId, ...otherAdvisorIds];
 
   const oldRows = await gql<{ slotReservations: { edges: { node: { key: string } }[] } }>(
     `query($id: UUID!) { slotReservations(filter: { appointmentId: { eq: $id } }, first: 1000) { edges { node { key } } } }`,
@@ -379,8 +381,8 @@ export const rescheduleAppointment = async (appointment: AppointmentRecord, newS
       ? { point: { lat: appointment.customerLatitude, lng: appointment.customerLongitude }, postcode: appointment.customerPostcode || null, label: appointment.location }
       : null;
   const search = await searchAvailability({
-    type: { ...type, assignment: advisors.length > 1 ? 'COLLECTIVE' : 'ONE_TO_ONE', ownerId: advisors[0], locationMode: 'NONE' },
-    fixedAdvisorId: advisors.length > 1 ? null : advisors[0],
+    type: { ...type, assignment: advisors.length > 1 ? 'COLLECTIVE' : 'ONE_TO_ONE', ownerId: firstAdvisorId, locationMode: 'NONE' },
+    fixedAdvisorId: advisors.length > 1 ? null : firstAdvisorId,
     from: newStart - DAY,
     to: end + DAY,
     now,

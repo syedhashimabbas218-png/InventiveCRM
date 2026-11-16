@@ -215,7 +215,11 @@ export const Designer = ({ design, brand, subject, previewText, onChange }: { de
     const target = index + offset;
     if (target < 0 || target >= design.blocks.length) return;
     const blocks = [...design.blocks];
-    [blocks[index], blocks[target]] = [blocks[target], blocks[index]];
+    const moved = blocks[index];
+    const displaced = blocks[target];
+    if (!moved || !displaced) return;
+    blocks[index] = displaced;
+    blocks[target] = moved;
     update(blocks);
   };
   const add = (type: BlockType) => {

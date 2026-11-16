@@ -34,6 +34,8 @@ node restricted-role.mjs state.json acme.key
 node security.mjs state.json acme.key
 ```
 
+On a test server without OSRM, set `ROAD_ROUTING=off`: the two road-routing checks are then reported as skipped instead of failing. `../run-all.sh` runs these suites and the other apps' in one go and starts the doubles.
+
 `e2e.mjs` clears the app's appointments, reservations, sync rows, audit events and rate-limit counters first, so it can be rerun. `glow.key` is a second workspace, used to check isolation. `browser.cjs` saves screenshots to `shots/` and undoes the changes it makes to Alice's availability. `restricted-role.mjs` gives Bob a role without permanent delete for the duration of the check, then puts his role back.
 
 ## What is covered

@@ -56,9 +56,17 @@ To roll back by hand later (for example a problem found the next day): `deploy/o
 
 ## Releasing an app
 
-The same steps for Quotes & Invoices (`apps/commercial-docs`, id `93ae1d55-5c54-4fac-922b-fd9fa4a69ab5`) and Scheduling (`apps/scheduling`, id `54c65493-4e80-4efa-824a-456671383c86`).
+The same steps for every app under `apps/`:
 
-1. Bump `version` in the app's `package.json`; run `yarn install --immutable`, `yarn test` and `yarn typecheck`. Each app commits its `yarn.lock` (the CLI will not build without one) and pins every dependency exactly. Yarn 4.18 refuses packages published in the last few days, so a brand-new SDK release can only be used once Yarn accepts it.
+| App | Folder | Application id |
+|---|---|---|
+| Quotes & Invoices | `apps/commercial-docs` | `93ae1d55-5c54-4fac-922b-fd9fa4a69ab5` |
+| Scheduling | `apps/scheduling` | `54c65493-4e80-4efa-824a-456671383c86` |
+| Feedback | `apps/feedback` | `f69757a9-c451-4ac3-8042-79a99ad8e749` |
+| Campaign Studio | `apps/campaigns` | `992fae47-c2c3-4731-b8aa-ebdcdb466631` |
+| Team chat | `apps/team-chat` | `6c6eba62-6fc2-487e-a212-3b8b01bb4365` |
+
+1. Bump `version` in the app's `package.json`; run `scripts/check-apps.sh <app>` (`yarn install --immutable`, `yarn typecheck`, `yarn test`), then the end-to-end suites on the throwaway test server with `tests/run-all.sh`. Each app commits its `yarn.lock` (the CLI will not build without one) and pins every dependency exactly. Yarn 4.18 refuses packages published in the last few days, so a brand-new SDK release can only be used once Yarn accepts it.
 2. `npx twenty@2.54.3 app plan --remote owner --json | node ../../scripts/check-app-plan.mjs`: must report 0 to destroy.
 3. `npx twenty@2.54.3 app publish --private --remote owner`.
 4. `app install --universal-identifier <app id>` in our workspace, check, then one client, then the rest.

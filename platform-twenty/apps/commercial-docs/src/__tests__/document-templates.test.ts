@@ -31,8 +31,8 @@ const profile = {
 } as BusinessProfile;
 
 const lines = [
-  { description: 'Rewire kitchen', quantity: 1, unit: null, unitPricePence: 45000, vatRate: 'STANDARD_20' as const },
-  { description: 'Smoke alarm', quantity: 3, unit: 'item', unitPricePence: 2500, vatRate: 'STANDARD_20' as const },
+  { description: 'Rewire kitchen', quantity: 1, unit: null, unitPricePence: 45000, discountPercent: 0, vatRate: 'STANDARD_20' as const },
+  { description: 'Smoke alarm', quantity: 3, unit: 'item', unitPricePence: 2500, discountPercent: 0, vatRate: 'STANDARD_20' as const },
 ];
 const model = buildInvoicePdfModel({
   profile,

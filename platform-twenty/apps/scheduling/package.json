@@ -1,6 +1,6 @@
 {
   "name": "inventivecrm-scheduling",
-  "version": "0.3.4",
+  "version": "0.3.6",
   "private": true,
   "license": "UNLICENSED",
   "description": "InventiveCRM Scheduling: appointment types, availability, team and location-based booking, public booking pages and Google/Microsoft calendar sync for Twenty",
@@ -14,7 +14,7 @@
   "packageManager": "yarn@4.18.1",
   "scripts": {
     "twenty": "twenty",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest run"
   },
   "dependencies": {

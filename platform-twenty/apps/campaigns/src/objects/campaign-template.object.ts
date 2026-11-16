@@ -2,7 +2,7 @@ import { defineObject } from 'twenty-sdk/define';
 
 import { TEMPLATE_CATEGORIES } from 'src/constants/enums';
 import { IDS } from 'src/constants/ids';
-import { dateTimeField, jsonField, numberField, selectField, textField } from 'src/objects/field-builders';
+import { jsonField, selectField, textField } from 'src/objects/field-builders';
 
 const field = IDS.template.fields;
 

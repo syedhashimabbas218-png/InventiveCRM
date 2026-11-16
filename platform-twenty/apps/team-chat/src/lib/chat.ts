@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { asApplication, gql, metadata, nodes } from 'src/lib/api';
 import { channelNameKey, channelSeal, decryptText, directConversationKey, encryptText, memberKey, membershipSeal, sealMatches } from 'src/lib/crypto';
-import { channelName, cleanBody, cleanLinks, cleanMentions, isUuid, LINKABLE_OBJECTS, MESSAGES_PER_MINUTE, type RecordLink } from 'src/lib/rules';
+import { CHANNELS_PER_HOUR, channelName, cleanBody, cleanLinks, cleanMentions, isUuid, LINKABLE_OBJECTS, MESSAGES_PER_MINUTE, type RecordLink } from 'src/lib/rules';
 
 export class ChatError extends Error {
   constructor(
@@ -117,7 +117,9 @@ const ensureGeneral = async (memberId: string) => {
     // Two first visits at the same moment can each create one; keep the oldest.
     for (const extra of generals.slice(1)) await gql(`mutation($id: UUID!) { deleteChatChannel(id: $id) { id } }`, { id: extra.id });
   }
-  await addMembership(generals[0].id, memberId);
+  const [general] = generals;
+  if (!general) throw new Error('The general channel could not be created.');
+  await addMembership(general.id, memberId);
 };
 
 // Counting is skipped for channels with nothing new, which is most of them on most polls.
@@ -266,8 +268,8 @@ const post: Handler = async (body, memberId) => {
   const now = created.createChatMessage.createdAt;
   await gql(`mutation($id: UUID!, $data: ChatChannelUpdateInput!) { updateChatChannel(id: $id, data: $data) { id } }`, { id: channel.id, data: { lastMessageAt: now } });
   for (const mentioned of mentions) {
-    const existing = rows.filter((row) => row.workspaceMemberId === memberKey(mentioned) && isOwnMembership(row, mentioned));
-    if (existing.length) await updateMemberships(existing.slice(0, 1), { unreadMentions: (existing[0].unreadMentions ?? 0) + 1 });
+    const existing = rows.find((row) => row.workspaceMemberId === memberKey(mentioned) && isOwnMembership(row, mentioned));
+    if (existing) await updateMemberships([existing], { unreadMentions: (existing.unreadMentions ?? 0) + 1 });
     else await addMembership(channel.id, mentioned, { unreadMentions: 1, lastReadAt: new Date(Date.parse(now) - 1).toISOString() });
   }
   await updateMemberships(
@@ -313,11 +315,19 @@ const markRead: Handler = async (body, memberId) => {
   return { read: true };
 };
 
+// Channels and direct conversations are never deleted by the app, so starting them is capped per person.
+const refuseTooManyChannels = async (memberId: string) => {
+  const variables = { me: memberKey(memberId), since: new Date(Date.now() - 3_600_000).toISOString() };
+  const recent = await gql<{ chatChannels: { totalCount: number } }>(`query($me: String, $since: DateTime) { chatChannels(filter: { createdByMemberId: { eq: $me }, createdAt: { gt: $since } }) { totalCount } }`, variables);
+  if (recent.chatChannels.totalCount >= CHANNELS_PER_HOUR) throw new ChatError('You have started a lot of channels and conversations in the last hour. Try again later.', 429);
+};
+
 const createChannel: Handler = async (body, memberId) => {
   const name = channelName(body.name);
   if (name.length < 2) throw new ChatError('Give the channel a name of at least two letters.');
   const taken = (await channelsWhere('{ directKey: { eq: $key }, kind: { eq: CHANNEL } }', { key: channelNameKey(name) }, '$key: String')).some((channel) => !channel.archived);
   if (taken) throw new ChatError(`There is already a #${name} channel.`);
+  await refuseTooManyChannels(memberId);
   const id = await createChannelRecord({
     name,
     topic: typeof body.topic === 'string' ? body.topic.trim().slice(0, 250) : '',
@@ -390,10 +400,12 @@ const openDirect: Handler = async (body, memberId) => {
   const find = () => channelsWhere('{ directKey: { eq: $key }, kind: { eq: DIRECT } }', { key }, '$key: String');
   let found = await find();
   if (found.length === 0) {
+    await refuseTooManyChannels(memberId);
     await createChannelRecord({ name: '', topic: '', kind: 'DIRECT', visibility: 'PRIVATE', directKey: key, createdBy: memberId });
     found = await find();
   }
-  const channelId = found[0].id;
+  const channelId = found[0]?.id;
+  if (!channelId) throw new Error('The conversation could not be created.');
   for (const id of new Set([memberId, otherId])) await addMembership(channelId, id);
   return { id: channelId };
 };

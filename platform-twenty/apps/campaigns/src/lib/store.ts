@@ -248,7 +248,7 @@ export const loadBrand = async (): Promise<Brand & { id: string | null }> => {
   return Object.fromEntries(Object.entries({ ...DEFAULT_BRAND, ...raw }).map(([key, value]) => [key, value ?? (DEFAULT_BRAND as Record<string, string>)[key] ?? ''])) as Brand & { id: string };
 };
 
-export const saveBrand = async (data: Partial<Brand>) => {
+export const saveBrand = async (data: Partial<Brand> & { trackingKey?: string }) => {
   const brand = await loadBrand();
   if (brand.id) await gql(`mutation($id: UUID!, $data: CampaignBrandUpdateInput!) { updateCampaignBrand(id: $id, data: $data) { id } }`, { id: brand.id, data });
   else await gql(`mutation($data: CampaignBrandCreateInput!) { createCampaignBrand(data: $data) { id } }`, { data: { ...DEFAULT_BRAND, name: 'Brand kit', ...data } });

@@ -1,9 +1,8 @@
 import { defineLogicFunction } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
-import { functionsBaseUrl } from 'src/lib/engine';
 import { ensureWebhook, validateKey } from 'src/lib/resend';
-import { webhookToken } from 'src/lib/tokens';
+import { webhookUrl } from 'src/lib/webhook-auth';
 
 type CallbackPayload = { httpMethod: 'GET' | 'POST'; body: Record<string, unknown> | null };
 
@@ -13,7 +12,7 @@ const handler = async (payload: CallbackPayload) => {
   if (payload.httpMethod !== 'POST' || !key) return null;
   try {
     const { fingerprint, domains } = await validateKey(key);
-    const webhook = `${await functionsBaseUrl()}/campaigns/webhook/${webhookToken()}`;
+    const webhook = await webhookUrl();
     if (webhook.startsWith('https://')) await ensureWebhook(key, webhook).catch((error: Error) => console.error(`resend webhook setup: ${error.message}`));
     const verified = domains.filter((domain) => domain.status === 'verified').map((domain) => domain.name);
     return { externalAccountId: `resend-${fingerprint}`, handle: `Resend key ending ${key.slice(-4)}${verified.length ? ` (${verified.slice(0, 3).join(', ')})` : ''}`.slice(0, 200), accessToken: key };

@@ -284,7 +284,7 @@ export const CampaignReport = ({ campaignId, onBack, onOpenCampaign, openRecipie
         <Tile label={campaign.channel === 'EMAIL' ? 'Opened' : 'Read'} value={percent(counts.openedCount, counts.deliveredCount)} hint={`${counts.openedCount} people`} />
         {campaign.channel === 'EMAIL' && <Tile label="Clicked" value={percent(counts.clickedCount, counts.deliveredCount)} hint={`${counts.clickedCount} people`} />}
         <Tile label="Unsubscribed" value={String(counts.unsubscribedCount)} />
-        <Tile label="Bounced or failed" value={String(counts.bouncedCount + counts.failedCount)} hint={counts.complainedCount ? `${counts.complainedCount} marked it as spam` : undefined} />
+        <Tile label="Bounced or failed" value={String((counts.bouncedCount ?? 0) + (counts.failedCount ?? 0))} hint={counts.complainedCount ? `${counts.complainedCount} marked it as spam` : undefined} />
       </TileRow>
       {campaign.channel === 'EMAIL' && <Hint>Opens are estimates: some mail apps load images automatically and some block them. Clicks are the more reliable signal.</Hint>}
       <Grid>
@@ -503,7 +503,7 @@ export const BrandKit = ({ overview, onBack, onSaved }: { overview: Overview; on
           <Select value={brand.fontFamily} onChange={(event) => setBrand({ ...brand, fontFamily: event.target.value })}>
             {overview.fonts.map((font) => (
               <option key={font} value={font}>
-                {font.split(',')[0].replace(/'/g, '')}
+                {(font.split(',')[0] ?? font).replace(/'/g, '')}
               </option>
             ))}
           </Select>

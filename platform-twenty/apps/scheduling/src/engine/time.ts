@@ -52,12 +52,12 @@ export const offsetMs = (utcMs: number, timeZone: string) => {
 };
 
 const parseDate = (date: string) => {
-  const [year, month, day] = date.split('-').map(Number);
+  const [year = NaN, month = NaN, day = NaN] = date.split('-').map(Number);
   return { year, month, day };
 };
 
 export const parseTime = (time: string) => {
-  const [hour, minute] = time.split(':').map(Number);
+  const [hour = NaN, minute = NaN] = time.split(':').map(Number);
   return hour * 60 + minute;
 };
 
@@ -67,7 +67,7 @@ export const zonedToUtc = (date: string, time: string, timeZone: string): number
   const { year, month, day } = parseDate(date);
   const minutes = parseTime(time);
   const naive = Date.UTC(year, month - 1, day) + minutes * MINUTE;
-  const candidates = [naive - offsetMs(naive - 12 * HOUR, timeZone), naive - offsetMs(naive + 12 * HOUR, timeZone)];
+  const candidates = [naive - offsetMs(naive - 12 * HOUR, timeZone), naive - offsetMs(naive + 12 * HOUR, timeZone)] as const;
   const exact = candidates.filter((candidate) => {
     const wall = utcToZoned(candidate, timeZone);
     return wall.date === date && wall.minutes === minutes % (24 * 60);
@@ -93,7 +93,7 @@ export const addDays = (date: string, days: number) => {
 
 export const weekdayOf = (date: string): Weekday => {
   const { year, month, day } = parseDate(date);
-  return WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+  return WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]!;
 };
 
 // ISO week key (e.g. 2026-W45) for weekly booking limits, computed on the local date.

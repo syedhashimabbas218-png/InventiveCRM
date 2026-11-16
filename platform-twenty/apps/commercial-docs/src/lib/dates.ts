@@ -39,7 +39,7 @@ export const nextRecurrenceDate = (date: string, frequency: RecurrenceFrequency,
 
 export const formatUkDate = (date: string | null | undefined): string => {
   if (!date) return '';
-  const [year, month, day] = date.slice(0, 10).split('-').map(Number);
+  const [year = NaN, month = NaN, day = NaN] = date.slice(0, 10).split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',

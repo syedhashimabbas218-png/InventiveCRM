@@ -1,6 +1,6 @@
 {
   "name": "inventivecrm-commercial-docs",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "license": "UNLICENSED",
   "description": "InventiveCRM Quotes & Invoices: UK quotes, VAT invoices, credit notes, recurring billing and sending by email or WhatsApp",
@@ -14,7 +14,7 @@
   "packageManager": "yarn@4.18.1",
   "scripts": {
     "twenty": "twenty",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest run"
   },
   "dependencies": {

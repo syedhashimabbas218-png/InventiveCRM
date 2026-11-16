@@ -224,16 +224,18 @@ const usable = (candidate: TemplateCandidate, context: TemplateContext): string 
 // then the higher priority, then the newest.
 export const selectTemplate = (candidates: TemplateCandidate[], context: TemplateContext) => {
   const eligible = candidates.filter((candidate) => usable(candidate, context) === null);
-  const score = (candidate: TemplateCandidate) => [
-    candidate.companyId ? 1 : 0,
-    candidate.documentType === 'ANY' ? 0 : 1,
-    candidate.vatScheme === 'ANY' ? 0 : 1,
-    candidate.priority,
-    Date.parse(candidate.createdAt) || 0,
+  const criteria: ((candidate: TemplateCandidate) => number)[] = [
+    (candidate) => (candidate.companyId ? 1 : 0),
+    (candidate) => (candidate.documentType === 'ANY' ? 0 : 1),
+    (candidate) => (candidate.vatScheme === 'ANY' ? 0 : 1),
+    (candidate) => candidate.priority,
+    (candidate) => Date.parse(candidate.createdAt) || 0,
   ];
   const [winner] = [...eligible].sort((first, second) => {
-    const [a, b] = [score(first), score(second)];
-    for (let index = 0; index < a.length; index += 1) if (a[index] !== b[index]) return b[index] - a[index];
+    for (const criterion of criteria) {
+      const [a, b] = [criterion(first), criterion(second)];
+      if (a !== b) return b - a;
+    }
     return 0;
   });
   if (!winner) return { template: null, reason: 'Built-in UK layout (no matching ready template).' };

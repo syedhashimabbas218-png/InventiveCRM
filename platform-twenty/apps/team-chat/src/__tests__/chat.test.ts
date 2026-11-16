@@ -23,7 +23,7 @@ describe('message encryption', () => {
     expect(decryptText(sealed, A)).toBe('Lunch at 1? 🍕');
     expect(decryptText(sealed, B)).toBeNull();
     const parts = sealed.split('.');
-    expect(decryptText(`${parts[0]}.${parts[1]}.${parts[2].slice(0, -2)}AA`, A)).toBeNull();
+    expect(decryptText(`${parts[0]}.${parts[1]}.${parts[2]?.slice(0, -2)}AA`, A)).toBeNull();
     expect(decryptText('plain text', A)).toBeNull();
     process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-b');
     expect(decryptText(sealed, A)).toBeNull();

@@ -392,8 +392,8 @@ const Chat = () => {
           const known = new Set(current.map((message) => message.id));
           return [...current.filter((message) => !removed.has(message.id)).map((message) => changed.get(message.id) ?? message), ...fresh.filter((message) => !known.has(message.id) && !removed.has(message.id))];
         });
-        if (fresh.length) {
-          const newest = fresh[fresh.length - 1].createdAt;
+        const newest = fresh[fresh.length - 1]?.createdAt;
+        if (newest) {
           if (!latest.current || newest > latest.current) latest.current = newest;
           callChat({ action: 'markRead', channelId, upTo: latest.current }).catch(() => {});
         }
@@ -412,10 +412,11 @@ const Chat = () => {
 
   const loadEarlier = async () => {
     const channelId = activeId;
-    if (!channelId || messages.length === 0 || loadingEarlier) return;
+    const earliest = messages[0];
+    if (!channelId || !earliest || loadingEarlier) return;
     setLoadingEarlier(true);
     try {
-      const result = await callChat<{ messages: Message[]; hasMore: boolean }>({ action: 'messages', channelId, before: messages[0].createdAt });
+      const result = await callChat<{ messages: Message[]; hasMore: boolean }>({ action: 'messages', channelId, before: earliest.createdAt });
       if (activeRef.current !== channelId) return;
       setMessages((current) => {
         const known = new Set(current.map((message) => message.id));

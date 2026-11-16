@@ -34,8 +34,8 @@ export const newNonce = () => randomBytes(12).toString('base64url');
 export const manageToken = (appointmentId: string, nonce: string) => `${appointmentId}.${mac(`manage:${appointmentId}:${nonce}`)}`;
 
 export const parseManageToken = (token: string) => {
-  const match = /^([0-9a-f-]{36})\.([A-Za-z0-9_-]{32})$/.exec(token);
-  return match ? { appointmentId: match[1], signature: match[2] } : null;
+  const [, appointmentId, signature] = /^([0-9a-f-]{36})\.([A-Za-z0-9_-]{32})$/.exec(token) ?? [];
+  return appointmentId && signature ? { appointmentId, signature } : null;
 };
 
 export const verifyManageToken = (token: string, nonce: string) => {

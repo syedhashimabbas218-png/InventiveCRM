@@ -4,7 +4,7 @@ import { clientFingerprint } from 'src/lib/tokens';
 // Twenty only throttles a whole workspace, so a flood on a public page would starve every other function.
 // These per-client counters stop that early. Clients are a keyed hash of their address, never the address itself.
 export const clientAddress = (headers: Record<string, string | undefined>) =>
-  (headers['x-forwarded-for'] ?? headers['x-real-ip'] ?? 'unknown').split(',')[0].trim();
+  (headers['x-forwarded-for'] ?? headers['x-real-ip'] ?? 'unknown').split(',')[0]!.trim();
 
 export class RateLimitedError extends Error {
   constructor(readonly retryAfterSeconds: number) {

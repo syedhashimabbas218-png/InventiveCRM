@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { STARTER_TEMPLATES } from 'src/constants/starter-templates';
@@ -5,7 +7,7 @@ import { DEFAULT_BRAND, designProblems, fillVariables, parseDesign, renderEmail,
 import { fromAddress, isEmail, isTransient, phoneOf } from 'src/lib/engine';
 import { ResendError } from 'src/lib/resend';
 import { normaliseAddress } from 'src/lib/store';
-import { newNonce, recipientToken, verifyRecipientToken, verifyWebhookToken, webhookToken } from 'src/lib/tokens';
+import { newNonce, openText, recipientToken, sealText, verifyRecipientToken, verifySvixSignature, verifyWebhookToken, webhookToken } from 'src/lib/tokens';
 
 const tokenFor = (workspaceId: string) => `x.${Buffer.from(JSON.stringify({ workspaceId })).toString('base64url')}.y`;
 const brand = { ...DEFAULT_BRAND, name: 'Acme', footerText: 'Acme Ltd\n1 High Street, London' };
@@ -174,6 +176,37 @@ describe('signed links', () => {
     process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-b');
     expect(verifyRecipientToken(token, nonce)).toBe(false);
     expect(verifyWebhookToken(hook)).toBe(false);
+  });
+
+  it('seals a stored setting for its own workspace and purpose only', () => {
+    process.env.CAMPAIGN_LINK_SECRET = 'x'.repeat(40);
+    process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-a');
+    const sealed = sealText('whsec_abc', 'resend-signing-secret');
+    expect(sealed).not.toContain('whsec_abc');
+    expect(sealText('whsec_abc', 'resend-signing-secret')).not.toBe(sealed);
+    expect(openText(sealed, 'resend-signing-secret')).toBe('whsec_abc');
+    expect(openText(sealed, 'something-else')).toBeNull();
+    expect(openText(`${sealed.slice(0, -2)}AA`, 'resend-signing-secret')).toBeNull();
+    expect(openText('', 'resend-signing-secret')).toBeNull();
+    process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-b');
+    expect(openText(sealed, 'resend-signing-secret')).toBeNull();
+  });
+
+  it('accepts only a fresh, correctly signed Resend event', () => {
+    const secret = `whsec_${Buffer.from('a signing secret of some length').toString('base64')}`;
+    const body = '{"type":"email.delivered"}';
+    const now = String(Math.floor(Date.now() / 1000));
+    const sign = (timestamp: string, content = body, key = secret) => `v1,${createHmac('sha256', Buffer.from(key.replace('whsec_', ''), 'base64')).update(`msg_1.${timestamp}.${content}`).digest('base64')}`;
+    expect(verifySvixSignature(secret, 'msg_1', now, sign(now), body)).toBe(true);
+    expect(verifySvixSignature(secret, 'msg_1', now, `v1,AAAA ${sign(now)}`, body)).toBe(true);
+    expect(verifySvixSignature(secret, 'msg_2', now, sign(now), body)).toBe(false);
+    expect(verifySvixSignature(secret, 'msg_1', now, sign(now), `${body} `)).toBe(false);
+    expect(verifySvixSignature(secret, 'msg_1', now, sign(now, body, `whsec_${Buffer.from('another secret').toString('base64')}`), body)).toBe(false);
+    expect(verifySvixSignature(secret, 'msg_1', now, sign(now).replace('v1,', 'v2,'), body)).toBe(false);
+    const old = String(Number(now) - 3600);
+    expect(verifySvixSignature(secret, 'msg_1', old, sign(old), body)).toBe(false);
+    expect(verifySvixSignature(secret, 'msg_1', 'soon', sign('soon'), body)).toBe(false);
+    expect(verifySvixSignature('whsec_', 'msg_1', now, sign(now, body, 'whsec_'), body)).toBe(false);
   });
 
   it('refuses to sign without a long secret', () => {

@@ -164,6 +164,15 @@ for (let index = 0; index < 32 && !limited; index += 1) {
   if (response.status === 429) limited = index;
 }
 assert('flooding is slowed down', limited !== null, 'no 429');
+// Rows that only look like Bob's recent channels are enough to reach the hourly cap without creating sixty real ones.
+const bobsChannel = await bob({ action: 'createChannel', name: `limit-${run}` });
+const bobsKey = (await call(`${SERVER_URL}/graphql`, apiKey, `query($id: UUID!) { chatChannel(filter: { id: { eq: $id } }) { createdByMemberId } }`, { id: bobsChannel.body.id })).chatChannel.createdByMemberId;
+const filler = (await call(`${SERVER_URL}/graphql`, apiKey, `mutation($data: [ChatChannelCreateInput!]!) { createChatChannels(data: $data) { id } }`, { data: Array.from({ length: 60 }, (_, index) => ({ name: `filler-${run}-${index}`, kind: 'CHANNEL', visibility: 'PUBLIC', createdByMemberId: bobsKey })) })).createChatChannels.map((channel) => channel.id);
+const overCap = await bob({ action: 'createChannel', name: `over-${run}` });
+const adminUnaffected = await admin({ action: 'createChannel', name: `fine-${run}` });
+await call(`${SERVER_URL}/graphql`, apiKey, `mutation($ids: [UUID]) { deleteChatChannels(filter: { id: { in: $ids } }) { id } }`, { ids: filler });
+const underCap = await bob({ action: 'createChannel', name: `under-${run}` });
+assert('starting channels is capped per person per hour', bobsChannel.status === 200 && overCap.status === 429 && adminUnaffected.status === 200 && underCap.status === 200, `${bobsChannel.status} ${overCap.status} ${adminUnaffected.status} ${underCap.status}`);
 const anonymous = await fetch(`${W}/s/chat/api`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'bootstrap' }) });
 const withApiKey = await fetch(`${W}/s/chat/api`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ action: 'bootstrap' }) });
 assert('the chat API needs a signed-in person, not just an API key', (anonymous.status === 401 || anonymous.status === 403) && withApiKey.status === 403, `${anonymous.status} ${withApiKey.status}`);

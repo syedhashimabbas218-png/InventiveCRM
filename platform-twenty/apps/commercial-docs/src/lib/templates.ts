@@ -76,14 +76,18 @@ const paymentLines = (profile: BusinessProfile, reference: string, dueDate: stri
 };
 
 const tableLines = (lines: TemplateLine[], totals: DocumentTotals, showVat: boolean): PdfLine[] =>
-  lines.map((line, index) => ({
-    description: line.description,
-    quantity: line.quantity,
-    unit: line.unit,
-    unitPricePence: line.unitPricePence,
-    vatLabel: showVat ? VAT_SHORT_LABEL[line.vatRate] : null,
-    netPence: totals.lines[index].netPence,
-  }));
+  lines.map((line, index) => {
+    const lineTotals = totals.lines[index];
+    if (!lineTotals) throw new Error(`The totals have no entry for line ${index + 1}.`);
+    return {
+      description: line.description,
+      quantity: line.quantity,
+      unit: line.unit,
+      unitPricePence: line.unitPricePence,
+      vatLabel: showVat ? VAT_SHORT_LABEL[line.vatRate] : null,
+      netPence: lineTotals.netPence,
+    };
+  });
 
 const vatSummaryRows = (totals: DocumentTotals, { reverseCharge }: { reverseCharge: boolean }): [string, string][] => {
   const rows: [string, string][] = [['Total excluding VAT', formatGbp(totals.subtotalPence)]];

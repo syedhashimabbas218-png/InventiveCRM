@@ -19,7 +19,7 @@ self-hosted community edition, so this app has its own sending engine. It does n
 | Sending | Scheduled or immediate. A job every two minutes works on one campaign at a time under a lease, so overlapping runs never double-send. It first prepares the audience page by page (Preparing), then claims up to 100 queued recipients at a time, re-checks their consent and the do-not-contact list, and sends them through `POST /emails/batch` under one idempotency key. A batch interrupted by a crash or a rate limit is retried with the same key within Resend's 24-hour window; after that it is marked failed rather than risked. Rate limits, quota limits and outages pause the campaign and it carries on by itself. Stop sending skips everyone not yet sent; Resume picks them up again |
 | Headers | Every email has `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058, required by Gmail and Yahoo for bulk senders) and tags with the campaign and recipient ids |
 | Unsubscribe | `<workspace>/s/campaigns/unsubscribe/<token>`, signed per workspace. Opening the link only shows a button (link scanners must not unsubscribe people); the button and mail providers' one-click POST unsubscribe. The address goes on the do-not-contact list and consent is removed |
-| Events | Resend webhooks (delivered, opened, clicked, bounced, complained, failed, suppressed) at `<workspace>/s/campaigns/webhook/<token>`; the token is a per-workspace MAC. Hard bounces and spam complaints go on the do-not-contact list; complaints also remove consent |
+| Events | Resend webhooks (delivered, opened, clicked, bounced, complained, failed, suppressed) at `<workspace>/s/campaigns/webhook/<token>`; the token is a per-workspace MAC, and every event must carry Resend's signature (HMAC over the event id, timestamp and body, five-minute window). The signing secret is read from Resend with the connected key and kept encrypted in the brand kit record; unsigned, altered and replayed events get 401. Hard bounces and spam complaints go on the do-not-contact list; complaints also remove consent |
 | Reports | Recipients, delivery, open and click rates, unsubscribes, bounces and failures, with the problem addresses. Opens are labelled as estimates |
 | WhatsApp | Event `campaign.message` in `../commercial-docs/WHATSAPP_HANDOFF.md`: an approved template plus values, in batches of 100, signed with the shared secret. Status and opt-out callbacks at `/s/campaigns/whatsapp/status` |
 
@@ -50,6 +50,6 @@ Same flow as the other apps (see `../../UPDATES.md`, "Releasing an app"). Applic
 ## Tests
 
 `yarn test` covers the email compiler (escaping, unsafe links, personalisation, plain text, footer and unsubscribe),
-input limits, address handling and link signing across workspaces. `../../tests/campaigns/e2e.mjs` runs the whole loop
-on the throwaway test server against the Resend and WhatsApp double (36 checks, including parallel job runs,
-a batch retried after a rate limit and consent withdrawn while a campaign waits).
+input limits, address handling, link signing across workspaces, sealed settings and Resend webhook signatures. `../../tests/campaigns/e2e.mjs` runs the whole loop
+on the throwaway test server against the Resend and WhatsApp double (39 checks, including parallel job runs,
+a batch retried after a rate limit, consent withdrawn while a campaign waits and forged or replayed webhook events).

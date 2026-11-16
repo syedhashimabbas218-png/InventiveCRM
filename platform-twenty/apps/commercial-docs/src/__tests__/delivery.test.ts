@@ -26,6 +26,7 @@ const invoice: SendableDocument = {
     preferredChannel: 'EMAIL',
     whatsappOptIn: true,
   },
+  paymentUrl: null,
 };
 
 describe('document emails', () => {

@@ -1,5 +1,12 @@
 name: inventivecrm
 
+# Docker keeps container logs for ever by default; this caps each container at 100 MB.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 x-app: &app
   image: ${IMAGE}
   env_file: .env
@@ -19,6 +26,7 @@ x-app: &app
     mail:
       condition: service_healthy
   networks: [default, mail, docs]
+  logging: *logging
   restart: always
 
 services:
@@ -61,6 +69,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging: *logging
     restart: always
 
   redis:
@@ -76,6 +85,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging: *logging
     restart: always
 
   # Background job queues, separate so cache pressure can never evict a job. Never evicts; kept on disk.
@@ -90,6 +100,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging: *logging
     restart: always
 
   # Our outgoing mail server: system emails and invoices sent "from our server". Not published outside the stack.
@@ -108,6 +119,7 @@ services:
       - mail-spool:/var/spool/postfix
     mem_limit: 256m
     networks: [mail]
+    logging: *logging
     restart: always
 
   # Turns filled Word templates into PDFs (LibreOffice). No AI, no outside calls; reachable only inside the stack.
@@ -117,20 +129,22 @@ services:
     mem_limit: 1536m
     # Converts client-supplied Word files, so it has no internet and cannot reach the database or Redis.
     networks: [docs]
+    logging: *logging
     restart: always
 
   # Road routing and address search for the Scheduling app. Opt in with --profile maps after preparing MAPS_DIR
   # (apps/scheduling/README.md, "Maps"). Both stay inside the stack.
   osrm:
-    image: ghcr.io/project-osrm/osrm-backend:v6.0.0
+    image: ghcr.io/project-osrm/osrm-backend:v6.0.0@sha256:729461bcc9ae9e6aafa92c0f93db9b060a32e85d5e72092c01ae4a4a9f1eb564
     profiles: ["maps"]
     command: ["osrm-routed", "--algorithm", "mld", "--max-table-size", "500", "/data/region.osrm"]
     volumes:
       - ${MAPS_DIR:-./maps}:/data:ro
+    logging: *logging
     restart: always
 
   geocoder:
-    image: mediagis/nominatim:4.5
+    image: mediagis/nominatim:4.5@sha256:e25b434212b46fadb378fab8054fb3e96bdd69e8d174b0274e5f20e53f15e9f1
     profiles: ["maps"]
     environment:
       PBF_PATH: /data/region.osm.pbf
@@ -141,6 +155,7 @@ services:
       - ${MAPS_DIR:-./maps}/region.osm.pbf:/data/region.osm.pbf:ro
       - geocoder-data:/var/lib/postgresql/16/main
     shm_size: 1g
+    logging: *logging
     restart: always
 
 networks:

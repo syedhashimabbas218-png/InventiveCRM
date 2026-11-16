@@ -32,8 +32,8 @@ export const newNonce = () => randomBytes(12).toString('base64url');
 export const surveyToken = (requestId: string, nonce: string) => `${requestId}.${mac(`survey:${requestId}:${nonce}`)}`;
 
 export const parseSurveyToken = (token: string) => {
-  const match = /^([0-9a-f-]{36})\.([A-Za-z0-9_-]{32})$/.exec(token);
-  return match ? { requestId: match[1], signature: match[2] } : null;
+  const [, requestId, signature] = /^([0-9a-f-]{36})\.([A-Za-z0-9_-]{32})$/.exec(token) ?? [];
+  return requestId && signature ? { requestId, signature } : null;
 };
 
 export const verifySurveyToken = (token: string, nonce: string | null | undefined) => {

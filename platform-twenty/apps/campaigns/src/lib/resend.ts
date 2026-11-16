@@ -104,4 +104,11 @@ export const ensureWebhook = async (key: string, endpoint: string) => {
   return { created: true };
 };
 
+// The list leaves the secret out, so the webhook is read on its own.
+export const webhookSigningSecret = async (key: string, endpoint: string) => {
+  const webhook = ((await call<{ data?: Webhook[] }>(key, 'GET', '/webhooks')).data ?? []).find((entry) => entry.endpoint === endpoint);
+  if (!webhook) return null;
+  return (await call<{ signing_secret?: string }>(key, 'GET', `/webhooks/${encodeURIComponent(webhook.id)}`)).signing_secret ?? null;
+};
+
 export const enableTracking = (key: string, domainId: string) => call(key, 'PATCH', `/domains/${encodeURIComponent(domainId)}`, { open_tracking: true, click_tracking: true });

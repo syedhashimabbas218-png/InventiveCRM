@@ -251,7 +251,7 @@ const peekNumber = async (profile: BusinessProfile, kind: keyof typeof NUMBERING
   let next = (profile[config.counter] as number | null) ?? 1;
   for (;;) {
     const number = formatNumber(profile[config.prefix] as string | null, next, profile.numberPadding, config.fallback);
-    const data = await gql<Record<string, { edges: unknown[] }>>(
+    const data = await gql<Record<typeof config.object, { edges: unknown[] }>>(
       `query($number: String!) { ${config.object}(filter: { ${config.field}: { eq: $number } }, first: 1) { edges { node { id } } } }`,
       { number },
     );

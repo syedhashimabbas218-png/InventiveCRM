@@ -1,6 +1,6 @@
 // Test double for the Resend API and the InventiveChat WhatsApp gateway, for the throwaway test server only.
 // Usage: WHATSAPP_GATEWAY_SECRET=... node mock-resend.mjs [port]
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 8097);
@@ -21,6 +21,9 @@ const send = (response, status, body, headers = {}) => {
   response.writeHead(status, { 'content-type': 'application/json', ...headers });
   response.end(JSON.stringify(body));
 };
+
+// The same address always gets the same secret, so a restarted double still matches what the app has stored.
+const signingSecret = (endpoint) => `whsec_${createHash('sha256').update(`mock:${endpoint}`).digest('base64')}`;
 
 const authorised = (request) => /^Bearer re_good[A-Za-z0-9_]+$/.test(request.headers.authorization ?? '');
 
@@ -72,8 +75,10 @@ createServer(async (request, response) => {
   if (request.method === 'GET' && url.pathname === '/webhooks') return send(response, 200, { object: 'list', data: webhooks });
   if (request.method === 'POST' && url.pathname === '/webhooks') {
     webhooks.push({ id: `wh_${++counter}`, endpoint: body.endpoint, events: body.events });
-    return send(response, 200, { object: 'webhook', id: `wh_${counter}`, signing_secret: 'whsec_test' });
+    return send(response, 200, { object: 'webhook', id: `wh_${counter}`, signing_secret: signingSecret(body.endpoint) });
   }
+  const webhook = request.method === 'GET' && webhooks.find((entry) => url.pathname === `/webhooks/${entry.id}`);
+  if (webhook) return send(response, 200, { object: 'webhook', status: 'enabled', ...webhook, signing_secret: signingSecret(webhook.endpoint) });
 
   if (request.method === 'POST' && (url.pathname === '/emails/batch' || url.pathname === '/emails')) {
     const key = request.headers['idempotency-key'];

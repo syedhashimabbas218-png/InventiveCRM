@@ -138,9 +138,12 @@ const measureAdvisors = async (advisors: AdvisorRecord[], customer: Point) => {
   try {
     if (withBase.length > 0) {
       const matrix = await travelMatrix(withBase.map(advisorPoint) as Point[], [customer]);
-      withBase.forEach((advisor, index) =>
-        measures.set(advisor.id, { straightKm: haversineKm(advisorPoint(advisor) as Point, customer), roadKm: matrix.km[index][0], travelMinutes: matrix.minutes[index][0], routed: true }),
-      );
+      withBase.forEach((advisor, index) => {
+        const km = matrix.km[index];
+        const minutes = matrix.minutes[index];
+        if (!km || !minutes) throw new Error('Routing returned an incomplete table.');
+        measures.set(advisor.id, { straightKm: haversineKm(advisorPoint(advisor) as Point, customer), roadKm: km[0] ?? null, travelMinutes: minutes[0] ?? null, routed: true });
+      });
       routed = true;
     }
   } catch {
@@ -216,8 +219,10 @@ const advisorStarts = async (
     if (places.length > 0) {
       const there = await travelMatrix(places, [customer.point]);
       const back = await travelMatrix([customer.point], places);
-      toCustomer = there.minutes.map((row) => row[0]);
-      fromCustomer = back.minutes[0];
+      const [fromRow] = back.minutes;
+      if (!fromRow) throw new Error('Routing returned no travel times.');
+      toCustomer = there.minutes.map((row) => row[0] ?? null);
+      fromCustomer = fromRow;
     }
   } catch {
     verified = false;
@@ -228,7 +233,7 @@ const advisorStarts = async (
   const minutesFor = (point: Point | null, list: (number | null)[]) => {
     if (!point) return null;
     const index = places.findIndex((place) => place.lat === point.lat && place.lng === point.lng);
-    return index >= 0 ? list[index] : null;
+    return index >= 0 ? (list[index] ?? null) : null;
   };
   const feasible = starts.filter((start) => {
     const slot = { start, end: start + type.durationMinutes * MINUTE };

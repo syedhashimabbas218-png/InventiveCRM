@@ -13,8 +13,13 @@ export const assert = (name, passed, detail = '') => {
   results.push(Boolean(passed));
   console.log(`${passed ? 'PASS' : 'FAIL'} ${name}${detail ? ` -- ${detail}` : ''}`);
 };
+let skipped = 0;
+export const skip = (name, reason) => {
+  skipped += 1;
+  console.log(`SKIP ${name} -- ${reason}`);
+};
 export const summary = () => {
-  console.log(`SUMMARY ${results.filter(Boolean).length}/${results.length} passed`);
+  console.log(`SUMMARY ${results.filter(Boolean).length}/${results.length} passed${skipped ? `, ${skipped} skipped` : ''}`);
   return results.every(Boolean);
 };
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

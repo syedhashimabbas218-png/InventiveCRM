@@ -260,7 +260,9 @@ const mySchedule = async () => {
     `query($id: UUID!) { availabilitySchedules(filter: { id: { eq: $id } }) { edges { node { id name timeZone weeklyHours isDefault overrides(first: 200, orderBy: [{ startDate: AscNullsLast }]) { edges { node { id name startDate endDate kind windows } } } } } } }`,
     { id: scheduleId },
   );
-  return { advisor, schedule: nodes(data.availabilitySchedules)[0] };
+  const schedule = nodes(data.availabilitySchedules)[0];
+  if (!schedule) throw new AdminError(404, 'You have no availability schedule.');
+  return { advisor, schedule };
 };
 
 const availability = async () => {

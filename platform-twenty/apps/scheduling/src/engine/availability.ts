@@ -44,11 +44,14 @@ export const intersectIntervals = (first: Interval[], second: Interval[]): Inter
   const b = mergeIntervals(second);
   let i = 0;
   let j = 0;
-  while (i < a.length && j < b.length) {
-    const start = Math.max(a[i].start, b[j].start);
-    const end = Math.min(a[i].end, b[j].end);
+  for (;;) {
+    const left = a[i];
+    const right = b[j];
+    if (!left || !right) break;
+    const start = Math.max(left.start, right.start);
+    const end = Math.min(left.end, right.end);
     if (start < end) result.push({ start, end });
-    if (a[i].end < b[j].end) i += 1;
+    if (left.end < right.end) i += 1;
     else j += 1;
   }
   return result;

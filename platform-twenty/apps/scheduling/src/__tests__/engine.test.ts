@@ -124,7 +124,7 @@ describe('round robin', () => {
       const winner = pool.find((item) => item.advisorId === pick?.winner.advisorId)!;
       winner.assignedCount += 1;
       winner.lastAssignedAt = booking;
-      counts[winner.advisorId] += 1;
+      counts[winner.advisorId] = (counts[winner.advisorId] ?? 0) + 1;
     }
     expect(counts).toEqual({ a: 10, b: 10, c: 10 });
   });
@@ -136,16 +136,16 @@ describe('round robin', () => {
       const winner = pool.find((item) => item.advisorId === pickAdvisor(pool, 'WEIGHTED')?.winner.advisorId)!;
       winner.assignedCount += 1;
       winner.lastAssignedAt = booking;
-      counts[winner.advisorId] += 1;
+      counts[winner.advisorId] = (counts[winner.advisorId] ?? 0) + 1;
     }
     expect(counts).toEqual({ a: 30, b: 10 });
   });
 
   it('ranks by recency, workload, priority and earliest availability', () => {
-    expect(rankCandidates([candidate('a', { lastAssignedAt: 5 }), candidate('b', { lastAssignedAt: 2 })], 'LEAST_RECENT')[0].advisorId).toBe('b');
-    expect(rankCandidates([candidate('a', { upcomingBookedMinutes: 300 }), candidate('b', { upcomingBookedMinutes: 60 })], 'LEAST_BOOKED')[0].advisorId).toBe('b');
-    expect(rankCandidates([candidate('a', { priority: 1 }), candidate('b', { priority: 9 })], 'PRIORITY')[0].advisorId).toBe('b');
-    expect(rankCandidates([candidate('a', { earliestStart: 50 }), candidate('b', { earliestStart: 10 })], 'FIRST_AVAILABLE')[0].advisorId).toBe('b');
+    expect(rankCandidates([candidate('a', { lastAssignedAt: 5 }), candidate('b', { lastAssignedAt: 2 })], 'LEAST_RECENT')[0]?.advisorId).toBe('b');
+    expect(rankCandidates([candidate('a', { upcomingBookedMinutes: 300 }), candidate('b', { upcomingBookedMinutes: 60 })], 'LEAST_BOOKED')[0]?.advisorId).toBe('b');
+    expect(rankCandidates([candidate('a', { priority: 1 }), candidate('b', { priority: 9 })], 'PRIORITY')[0]?.advisorId).toBe('b');
+    expect(rankCandidates([candidate('a', { earliestStart: 50 }), candidate('b', { earliestStart: 10 })], 'FIRST_AVAILABLE')[0]?.advisorId).toBe('b');
     expect(pickAdvisor([], 'EQUAL')).toBeNull();
   });
 });
@@ -183,9 +183,9 @@ describe('geography', () => {
       { id: 'near-slow', measure: { straightKm: 2, roadKm: 3, travelMinutes: 25, routed: true }, earliestStart: 300 },
       { id: 'far-fast', measure: { straightKm: 5, roadKm: 6, travelMinutes: 9, routed: true }, earliestStart: 100 },
     ];
-    expect(rankByLocation(items, 'NEAREST')[0].id).toBe('near-slow');
-    expect(rankByLocation(items, 'FASTEST')[0].id).toBe('far-fast');
-    expect(rankByLocation(items, 'FIRST_AVAILABLE_NEARBY')[0].id).toBe('far-fast');
+    expect(rankByLocation(items, 'NEAREST')[0]?.id).toBe('near-slow');
+    expect(rankByLocation(items, 'FASTEST')[0]?.id).toBe('far-fast');
+    expect(rankByLocation(items, 'FIRST_AVAILABLE_NEARBY')[0]?.id).toBe('far-fast');
   });
 });
 

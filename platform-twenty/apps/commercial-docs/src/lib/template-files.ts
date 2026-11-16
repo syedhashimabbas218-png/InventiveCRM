@@ -159,10 +159,10 @@ const FORM_LINE_FIELD = new RegExp(`^(${Object.keys(LINE_TAGS).join('|')})_(\\d+
 export const formFieldTags = (fieldNames: string[]) => {
   let lineRows = 0;
   const tags: RawTag[] = fieldNames.map((name) => {
-    const line = FORM_LINE_FIELD.exec(name);
-    if (line) {
-      lineRows = Math.max(lineRows, Number(line[2]));
-      return { name: line[1], loop: 'lines' };
+    const [, lineTag, row] = FORM_LINE_FIELD.exec(name) ?? [];
+    if (lineTag && row) {
+      lineRows = Math.max(lineRows, Number(row));
+      return { name: lineTag, loop: 'lines' };
     }
     if (name === 'summaryLabels') return { name: 'label', loop: 'summaryRows' };
     if (name === 'summaryAmounts') return { name: 'amount', loop: 'summaryRows' };
@@ -200,7 +200,7 @@ const inkBands = (context: PixelReader, width: number, height: number): Box[] =>
     let ink = false;
     for (let column = 0; column < width && !ink; column += 2) {
       const offset = (row * width + column) * 4;
-      ink = pixels[offset + 3] > 0 && pixels[offset] + pixels[offset + 1] + pixels[offset + 2] < 600;
+      ink = pixels[offset + 3]! > 0 && pixels[offset]! + pixels[offset + 1]! + pixels[offset + 2]! < 600;
     }
     if (ink) {
       if (start < 0 || row - lastInk > 6) {
@@ -279,7 +279,9 @@ export const fillPdfForm = async (bytes: Uint8Array, data: ReturnType<typeof tem
     if (value === undefined) continue;
     const text = sanitise(value);
     const lines = text.split('\n');
-    const { width, height } = field.acroField.getWidgets()[0].getRectangle();
+    const [widget] = field.acroField.getWidgets();
+    if (!widget) throw new Error(`The form field ${field.getName()} is not placed on a page.`);
+    const { width, height } = widget.getRectangle();
     const widest = Math.max(1, ...lines.map((line) => font.widthOfTextAtSize(line, 1)));
     // Shrink to fit the box the form designer drew, never above 10pt.
     const size = Math.max(4, Math.min(10, (width - 4) / widest, (height - 2) / (lines.length * 1.2)));

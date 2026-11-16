@@ -182,10 +182,12 @@ const sendEmailBatch = async (campaign: Campaign, brand: Brand, key: string, rec
     const failed: { id: string; error: string }[] = [];
     try {
       for (const [index, email] of emails.entries()) {
+        const recipient = recipients[index];
+        if (!recipient) continue;
         try {
-          sent.push({ id: recipients[index].id, messageId: await sendOne(key, email, `${batchKey}:${index}`) });
+          sent.push({ id: recipient.id, messageId: await sendOne(key, email, `${batchKey}:${index}`) });
         } catch (single) {
-          if (single instanceof ResendError && (single.status === 400 || single.status === 422)) failed.push({ id: recipients[index].id, error: single.message });
+          if (single instanceof ResendError && (single.status === 400 || single.status === 422)) failed.push({ id: recipient.id, error: single.message });
           else throw single;
         }
       }
@@ -267,8 +269,9 @@ const recoverInFlight = async (campaign: Campaign, brand: Brand, key: string | n
   const rows = await inFlightRecipients(campaign.id);
   for (const batchKey of new Set(rows.map((row) => row.batchKey).filter((value): value is string => Boolean(value)))) {
     const batch = await batchRecipients(batchKey);
-    if (batch.length === 0) continue;
-    if (Date.now() - Date.parse(batch[0].updatedAt) > RETRY_WINDOW_MS) {
+    const [first] = batch;
+    if (!first) continue;
+    if (Date.now() - Date.parse(first.updatedAt) > RETRY_WINDOW_MS) {
       await updateRecipientsIf({ batchKey, status: 'SENDING' }, { status: 'FAILED', error: 'Sending was interrupted and could not be confirmed.' });
       continue;
     }

@@ -2,7 +2,7 @@
 // Usage: node e2e.mjs <state file from setup.mjs> <api key file> [other workspace api key file]
 import { readFileSync } from 'node:fs';
 
-import { admin, apiClient, assert, booking, connectCalendar, keyClient, MAILPIT, mailTo, mock, sleep, summary, userToken, waitFor } from './lib.mjs';
+import { admin, apiClient, assert, booking, connectCalendar, keyClient, MAILPIT, mailTo, mock, skip, sleep, summary, userToken, waitFor } from './lib.mjs';
 
 const [stateFile, keyFile, otherKeyFile] = process.argv.slice(2);
 const state = JSON.parse(readFileSync(stateFile, 'utf8'));
@@ -132,15 +132,16 @@ const officeBooking = await book(types.office, at(3, '10:00'), { name: 'Di Custo
 const diAppointment = (await appointmentByEmail(di))[0];
 assert('an office appointment is booked with the office address', officeBooking.status === 200 && /Park Row/.test(diAppointment?.location ?? ''), diAppointment?.location);
 
-// 7-8. Map selector and nearest advisor, with road routing.
+// 7-8. Map selector and nearest advisor, with road routing. ROAD_ROUTING=off skips the two checks that need OSRM.
+const roadAssert = process.env.ROAD_ROUTING === 'off' ? (name) => skip(name, 'no routing server (ROAD_ROUTING=off)') : assert;
 const nearby = (await booking(W, { action: 'advisors', slug: types.nearest, location: LEEDS_LS6 }, ip())).body;
 const names = nearby.advisors.map((advisor) => `${advisor.name} ${advisor.distanceKm}km ${advisor.travelMinutes}min`);
-assert('the map selector finds advisors covering Headingley, nearest first, by road', nearby.routing === 'ROAD' && nearby.advisors[0]?.name === 'Carol Headingley' && nearby.advisors.some((advisor) => advisor.name === 'Dan Morley') && !nearby.advisors.some((advisor) => advisor.name === 'Eve York'), names.join('; '));
+roadAssert('the map selector finds advisors covering Headingley, nearest first, by road', nearby.routing === 'ROAD' && nearby.advisors[0]?.name === 'Carol Headingley' && nearby.advisors.some((advisor) => advisor.name === 'Dan Morley') && !nearby.advisors.some((advisor) => advisor.name === 'Eve York'), names.join('; '));
 assert('advisor bases are not exposed exactly', nearby.advisors.every((advisor) => !advisor.point || advisor.point.approximate), JSON.stringify(nearby.advisors[0]?.point));
 const ed = email('ed');
 const nearest = await book(types.nearest, at(6, '10:00'), { name: 'Ed Customer', email: ed }, { location: LEEDS_LS6 });
 const edAppointment = (await appointmentByEmail(ed))[0];
-assert('the nearest available advisor gets the home visit, with travel checked by road routing', nearest.body.advisorName === 'Carol Headingley' && /road routing/.test(edAppointment?.travelCheck ?? ''), `${nearest.body.advisorName} ${edAppointment?.travelMinutes}min ${edAppointment?.travelCheck}`);
+roadAssert('the nearest available advisor gets the home visit, with travel checked by road routing', nearest.body.advisorName === 'Carol Headingley' && /road routing/.test(edAppointment?.travelCheck ?? ''), `${nearest.body.advisorName} ${edAppointment?.travelMinutes}min ${edAppointment?.travelCheck}`);
 const yorkNearby = (await booking(W, { action: 'advisors', slug: types.territory, location: YORK }, ip())).body;
 assert('territory matching sends a York customer only to the advisor covering YO', yorkNearby.advisors.map((advisor) => advisor.name).join() === 'Eve York', yorkNearby.advisors.map((advisor) => advisor.name).join());
 const carolLater = (await slots(types.choose, at(6, '00:00'), 1, { advisorId: advisors.carol, location: COOKRIDGE })).slots.map((slot) => slot.start.slice(11, 16));

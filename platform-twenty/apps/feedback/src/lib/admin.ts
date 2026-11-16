@@ -65,6 +65,7 @@ const askNow = async (body: Record<string, unknown>) => {
     const request = nodes(
       (await gql<{ feedbackRequests: { edges: { node: FeedbackRequest }[] } }>(`query($id: UUID!) { feedbackRequests(filter: { id: { eq: $id } }) { edges { node { ${REQUEST_FIELDS} } } } }`, { id })).feedbackRequests,
     )[0];
+    if (!request) throw new Error(`Feedback request ${id} was created but could not be read back.`);
     return { status: await sendRequest(request, settings, await publicBaseUrl(), now) };
   });
 };

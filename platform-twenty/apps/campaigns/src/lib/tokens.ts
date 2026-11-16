@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const secret = () => {
   const value = process.env.CAMPAIGN_LINK_SECRET;
@@ -33,8 +33,8 @@ export const newNonce = () => randomBytes(12).toString('base64url');
 export const recipientToken = (recipientId: string, nonce: string) => `${recipientId}.${mac(`unsubscribe:${recipientId}:${nonce}`)}`;
 
 export const parseRecipientToken = (token: string) => {
-  const match = /^([0-9a-f-]{36})\.([A-Za-z0-9_-]{32})$/.exec(token);
-  return match ? { recipientId: match[1], signature: match[2] } : null;
+  const [, recipientId, signature] = /^([0-9a-f-]{36})\.([A-Za-z0-9_-]{32})$/.exec(token) ?? [];
+  return recipientId && signature ? { recipientId, signature } : null;
 };
 
 const sameMac = (expected: string, given: string) => {
@@ -52,3 +52,44 @@ export const verifyRecipientToken = (token: string, nonce: string | null | undef
 export const webhookToken = () => mac('resend-webhook');
 
 export const verifyWebhookToken = (token: string) => /^[A-Za-z0-9_-]{32}$/.test(token) && sameMac(webhookToken(), token);
+
+const sealingKey = () => createHmac('sha256', workspaceKey()).update('sealed-settings').digest();
+
+// Settings the app keeps in records anyone in the workspace can read. The context names what the value is for, so a
+// sealed value copied into another field does not open.
+export const sealText = (text: string, context: string) => {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', sealingKey(), iv);
+  cipher.setAAD(Buffer.from(context));
+  const sealed = Buffer.concat([cipher.update(text, 'utf8'), cipher.final(), cipher.getAuthTag()]);
+  return `v1.${iv.toString('base64url')}.${sealed.toString('base64url')}`;
+};
+
+export const openText = (stored: string | null | undefined, context: string) => {
+  const [version, iv, payload] = (stored ?? '').split('.');
+  if (version !== 'v1' || !iv || !payload) return null;
+  try {
+    const data = Buffer.from(payload, 'base64url');
+    const decipher = createDecipheriv('aes-256-gcm', sealingKey(), Buffer.from(iv, 'base64url'));
+    decipher.setAAD(Buffer.from(context));
+    decipher.setAuthTag(data.subarray(data.length - 16));
+    return Buffer.concat([decipher.update(data.subarray(0, data.length - 16)), decipher.final()]).toString('utf8');
+  } catch {
+    return null;
+  }
+};
+
+const SIGNATURE_TOLERANCE_SECONDS = 300;
+
+// Resend signs webhooks the Svix way: HMAC-SHA256 over "id.timestamp.body" with the key inside whsec_..., and the
+// header may list several signatures while a secret is being rotated.
+export const verifySvixSignature = (signingSecret: string, id: string, timestamp: string, signatures: string, rawBody: string) => {
+  if (!/^\d{1,12}$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > SIGNATURE_TOLERANCE_SECONDS) return false;
+  const key = Buffer.from(signingSecret.replace(/^whsec_/, ''), 'base64');
+  if (key.length === 0) return false;
+  const expected = createHmac('sha256', key).update(`${id}.${timestamp}.${rawBody}`).digest('base64');
+  return signatures.split(' ').some((entry) => {
+    const [version, value] = entry.split(',');
+    return version === 'v1' && Boolean(value) && sameMac(expected, value ?? '');
+  });
+};

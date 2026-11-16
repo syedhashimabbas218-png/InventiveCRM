@@ -1,5 +1,6 @@
 // Feedback app end to end on the throwaway test server, using the Scheduling test world (completed appointments
-// are the trigger). Never run it against production: it changes appointments and feedback settings.
+// are the trigger). Never run it against production: it changes appointments and deletes every feedback request and
+// the feedback settings of the workspace it is given.
 // Usage: SERVER_URL=http://localhost:3001 node e2e.mjs <scheduling state file> <api key file>
 import { readFileSync } from 'node:fs';
 
@@ -27,6 +28,8 @@ const linkFrom = async (address) => {
   return { message: full, link: /https?:\/\/\S+\/s\/feedback\/[\w.-]+/.exec(full.Text)?.[0] ?? null };
 };
 
+for (const mutation of ['destroyFeedbackRequests', 'destroyFeedbackSettingsRecords']) await api.gql(`mutation { ${mutation}(filter: { id: { is: NOT_NULL } }) { id } }`);
+
 // Settings are created switched off on first use.
 const overview = await post(W, 'feedback/admin', { action: 'overview' }, true);
 assert('the overview creates settings, switched off', overview.status === 200 && overview.body.settings.enabled === false, JSON.stringify(overview.body?.settings));
@@ -44,7 +47,6 @@ const appointments = (await api.gql(`{ appointments(filter: { status: { in: [CON
   .filter((row) => row.person?.emails?.primaryEmail);
 const byPerson = [...new Map(appointments.map((row) => [row.personId, row])).values()];
 const [one, two] = byPerson;
-const another = appointments.find((row) => row.personId === one.personId && row.id !== one.id);
 for (const appointment of [one, two]) await api.gql(`mutation($id: UUID!) { updateAppointment(id: $id, data: { status: COMPLETED }) { id } }`, { id: appointment.id });
 const second = await runJob();
 const afterRun = await requests();
@@ -80,10 +82,10 @@ const alerts = (await mailTo(owner, startedAt)).length;
 assert('changing an answer does not repeat the alert', changed.status === 200 && alerts === 1, `${alerts} alerts`);
 
 // The same customer is not asked again inside the cool-down, and nothing is asked twice.
-if (another) await api.gql(`mutation($id: UUID!) { updateAppointment(id: $id, data: { status: COMPLETED }) { id } }`, { id: another.id });
+const another = (await api.gql(`mutation($data: AppointmentCreateInput!) { createAppointment(data: $data) { id } }`, { data: { title: `Second visit ${run}`, status: 'COMPLETED', personId: one.personId, customerName: 'Repeat Customer', startsAt: new Date(Date.now() - 7_200_000).toISOString(), endsAt: new Date(Date.now() - 3_600_000).toISOString() } })).createAppointment;
 await runJob();
 const final = await requests();
-assert('the cool-down stops a second request to the same customer, and re-runs ask nobody twice', Boolean(another) && !final.some((request) => request.sourceId === another.id) && final.filter((request) => request.sourceId === one.id).length === 1, another ? `${final.length} requests` : 'the test world has no second appointment for this customer');
+assert('the cool-down stops a second request to the same customer, and re-runs ask nobody twice', !final.some((request) => request.sourceId === another.id) && final.filter((request) => request.sourceId === one.id).length === 1, `${final.length} requests`);
 
 // Expired links are closed.
 await api.gql(`mutation($id: UUID!) { updateFeedbackRequest(id: $id, data: { expiresAt: "2020-01-01T00:00:00.000Z" }) { id } }`, { id: lowRequest.id });

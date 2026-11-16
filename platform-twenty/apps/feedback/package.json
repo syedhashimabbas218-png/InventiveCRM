@@ -1,11 +1,11 @@
 {
   "name": "inventivecrm-feedback",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "packageManager": "yarn@4.18.1",
   "scripts": {
     "twenty": "twenty",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest run"
   },
   "dependencies": {

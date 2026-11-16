@@ -2,6 +2,7 @@ export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_LINKS = 5;
 export const MAX_MENTIONS = 20;
 export const MESSAGES_PER_MINUTE = 30;
+export const CHANNELS_PER_HOUR = 60;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

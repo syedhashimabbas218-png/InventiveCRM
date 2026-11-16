@@ -1,7 +1,7 @@
 import { defineObject } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
-import { dateTimeField, jsonField, numberField, selectField, textField } from 'src/objects/field-builders';
+import { textField } from 'src/objects/field-builders';
 
 const field = IDS.brand.fields;
 
@@ -23,5 +23,6 @@ export default defineObject({
     textField({ universalIdentifier: field.fontFamily, name: 'fontFamily', label: 'Font', icon: 'IconTypography' }, 'Arial, Helvetica, sans-serif'),
     textField({ universalIdentifier: field.footerText, name: 'footerText', label: 'Footer (business name and postal address)', icon: 'IconAddressBook' }),
     textField({ universalIdentifier: field.websiteUrl, name: 'websiteUrl', label: 'Website', icon: 'IconWorld' }),
+    textField({ universalIdentifier: field.trackingKey, name: 'trackingKey', label: 'Delivery tracking key (encrypted)', icon: 'IconLock', description: 'Kept by Campaign Studio to check that delivery reports really come from Resend. Leave as it is.' }),
   ],
 });

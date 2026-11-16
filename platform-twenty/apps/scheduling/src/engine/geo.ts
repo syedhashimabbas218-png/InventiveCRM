@@ -14,15 +14,18 @@ export type ServiceArea = { type: 'Polygon'; coordinates: Ring[] } | { type: 'Mu
 // Ray casting on GeoJSON rings ([lng, lat]); holes are rings after the first.
 const insideRing = (point: Point, ring: Ring) => {
   let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
+  let previous = ring.at(-1);
+  if (!previous) return inside;
+  for (const current of ring) {
+    const [xi, yi] = current;
+    const [xj, yj] = previous;
     if (yi > point.lat !== yj > point.lat && point.lng < ((xj - xi) * (point.lat - yi)) / (yj - yi) + xi) inside = !inside;
+    previous = current;
   }
   return inside;
 };
 
-const insidePolygon = (point: Point, rings: Ring[]) => insideRing(point, rings[0]) && !rings.slice(1).some((hole) => insideRing(point, hole));
+const insidePolygon = (point: Point, [outer, ...holes]: Ring[]) => outer !== undefined && insideRing(point, outer) && !holes.some((hole) => insideRing(point, hole));
 
 export const inServiceArea = (point: Point, area: ServiceArea) =>
   area.type === 'Polygon' ? insidePolygon(point, area.coordinates) : area.coordinates.some((polygon) => insidePolygon(point, polygon));
@@ -37,8 +40,7 @@ export const parseServiceArea = (value: unknown): ServiceArea | null => {
 // UK territories by postcode: "LS" matches every LS district, "LS6" only that district (not LS60).
 export const outwardCode = (postcode: string) => {
   const compact = postcode.toUpperCase().replace(/\s+/g, '');
-  const match = /^([A-Z]{1,2}\d[A-Z\d]?)(\d[A-Z]{2})?$/.exec(compact);
-  return match ? match[1] : compact;
+  return /^([A-Z]{1,2}\d[A-Z\d]?)(\d[A-Z]{2})?$/.exec(compact)?.[1] ?? compact;
 };
 
 export const postcodeInTerritory = (postcode: string, territory: string[]) => {

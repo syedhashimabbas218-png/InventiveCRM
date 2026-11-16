@@ -138,14 +138,15 @@ export const syncAppointment = async (appointment: AppointmentRecord) => {
       outcomes.push('SYNCED');
     } catch (error) {
       const attempts = (row?.attempts ?? 0) + 1;
+      const backoffMinutes = BACKOFF_MINUTES[attempts - 1];
       const permanent = error instanceof CalendarAuthError || (error instanceof CalendarRequestError && !error.retryable);
-      const gaveUp = permanent || attempts >= MAX_SYNC_ATTEMPTS;
+      const gaveUp = permanent || backoffMinutes === undefined || attempts >= MAX_SYNC_ATTEMPTS;
       await upsertRow(row, {
         ...base,
         status: gaveUp ? 'GAVE_UP' : 'FAILED',
         attempts,
         lastError: (error as Error).message.slice(0, 500),
-        nextAttemptAt: gaveUp ? null : new Date(Date.now() + Math.max(BACKOFF_MINUTES[attempts - 1] * MINUTE, error instanceof CalendarRequestError ? (error.retryAfterMs ?? 0) : 0)).toISOString(),
+        nextAttemptAt: gaveUp ? null : new Date(Date.now() + Math.max(backoffMinutes * MINUTE, error instanceof CalendarRequestError ? (error.retryAfterMs ?? 0) : 0)).toISOString(),
       });
       if (error instanceof CalendarAuthError) await updateSetting(target.setting.id, { status: 'NEEDS_RECONNECT', lastError: (error as Error).message.slice(0, 500) });
       if (gaveUp && row?.status !== 'GAVE_UP' && advisor.email)

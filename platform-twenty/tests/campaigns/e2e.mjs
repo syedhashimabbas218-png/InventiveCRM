@@ -1,7 +1,7 @@
 // Campaign Studio end to end on the throwaway test server, against mock-resend.mjs (Resend and the WhatsApp gateway).
 // Needs the app installed in the acme workspace with the variables from campaigns-test-vars.env.
 // Usage: SERVER_URL=http://localhost:3001 node e2e.mjs <api key file> <variables env file>
-import { createHash, createHmac } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const SERVER_URL = process.env.SERVER_URL;
@@ -56,9 +56,16 @@ const runJob = () => fetch(`${W}/s/campaigns/run`, { method: 'POST', headers: { 
 const workspaceKey = createHmac('sha256', vars.CAMPAIGN_LINK_SECRET).update(`workspace:${workspaceId}`).digest();
 const webhookUrl = `${W}/s/campaigns/webhook/${createHmac('sha256', workspaceKey).update('resend-webhook').digest('base64url').slice(0, 32)}`;
 // Resend echoes the tags we sent with each email back in its events.
-const resendEvent = async (type, emailId, data = {}) => {
+const resendEvent = async (type, emailId, data = {}, sign = svixHeaders) => {
   const tags = Object.fromEntries(((await mock('/admin/emails')).find((email) => email.id === emailId)?.tags ?? []).map((tag) => [tag.name, tag.value]));
-  return fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, created_at: new Date().toISOString(), data: { email_id: emailId, tags, ...data } }) });
+  const body = JSON.stringify({ type, created_at: new Date().toISOString(), data: { email_id: emailId, tags, ...data } });
+  return fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', ...sign(body) }, body });
+};
+let signingSecret = '';
+// Resend signs each event the Svix way; the app reads the secret from Resend and checks every call.
+const svixHeaders = (body, { secret = signingSecret, timestamp = Math.floor(Date.now() / 1000) } = {}) => {
+  const id = `msg_${randomUUID()}`;
+  return { 'svix-id': id, 'svix-timestamp': String(timestamp), 'svix-signature': `v1,${createHmac('sha256', Buffer.from(secret.replace('whsec_', ''), 'base64')).update(`${id}.${timestamp}.${body}`).digest('base64')}` };
 };
 
 await mock('/admin/reset', {});
@@ -172,6 +179,24 @@ assert('batches are sent with an idempotency key', batchCalls.length > 0 && batc
 const messageFor = (address) => delivered.find((email) => email.to[0] === address)?.id;
 const wrongToken = await fetch(webhookUrl.replace(/\/[^/]+$/, '/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'email.delivered', data: { email_id: messageFor(`ann@${domain}`) } }) });
 assert('the webhook refuses calls without its secret token', wrongToken.status === 404, String(wrongToken.status));
+// The test server has no https address, so the app never registers the webhook itself: do it as Resend's dashboard would.
+const resendHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer re_good_${run}abcdefghij` };
+const registered = (await (await fetch(`${MOCK}/webhooks`, { headers: resendHeaders })).json()).data.find((entry) => entry.endpoint === webhookUrl) ?? (await (await fetch(`${MOCK}/webhooks`, { method: 'POST', headers: resendHeaders, body: JSON.stringify({ endpoint: webhookUrl, events: ['email.delivered'] }) })).json());
+signingSecret = (await (await fetch(`${MOCK}/webhooks/${registered.id}`, { headers: resendHeaders })).json()).signing_secret;
+// Forget the stored secret so this run also covers reading it from Resend.
+const brandId = (await gql(`{ campaignBrands(first: 1, orderBy: [{ createdAt: AscNullsLast }]) { edges { node { id } } } }`)).campaignBrands.edges[0].node.id;
+await gql(`mutation($id: UUID!) { updateCampaignBrand(id: $id, data: { trackingKey: "" }) { id } }`, { id: brandId });
+const secretReads = async () => (await mock('/admin/log')).filter((entry) => entry.method === 'GET' && entry.path === `/webhooks/${registered.id}`).length;
+const readsBefore = await secretReads();
+const forgeries = [
+  () => ({}),
+  (body) => svixHeaders(body, { secret: `whsec_${Buffer.from('not the secret').toString('base64')}` }),
+  () => svixHeaders('{"type":"email.delivered"}'),
+  (body) => svixHeaders(body, { timestamp: Math.floor(Date.now() / 1000) - 3600 }),
+];
+const forged = [];
+for (const sign of forgeries) forged.push((await resendEvent('email.complained', messageFor(`ann@${domain}`), {}, sign)).status);
+assert('the webhook refuses unsigned, wrongly signed, altered and replayed events', forged.every((status) => status === 401), forged.join(','));
 const results = [];
 results.push(await resendEvent('email.delivered', messageFor(`ann@${domain}`)));
 results.push(await resendEvent('email.opened', messageFor(`ann@${domain}`)));
@@ -179,7 +204,11 @@ results.push(await resendEvent('email.clicked', messageFor(`ann@${domain}`), { c
 results.push(await resendEvent('email.delivered', messageFor(`cat@${domain}`)));
 results.push(await resendEvent('email.bounced', messageFor(`ben@${domain}`), { bounce: { type: 'Permanent', subType: 'General', message: 'No such mailbox' } }));
 results.push(await resendEvent('email.complained', messageFor(`cat@${domain}`)));
-assert('the webhook accepts Resend events', results.every((response) => response.status === 200), results.map((response) => response.status).join(','));
+assert('the webhook accepts events signed by Resend', results.every((response) => response.status === 200), results.map((response) => response.status).join(','));
+const secretReadCount = (await secretReads()) - readsBefore;
+assert('the signing secret is read from Resend once, however many bad calls arrive', secretReadCount === 1, String(secretReadCount));
+const annAfterForgery = (await gql(`query($like: String) { campaignSuppressions(filter: { destination: { like: $like } }) { edges { node { destination } } } }`, { like: `ann@${domain}` })).campaignSuppressions.edges;
+assert('a forged spam complaint changes nothing', annAfterForgery.length === 0, JSON.stringify(annAfterForgery));
 const suppressions = async () => (await gql(`query($like: String) { campaignSuppressions(filter: { destination: { like: $like } }) { edges { node { destination reason } } } }`, { like: `%@${domain}` })).campaignSuppressions.edges.map((edge) => edge.node);
 const afterEvents = await suppressions();
 const cat = (await gql(`query($id: UUID!) { person(filter: { id: { eq: $id } }) { emailMarketingConsent } }`, { id: ids.cat })).person;

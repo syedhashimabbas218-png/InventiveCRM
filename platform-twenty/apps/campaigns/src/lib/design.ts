@@ -53,7 +53,9 @@ export type RenderOptions = {
 export const MAX_BLOCKS = 60;
 const MAX_TEXT = 5000;
 
-export const FONTS = ['Arial, Helvetica, sans-serif', 'Helvetica, Arial, sans-serif', 'Georgia, serif', 'Verdana, Geneva, sans-serif', "'Trebuchet MS', Arial, sans-serif", "'Times New Roman', Times, serif"];
+const DEFAULT_FONT = 'Arial, Helvetica, sans-serif';
+
+export const FONTS = [DEFAULT_FONT, 'Helvetica, Arial, sans-serif', 'Georgia, serif', 'Verdana, Geneva, sans-serif', "'Trebuchet MS', Arial, sans-serif", "'Times New Roman', Times, serif"];
 
 export const DEFAULT_BRAND: Brand = {
   name: '',
@@ -61,7 +63,7 @@ export const DEFAULT_BRAND: Brand = {
   primaryColor: '#3e63dd',
   backgroundColor: '#f1f1f1',
   textColor: '#333333',
-  fontFamily: FONTS[0],
+  fontFamily: DEFAULT_FONT,
   footerText: '',
   websiteUrl: '',
 };
@@ -70,7 +72,7 @@ export const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (characte
 
 const color = (value: string | undefined, fallback: string) => (value && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : fallback);
 
-const font = (value: string | undefined) => (value && FONTS.includes(value) ? value : FONTS[0]);
+const font = (value: string | undefined) => (value && FONTS.includes(value) ? value : DEFAULT_FONT);
 
 // Links may only open web pages, email or phone; images must be served over https so mail clients load them.
 export const safeLink = (value: string | undefined) => {
@@ -123,13 +125,13 @@ const markedUp = (text: string, contact: Contact, render: (template: string) => 
     values.push(value);
     return `\u0000${values.length - 1}\u0000`;
   });
-  return render(template).replace(/\u0000(\d+)\u0000/g, (match, index: string) => encode(values[Number(index)] ?? ''));
+  return render(template).replace(/\u0000(\d+)\u0000/g, (_match, index: string) => encode(values[Number(index)] ?? ''));
 };
 
 export const unknownVariables = (design: Design, subject: string) => {
   const texts = [subject, ...design.blocks.flatMap(blockTexts)];
   const found = new Set<string>();
-  for (const text of texts) for (const match of text.matchAll(/\{\{\s*([a-zA-Z]+)/g)) if (!VARIABLES[match[1]]) found.add(match[1]);
+  for (const text of texts) for (const [, name] of text.matchAll(/\{\{\s*([a-zA-Z]+)/g)) if (name && !VARIABLES[name]) found.add(name);
   return [...found];
 };
 
@@ -150,7 +152,7 @@ const blockTexts = (block: Block): string[] => {
 // Light markup for text blocks: blank line = new paragraph, **bold**, *italic*, [label](https://link).
 const inlineHtml = (text: string, linkColor: string) =>
   escapeHtml(text)
-    .replace(/\[([^\]]{1,200})\]\(([^)\s]{1,2000})\)/g, (match, label: string, href: string) => {
+    .replace(/\[([^\]]{1,200})\]\(([^)\s]{1,2000})\)/g, (_match, label: string, href: string) => {
       const link = safeLink(href.replace(/&#38;/g, '&'));
       return link ? `<a href="${escapeHtml(link)}" style="color:${linkColor};text-decoration:underline">${label}</a>` : label;
     })
@@ -158,7 +160,7 @@ const inlineHtml = (text: string, linkColor: string) =>
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br>');
 
-const inlineText = (text: string) => text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, label: string, href: string) => `${label} (${safeLink(href) || href})`).replace(/\*\*?([^*]+)\*\*?/g, '$1');
+const inlineText = (text: string) => text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label: string, href: string) => `${label} (${safeLink(href) || href})`).replace(/\*\*?([^*]+)\*\*?/g, '$1');
 
 const paragraphs = (text: string) =>
   text

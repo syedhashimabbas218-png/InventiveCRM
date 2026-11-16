@@ -20,7 +20,7 @@ import {
   updateCampaignIf,
   updateRecipientsIf,
 } from 'src/lib/store';
-import { webhookToken } from 'src/lib/tokens';
+import { webhookUrl } from 'src/lib/webhook-auth';
 
 export class AdminError extends Error {
   constructor(
@@ -40,7 +40,6 @@ const id = (value: unknown) => {
 
 const likeLiteral = (value: string) => `%${value.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 
-const webhookUrl = async () => `${await functionsBaseUrl()}/campaigns/webhook/${webhookToken()}`;
 
 const overview = async () => {
   const key = await resendKey();
@@ -71,7 +70,7 @@ const overview = async () => {
 };
 
 const templateDesign = async (templateId: string) => {
-  if (templateId.startsWith('starter:')) return STARTER_TEMPLATES.find((template) => `starter:${template.key}` === templateId)?.design ?? STARTER_TEMPLATES[0].design;
+  if (templateId.startsWith('starter:')) return (STARTER_TEMPLATES.find((template) => `starter:${template.key}` === templateId) ?? STARTER_TEMPLATES[0])?.design ?? { version: 1, blocks: [] };
   const template = (await gql<{ campaignTemplate: { design: unknown } | null }>(`query($id: UUID!) { campaignTemplate(filter: { id: { eq: $id } }) { design } }`, { id: id(templateId) })).campaignTemplate;
   return parseDesign(template?.design);
 };

@@ -35,7 +35,11 @@ branding/
 apps/commercial-docs/  Quotes & Invoices app (UK quotes, VAT invoices, credit notes, recurring billing)
 apps/scheduling/       Scheduling app (appointment types, availability, team and location-based booking, booking pages
                        and embeds, Google and Microsoft calendar sync)
+apps/feedback/         Feedback app (NPS surveys after appointments and paid invoices, low-score alerts)
+apps/campaigns/        Campaign Studio (email campaigns through the client's own Resend account, WhatsApp campaigns)
+apps/team-chat/        Team chat (channels, direct messages, mentions and record links inside the CRM)
 scripts/
+  check-apps.sh            locked install, typecheck and unit tests for every app; run before any app release
   provision-workspace.mjs  create a client workspace and its admin API key
   set-app-variables.mjs    set an app's instance-wide settings (mail server, WhatsApp service) from a KEY=value file
   check-app-plan.mjs       blocks an app release that would delete objects or fields (and the client data in them)
@@ -104,7 +108,11 @@ Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restor
 
 `tests/multitenant/run.sh` signs up a server admin, creates two client workspaces, checks that neither can read, change or delete the other's records (including replayed session cookies and cross-origin requests), invites a client and checks they cannot reach the other workspace, create workspaces or open the admin panel, then crawls every settings page for leftover Twenty text, links and logos.
 
-`tests/scheduling/` runs the Scheduling app end to end (37 checks), in a browser (17 checks) and with a restricted member role (2 checks) against a real server, with a Google and Microsoft test double. See its README.
+`scripts/check-apps.sh` runs the locked install, the typecheck (tests included, strict compiler flags) and the unit tests of every app, and fails if the request helper shared by four apps has drifted between them.
+
+`tests/run-all.sh` runs the end-to-end suites of all five apps against the throwaway test server and starts the test doubles they need: `SERVER_URL=http://localhost:3001 tests/run-all.sh <keys dir>`. Every suite exits non-zero when a check fails. Never run it against production.
+
+`tests/scheduling/` runs the Scheduling app end to end (40 checks), in a browser (17 checks), with a restricted member role (2 checks) and against the attacks from the security review (8 checks) against a real server, with a Google and Microsoft test double. See its README.
 
 ## Onboarding a client
 

@@ -43,4 +43,4 @@ try {
 } finally {
   await setBobRole(memberRole.id);
 }
-summary();
+process.exitCode = summary() ? 0 : 1;

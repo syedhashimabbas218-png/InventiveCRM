@@ -31,10 +31,10 @@ export const findOrCreateContact = async (customer: Customer, settings: Settings
       `query($phone: String!) { people(filter: { phones: { primaryPhoneNumber: { like: $phone } } }, first: 2) { edges { node { id companyId } } } }`,
       { phone: `%${phoneDigits.slice(-9)}` },
     );
-    const matches = nodes(byPhone.people);
+    const [phoneMatch, ...otherPhoneMatches] = nodes(byPhone.people);
     // Only an unambiguous phone match counts.
-    if (matches.length === 1) {
-      person = matches[0];
+    if (phoneMatch && otherPhoneMatches.length === 0) {
+      person = phoneMatch;
       matched = 'phone';
     }
   }
@@ -47,8 +47,8 @@ export const findOrCreateContact = async (customer: Customer, settings: Settings
       // The whole host or a subdomain of it, with or without a scheme and trailing slash; never a substring.
       { patterns: [`${likeLiteral(domain)}`, `%/${likeLiteral(domain)}`, `%/${likeLiteral(domain)}/`, `%.${likeLiteral(domain)}`, `%.${likeLiteral(domain)}/`].map((pattern) => ({ domainName: { primaryLinkUrl: { ilike: pattern } } })) },
     );
-    const found = nodes(companies.companies);
-    if (found.length === 1) companyId = found[0].id;
+    const [company, ...otherCompanies] = nodes(companies.companies);
+    if (company && otherCompanies.length === 0) companyId = company.id;
   }
 
   if (!person && settings.createContacts) {

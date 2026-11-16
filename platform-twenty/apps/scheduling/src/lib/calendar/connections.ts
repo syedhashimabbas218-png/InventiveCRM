@@ -76,6 +76,7 @@ export const loadAdvisorCalendars = async (advisor: AdvisorRef): Promise<Advisor
 
   for (const connection of connections) {
     const provider = PROVIDER_BY_NAME[connection.providerName];
+    if (!provider) continue;
     let setting = settings.find((candidate) => candidate.connectionId === connection.id);
     const permissions = grantedPermissions(provider, connection.scopes);
     const usable = isUsable(permissions);
