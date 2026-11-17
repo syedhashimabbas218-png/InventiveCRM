@@ -10,7 +10,7 @@ How InventiveCRM moves to new versions without losing client data. The scripts i
 | Quotes & Invoices and Scheduling apps | `app publish`, then `app install` per workspace | Install the previous version again; data stays because releases never delete anything (rule 9) |
 | Each client's own setup (fields, views, workflows made by prompt) | Data in the database | Comes back with any database restore |
 
-Nothing updates on its own. Images are pinned by tag, private app installs have auto-upgrade switched off, and the weekly `platform-twenty upstream watch` workflow only opens an issue when Twenty ships a release, saying whether our branding still applies.
+Nothing updates on its own. Images are pinned by tag, private app installs have auto-upgrade switched off, and the weekly `platform-twenty upstream watch` workflow only reports. When Twenty ships a release it rebrands a throwaway copy, runs the leak scan and says whether we are ready to build, in the run summary and in an issue. While Issues are switched off for the repository (the default on a fork) the run fails instead, and that failed run is the notice. It also runs on every push that touches `branding/`.
 
 ## Rules
 
@@ -19,7 +19,7 @@ Nothing updates on its own. Images are pinned by tag, private app installs have 
 3. **No upgrade without a fresh, verified backup.** `upgrade.sh` stops the stack, backs up, verifies checksums and readability, and only then switches the image.
 4. **A failed upgrade rolls itself back.** If the server is not healthy within `UPGRADE_TIMEOUT`, a workspace fails to migrate (the image keeps starting even then, so the script reads its log), or the smoke test fails, `upgrade.sh` restores the pre-upgrade backup.
 5. **A restore never destroys data.** `restore.sh` first backs up the current state (label `before-restore`). Work done after an upgrade that is then rolled back is in that backup.
-6. **Rehearse on staging first.** Staging is a second server restored from last night's production backup (`restore.sh <backup>` with production's `ENCRYPTION_KEY`). Run the upgrade there and the test suites (`tests/multitenant`, `tests/commercial-docs`, `tests/scheduling`), then production.
+6. **Rehearse on staging first.** Staging is a second server restored from last night's production backup (`restore.sh <backup>` with production's `ENCRYPTION_KEY`). Run the upgrade there and the test suites (`tests/multitenant`, `tests/commercial-docs`, `tests/scheduling`), then production. The suites delete records and refuse the address in `deploy/.env` and loopback port 3000 (`tests/guard.cjs`); on staging only, pass `ALLOW_DESTRUCTIVE_TESTS=<that address>`.
 7. **`ENCRYPTION_KEY` never changes.** It decrypts connected mailboxes, app secrets and 2FA. Backups store a fingerprint of it, never the key, and `restore.sh` refuses a mismatch. Keep `.env` in the password manager; a backup is useless without it.
 8. **Keep old images.** Never delete an image tag that a backup's `manifest.json` still names; `restore.sh` needs it.
 9. **App releases never remove objects or fields.** On upgrade the server deletes whatever the new version no longer declares, with its data, in every workspace. Run `twenty app plan --json | node scripts/check-app-plan.mjs` against the owner workspace before every publish; it fails on any deletion. Add fields, or stop using old ones.
@@ -45,12 +45,12 @@ Restoring one client only (everyone else keeps their newer data) is a manual job
 
 ## Upgrading Twenty
 
-1. The upstream watch issue (or Twenty's release notes) says a release is out. Read the notes for breaking changes.
-2. Run the build workflow with `dry_run: true` and the new tag. If branding targets or patches no longer match, fix them in `branding/` first.
+1. The upstream watch (its issue, or its failed run while Issues are off) says a release is out and whether we are ready to build. Read Twenty's release notes for breaking changes.
+2. If it says not ready, fix `branding/` first. A patch rewritten for the new release keeps its old version in `branding/overrides/previous/`, and a rebrand target in a file the old release does not have gets `newIn` in `apply.mjs`, so the release production runs can still be built. Then run the build workflow with `dry_run: true` and the new tag.
 3. Run it without dry run. It builds `platform-twenty:X.Y.Z-pN`, pushes it and creates release `X.Y.Z-pN` (the source offer in the app links there).
 4. Staging: `deploy/ops/upgrade.sh ghcr.io/<owner>/platform-twenty:X.Y.Z-pN`, then the test suites.
 5. Production, in the window: the same command. Add `--yes` only in automation.
-6. Update `upstreamTag` in `branding/brand.config.json` and the `IMAGE` in `deploy/.env.example`.
+6. Update `upstreamTag` in `branding/brand.config.json` and the `IMAGE` in `deploy/.env.example`, then delete `branding/overrides/previous/` and the `newIn` flags in `apply.mjs`.
 
 To roll back by hand later (for example a problem found the next day): `deploy/ops/restore.sh latest-pre-upgrade`. Anything clients entered since the upgrade is then only in the `before-restore` backup, so decide with them first.
 

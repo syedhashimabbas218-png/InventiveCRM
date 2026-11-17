@@ -31,7 +31,8 @@ branding/
   leak-scan.mjs       fails if "Twenty", a Twenty link or a Twenty logo file shows in pages, emails,
                       the PWA manifest or the 2FA label
   overrides/          small hand patches (*.patch), applied with git apply before the string rules;
-                      they read brand values from the BrandConfig.ts files apply.mjs generates
+                      they read brand values from the BrandConfig.ts files apply.mjs generates.
+                      previous/ holds the last version of a patch rewritten for a newer Twenty (UPDATES.md)
 apps/commercial-docs/  Quotes & Invoices app (UK quotes, VAT invoices, credit notes, recurring billing)
 apps/scheduling/       Scheduling app (appointment types, availability, team and location-based booking, booking pages
                        and embeds, Google and Microsoft calendar sync)
@@ -110,7 +111,7 @@ Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restor
 
 `scripts/check-apps.sh` runs the locked install, the typecheck (tests included, strict compiler flags) and the unit tests of every app, and fails if the request helper shared by four apps has drifted between them.
 
-`tests/run-all.sh` runs the end-to-end suites of all five apps against the throwaway test server and starts the test doubles they need: `SERVER_URL=http://localhost:3001 tests/run-all.sh <keys dir>`. Every suite exits non-zero when a check fails. Never run it against production.
+`tests/run-all.sh` runs the end-to-end suites of all five apps against the throwaway test server and starts the test doubles they need: `SERVER_URL=http://localhost:3001 tests/run-all.sh <keys dir>`. Every suite exits non-zero when a check fails. The suites delete records, so `tests/guard.cjs` makes them refuse the live CRM on the machine that has `deploy/.env`.
 
 `tests/scheduling/` runs the Scheduling app end to end (40 checks), in a browser (17 checks), with a restricted member role (2 checks) and against the attacks from the security review (8 checks) against a real server, with a Google and Microsoft test double. See its README.
 

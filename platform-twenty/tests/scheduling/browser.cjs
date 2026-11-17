@@ -5,10 +5,12 @@ const { chromium } = require('playwright');
 const { createServer } = require('node:http');
 const { mkdirSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
+const { testServerUrl } = require('../guard.cjs');
 
 const [stateFile, keyFile, out] = process.argv.slice(2);
 const state = JSON.parse(readFileSync(stateFile, 'utf8'));
 const key = readFileSync(keyFile, 'utf8').trim();
+const SERVER = testServerUrl();
 const W = state.workspaceUrl;
 mkdirSync(out, { recursive: true });
 const results = [];
@@ -17,7 +19,7 @@ const assert = (name, passed, detail = '') => {
   console.log(`${passed ? 'PASS' : 'FAIL'} ${name}${detail ? ` -- ${detail}` : ''}`);
 };
 const gql = async (query, variables = {}) => {
-  const response = await fetch(`${process.env.SERVER_URL}/graphql`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify({ query, variables }) });
+  const response = await fetch(`${SERVER}/graphql`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify({ query, variables }) });
   return (await response.json()).data;
 };
 // Clients must never see the upstream product name: pages and emails are collected and checked at the end.

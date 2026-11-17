@@ -4,8 +4,9 @@
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-const SERVER_URL = process.env.SERVER_URL;
-if (!SERVER_URL) throw new Error('Set SERVER_URL to the test server. Never run this against production.');
+import { testServerUrl } from '../guard.cjs';
+
+const SERVER_URL = testServerUrl();
 const MOCK = process.env.RESEND_MOCK_URL || 'http://127.0.0.1:8097';
 const APP_ID = '992fae47-c2c3-4731-b8aa-ebdcdb466631';
 const [keyFile, varsFile] = process.argv.slice(2);

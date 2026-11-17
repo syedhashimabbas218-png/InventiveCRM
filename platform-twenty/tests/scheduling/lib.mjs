@@ -2,9 +2,9 @@
 // mock-calendar-providers.mjs on MOCK_URL.
 import { readFileSync } from 'node:fs';
 
-// No default: a forgotten variable must not send test traffic to a live server on the usual port.
-export const SERVER = process.env.SERVER_URL;
-if (!SERVER) throw new Error('Set SERVER_URL to the throwaway test server, for example http://localhost:3001');
+import { testServerUrl } from '../guard.cjs';
+
+export const SERVER = testServerUrl();
 export const MOCK = process.env.MOCK_URL || 'http://127.0.0.1:8095';
 export const MAILPIT = process.env.MAILPIT_URL || 'http://127.0.0.1:8025';
 

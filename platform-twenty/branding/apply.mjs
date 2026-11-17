@@ -21,6 +21,9 @@ import {
   readUpstreamFile,
 } from './rules.mjs';
 
+const MARKETPLACE_APPLICATIONS_FILE = 'packages/twenty-server/src/engine/core-modules/application/application-marketplace/constants/marketplace-built-in-applications.constant.ts';
+const OAUTH_CLIENT_METADATA_FILE = 'packages/twenty-server/src/engine/core-modules/application/connection-provider/oauth-discovery/utils/build-oauth-discovery-client-metadata.util.ts';
+
 // User-visible strings that are not inside a Lingui macro. `contains` narrows to matching lines; omit it for the whole file.
 const VISIBLE_TARGETS = [
   { file: 'packages/twenty-front/index.html', contains: '<title>Twenty</title>' },
@@ -55,6 +58,13 @@ const VISIBLE_TARGETS = [
   { file: 'packages/twenty-server/src/engine/metadata-modules/ai/ai-front-component/tools/get-front-component-ui-docs.tool.ts' },
   { file: 'packages/twenty-server/src/engine/metadata-modules/ai/ai-front-component/utils/validate-front-component-source-or-throw.util.ts' },
   { file: 'packages/twenty-server/src/engine/core-modules/getting-started/constants/getting-started-handover-workflow.constant.ts' },
+  // newIn: the file does not exist in the release production still runs. Drop the flag once production has moved on.
+  { file: 'packages/twenty-server/src/engine/api/mcp/utils/build-mcp-generic-mode-instructions.util.ts', newIn: '2.59' },
+  { file: 'packages/twenty-server/src/engine/api/mcp/utils/build-mcp-twenty-primitives-instruction-lines.util.ts', newIn: '2.59' },
+  { file: MARKETPLACE_APPLICATIONS_FILE, contains: 'your Twenty records', newIn: '2.59' },
+  { file: MARKETPLACE_APPLICATIONS_FILE, contains: 'to Twenty to work', newIn: '2.59' },
+  { file: MARKETPLACE_APPLICATIONS_FILE, contains: 'connectorName=Twenty', newIn: '2.59' },
+  { file: OAUTH_CLIENT_METADATA_FILE, contains: "client_name: 'Twenty'", newIn: '2.59' },
 ];
 
 // Imported by the override patches, so brand values stay in brand.config.json.
@@ -75,6 +85,8 @@ const URL_TARGETS = [
   { file: 'packages/twenty-shared/src/constants/TwentyCompaniesBaseUrl.ts', find: "'https://twenty-companies.com'", replaceWith: "'{companyEnrichmentServiceUrl}'" },
   { file: 'packages/twenty-shared/src/constants/DocumentationBaseUrl.ts', find: "'https://docs.twenty.com'", replaceWith: "'{documentationUrl}'" },
   { file: 'packages/twenty-front/src/modules/workflow/workflow-steps/workflow-actions/form-action/components/WorkflowEditActionFormBuilder.tsx', find: "'https://docs.twenty.com/", replaceWith: "'{documentationUrl}/" },
+  // The name and site other services show on their consent screen when this server connects to them.
+  { file: OAUTH_CLIENT_METADATA_FILE, find: "'https://twenty.com'", replaceWith: "'{websiteUrl}'" },
 ];
 
 // Strings where "Twenty" names the company or its licensing, not the product.
@@ -160,8 +172,7 @@ const patches = existsSync(overridesDirectory)
 
 // Patches go first so their context matches pristine upstream. A dry run reverts them afterwards.
 const appliedPatches = [];
-for (const patch of patches) {
-  const patchPath = join(overridesDirectory, patch);
+const applyOverride = (patchPath) => {
   const touched = execFileSync('git', ['apply', '--numstat', patchPath], { cwd: upstreamDirectory, encoding: 'utf8' })
     .trim()
     .split('\n')
@@ -169,17 +180,26 @@ for (const patch of patches) {
   const enterpriseTouched = touched.filter(
     (file) => existsSync(join(upstreamDirectory, file)) && isEnterpriseFile(readUpstreamFile(upstreamDirectory, file)),
   );
-  if (enterpriseTouched.length > 0) {
-    report.overrides.push({ patch, status: 'refused: touches enterprise files', files: enterpriseTouched });
-    continue;
-  }
+  if (enterpriseTouched.length > 0) return { status: 'refused: touches enterprise files', files: enterpriseTouched };
   try {
     execFileSync('git', ['apply', patchPath], { cwd: upstreamDirectory, stdio: 'pipe' });
     appliedPatches.push(patchPath);
-    report.overrides.push({ patch, status: options.write ? 'applied' : 'applies cleanly', files: touched });
+    return { status: options.write ? 'applied' : 'applies cleanly', files: touched };
   } catch (error) {
-    report.overrides.push({ patch, status: 'does not apply', files: touched, error: String(error.stderr ?? error.message).trim() });
+    return { status: 'does not apply', files: touched, error: String(error.stderr ?? error.message).trim() };
   }
+};
+
+// overrides/previous/ keeps the last version of a patch that had to be rewritten for a newer Twenty, so this
+// commit still builds the release production runs until production has moved on.
+for (const patch of patches) {
+  let outcome = applyOverride(join(overridesDirectory, patch));
+  const previousPath = join(overridesDirectory, 'previous', patch);
+  if (outcome.status === 'does not apply' && existsSync(previousPath)) {
+    const previous = applyOverride(previousPath);
+    if (previous.status !== 'does not apply') outcome = { ...previous, variant: 'previous' };
+  }
+  report.overrides.push({ patch, ...outcome });
 }
 
 const configDirectory = dirname(resolve(options.config));
@@ -336,7 +356,9 @@ try {
   }
 
   for (const target of VISIBLE_TARGETS) {
-    if (!matchedTargets.has(target)) report.targetsNotFound.push({ file: target.file, contains: target.contains ?? '(whole file)' });
+    if (matchedTargets.has(target)) continue;
+    if (target.newIn && !existsSync(join(upstreamDirectory, target.file))) continue;
+    report.targetsNotFound.push({ file: target.file, contains: target.contains ?? '(whole file)' });
   }
 } finally {
   if (!options.write) {
@@ -395,8 +417,8 @@ print(`ASSETS REPLACED${options.write ? '' : ' (dry run: not written)'}: ${repor
 print(`GENERATED FILES${options.write ? '' : ' (dry run: not written)'}: ${report.generatedFiles.join(', ')}`);
 print();
 print(`OVERRIDES${options.write ? '' : ' (dry run: applied for the scan, then reverted)'}: ${report.overrides.length}`);
-for (const { patch, status, files: touched, error } of report.overrides) {
-  print(`  ${patch}: ${status} (${touched.join(', ')})${error ? `\n      ${error}` : ''}`);
+for (const { patch, status, files: touched, error, variant } of report.overrides) {
+  print(`  ${patch}${variant ? ` [${variant}]` : ''}: ${status} (${touched.join(', ')})${error ? `\n      ${error}` : ''}`);
 }
 
 if (options.report) writeFileSync(options.report, `${JSON.stringify(report, null, 2)}\n`);

@@ -1,5 +1,5 @@
 diff --git a/packages/twenty-front/src/pages/onboarding/ImportContacts.tsx b/packages/twenty-front/src/pages/onboarding/ImportContacts.tsx
-index 51109868..c7e17398 100644
+index 5ec328ff..2786cf8a 100644
 --- a/packages/twenty-front/src/pages/onboarding/ImportContacts.tsx
 +++ b/packages/twenty-front/src/pages/onboarding/ImportContacts.tsx
 @@ -7,7 +7,6 @@ import { StyledOnboardingStepPage } from '@/onboarding/components/StyledOnboardi
@@ -10,11 +10,11 @@ index 51109868..c7e17398 100644
  import { ONBOARDING_CONTENT_BLOCK_WIDTH } from '@/onboarding/constants/OnboardingContentBlockWidth';
  import { styled } from '@linaria/react';
  import { useLingui } from '@lingui/react/macro';
-@@ -72,7 +71,6 @@ export const ImportContacts = ({
+@@ -74,7 +73,6 @@ export const ImportContacts = ({
  
        <OnboardingStepAnimatedItem index={2}>
          <StyledMiddle>
 -          <OnboardingTrustBadges />
-           <OnboardingImportPreview />
-         </StyledMiddle>
-       </OnboardingStepAnimatedItem>
+           <OnboardingImportPreview
+             privacyNote={t`Only you will be able to see your emails and events`}
+           />

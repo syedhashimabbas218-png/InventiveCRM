@@ -2,8 +2,9 @@
 // Usage: SERVER_URL=http://localhost:3001 node e2e.mjs <api key file>
 import { readFileSync } from 'node:fs';
 
-const SERVER_URL = process.env.SERVER_URL;
-if (!SERVER_URL) throw new Error('Set SERVER_URL to the test server. Never run this against production.');
+import { testServerUrl } from '../guard.cjs';
+
+const SERVER_URL = testServerUrl();
 const [keyFile] = process.argv.slice(2);
 const apiKey = readFileSync(keyFile, 'utf8').trim();
 const W = SERVER_URL.replace('//localhost', '//acme.localhost');

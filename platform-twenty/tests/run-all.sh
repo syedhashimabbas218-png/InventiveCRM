@@ -11,6 +11,7 @@ keys=${1:?Usage: SERVER_URL=... tests/run-all.sh <keys dir> [suite ...]}
 shift
 keys=$(cd "$keys" && pwd)
 cd "$(dirname "$0")"
+node guard.cjs || exit 1
 suites=("$@")
 [ ${#suites[@]} -eq 0 ] && suites=(scheduling feedback campaigns team-chat documents)
 workspace=${SERVER_URL/\/\/localhost/\/\/acme.localhost}

@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-// No default: a forgotten variable must not send test traffic to a live server on the usual port.
-const SERVER_URL = process.env.SERVER_URL;
-if (!SERVER_URL) throw new Error('Set SERVER_URL to the throwaway test server, for example http://localhost:3001');
+
+import { testServerUrl } from '../guard.cjs';
+
+const SERVER_URL = testServerUrl();
 export const client = (keyFile) => {
   const key = readFileSync(keyFile, 'utf8').trim();
   const gql = async (query, variables = {}) => {

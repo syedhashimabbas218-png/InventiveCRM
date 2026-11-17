@@ -1,15 +1,14 @@
 diff --git a/packages/twenty-front/src/pages/settings/community/SettingsCommunity.tsx b/packages/twenty-front/src/pages/settings/community/SettingsCommunity.tsx
-index e01efa24..302531a4 100644
+index 57bb9721..dd9dada8 100644
 --- a/packages/twenty-front/src/pages/settings/community/SettingsCommunity.tsx
 +++ b/packages/twenty-front/src/pages/settings/community/SettingsCommunity.tsx
-@@ -1,68 +1,12 @@
+@@ -1,68 +1,13 @@
 -import { SettingsCard } from '@/settings/components/SettingsCard';
 -import { SettingsDiscoveryHeroCard } from '@/settings/components/SettingsDiscoveryHeroCard';
  import { SettingsPageContainer } from '@/settings/components/SettingsPageContainer';
  import { SettingsLabContent } from '@/settings/lab/components/SettingsLabContent';
  import { SettingsPageLayout } from '@/settings/components/layout/SettingsPageLayout';
 -import { styled } from '@linaria/react';
- import { t } from '@lingui/core/macro';
  import { Section } from 'twenty-ui/components/layout';
 -import {
 -  IconBrandX,
@@ -23,7 +22,8 @@ index e01efa24..302531a4 100644
 -import { MOBILE_VIEWPORT, useTheme, themeCssVariables } from 'twenty-ui/theme';
 -import coverDark from '~/pages/settings/community/assets/cover-dark.png';
 -import coverLight from '~/pages/settings/community/assets/cover-light.png';
--
+ import { useLingui } from '@lingui/react/macro';
+ 
 -const SETTINGS_COMMUNITY_HERO_INSTANCE_ID_PREFIX = 'settings-community-hero';
 -
 -const StyledCardsGrid = styled.div`
@@ -47,8 +47,9 @@ index e01efa24..302531a4 100644
 -  iconColor: string;
 -  cardTitle: string;
 -};
- 
+-
  export const SettingsCommunity = () => {
+   const { t } = useLingui();
 -  const theme = useTheme();
 -  const { getIcon } = useIcons();
 -  const IconBrandDiscord = getIcon('IconBrandDiscord');
@@ -67,11 +68,10 @@ index e01efa24..302531a4 100644
 -      cardTitle: t`Follow us on X`,
 -    },
 -  ];
--
+ 
    return (
      <SettingsPageLayout
-       title={t`Community`}
-@@ -75,73 +19,12 @@ export const SettingsCommunity = () => {
+@@ -76,73 +21,12 @@ export const SettingsCommunity = () => {
        ]}
      >
        <SettingsPageContainer>

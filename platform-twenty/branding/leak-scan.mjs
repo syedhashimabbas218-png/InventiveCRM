@@ -61,6 +61,7 @@ const EXCEPTIONS = [
   { pattern: /^packages\/twenty-ui\/src\/icon\//, reason: 'icon dictionary for developers; not imported by twenty-front' },
   { pattern: /^packages\/twenty-front\/src\/modules\/onboarding\/constants\/OnboardingNetworkPreviewPeople\.ts$/, reason: 'placeholder avatar photos hosted by Twenty, no Twenty branding' },
   { pattern: /^packages\/twenty-front\/src\/modules\/settings\/billing\//, reason: 'billing UI, hidden while IS_BILLING_ENABLED is false' },
+  { pattern: /^packages\/twenty-front\/src\/modules\/settings\/privacy\/constants\/Twenty(RepositoryUrl|TrustCenterUrls)\.ts$/, reason: "links on the Twenty Cloud safeguards card, which only renders with billing on (IS_BILLING_ENABLED is false)" },
   { pattern: /^packages\/twenty-front\/src\/pages\/settings\/developers\/tabs\/SettingsDevelopersCliTab\.tsx$/, reason: "links developers to the docs of Twenty's own CLI (npx twenty)" },
   { pattern: /^packages\/twenty-front\/src\/pages\/settings\/enterprise\//, reason: "describes Twenty's own Enterprise licence; renaming would misstate who sells it" },
 ];

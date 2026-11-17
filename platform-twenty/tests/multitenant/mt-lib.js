@@ -1,3 +1,5 @@
+// Every script here is hardwired to localhost:3000, which is the live CRM on the production machine.
+require('../guard.cjs').assertNotProduction('http://localhost:3000');
 const { chromium } = require('playwright');
 const fs = require('fs');
 const leaks = [];
