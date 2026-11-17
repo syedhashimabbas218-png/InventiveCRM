@@ -4,7 +4,7 @@
 # and restores the backup automatically if any of that fails. See UPDATES.md for the rules around it.
 . "$(dirname "$0")/lib.sh"
 
-new_image=${1:?image with a pinned tag, e.g. ghcr.io/owner/platform-twenty:2.56.0-p12}
+new_image=${1:?image with a pinned tag, e.g. platform-twenty:2.56.0-p1}
 shift
 rollback=1
 for option in "$@"; do
@@ -25,7 +25,7 @@ if [ "$(printf '%s\n%s\n' "$current_version" "$new_version" | sort -V | head -1)
   die "$new_version is older than $current_version: Twenty cannot migrate a database back; use ops/restore.sh with the pre-upgrade backup"
 fi
 
-docker pull "$new_image" >/dev/null || die "cannot pull $new_image"
+docker image inspect "$new_image" >/dev/null 2>&1 || docker pull "$new_image" >/dev/null || die "image $new_image is not on this server and cannot be pulled"
 wait_healthy 30 || die "the server is not healthy now; fix that before upgrading"
 database_bytes=$(psql_db -d "$(env_value PG_DATABASE_NAME)" -tAc 'SELECT pg_database_size(current_database())')
 free_bytes=$(($(df --output=avail -k "$BACKUP_DIR" | tail -1) * 1024))
@@ -52,8 +52,7 @@ set_env_value IMAGE "$new_image"
 started=$(date -u +%FT%TZ)
 compose up -d server || fail "the server did not start"
 wait_healthy "${UPGRADE_TIMEOUT:-1200}" || fail "the server was not healthy within ${UPGRADE_TIMEOUT:-1200}s"
-# The image's entrypoint keeps starting even when some workspaces failed to migrate, so read its log.
-if compose logs --since "$started" server 2>&1 | grep -qE 'Upgrade completed with errors|Some workspaces may not be fully migrated'; then
+if compose logs --since "$started" server 2>&1 | upgrade_errors_logged; then
   fail "some workspaces did not migrate"
 fi
 compose up -d worker || fail "the worker did not start"

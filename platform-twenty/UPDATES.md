@@ -6,25 +6,27 @@ How InventiveCRM moves to new versions without losing client data. The scripts i
 
 | Layer | What changes it | Rollback |
 |---|---|---|
-| Twenty core + our branding patches (the Docker image) | A new upstream tag, built by the `platform-twenty rebrand and build` workflow | Restore the pre-upgrade backup (database, files, DKIM keys and the old image together) |
+| Twenty core + our branding patches (the Docker image) | A new upstream tag, built on the server by `deploy/ops/auto-update.sh` | Restore the pre-upgrade backup (database, files, DKIM keys and the old image together) |
 | Quotes & Invoices and Scheduling apps | `app publish`, then `app install` per workspace | Install the previous version again; data stays because releases never delete anything (rule 9) |
 | Each client's own setup (fields, views, workflows made by prompt) | Data in the database | Comes back with any database restore |
 
-Nothing updates on its own. Images are pinned by tag, private app installs have auto-upgrade switched off, and the weekly `platform-twenty upstream watch` workflow only reports. When Twenty ships a release it rebrands a throwaway copy, runs the leak scan and says whether we are ready to build, in the run summary and in an issue. While Issues are switched off for the repository (the default on a fork) the run fails instead, and that failed run is the notice. It also runs on every push that touches `branding/`.
+Production never upgrades on its own: images are pinned by tag and private app installs have auto-upgrade switched off. Everything before that last step is automatic. Every Monday night the server runs `deploy/ops/auto-update.sh` (cron). When Twenty has a newer release than production runs, it rebrands a throwaway checkout, runs the leak scan, builds the image on the server, upgrades a sealed copy of the newest backup with it and checks that no table lost rows, then runs every app suite against an upgraded copy of the test stack. The verdict (`ready`, `not-ready` or `up-to-date`) goes to `deploy/state/update-status.json`; `deploy/ops/auto-update.sh --status` prints it with the command to run next. While a release is waiting, both rehearsals are repeated every week on the newest backup.
+
+The weekly `platform-twenty upstream watch` workflow on GitHub is the notice that a release is out. It rebrands a throwaway copy, runs the leak scan and says whether we are ready to build, in the run summary and in an issue. While Issues are switched off for the repository (the default on a fork) the run fails instead, and that failed run is the notice. It also runs on every push that touches `branding/`.
 
 ## Rules
 
-1. **Pin everything.** Images are `ghcr.io/<owner>/platform-twenty:X.Y.Z-pN`, never `latest`. `upgrade.sh` refuses an unpinned tag.
+1. **Pin everything.** Images are `platform-twenty:X.Y.Z-pN` (Twenty's version, then our build number for it), never `latest`. `upgrade.sh` refuses an unpinned tag. Images are built on the server and are not pushed anywhere.
 2. **Never move backwards in place.** Twenty migrates the database on start and has no supported downgrade. Going back always means restoring the backup taken before the upgrade; `upgrade.sh` refuses an older version.
 3. **No upgrade without a fresh, verified backup.** `upgrade.sh` stops the stack, backs up, verifies checksums and readability, and only then switches the image.
 4. **A failed upgrade rolls itself back.** If the server is not healthy within `UPGRADE_TIMEOUT`, a workspace fails to migrate (the image keeps starting even then, so the script reads its log), or the smoke test fails, `upgrade.sh` restores the pre-upgrade backup.
 5. **A restore never destroys data.** `restore.sh` first backs up the current state (label `before-restore`). Work done after an upgrade that is then rolled back is in that backup.
-6. **Rehearse on staging first.** Staging is a second server restored from last night's production backup (`restore.sh <backup>` with production's `ENCRYPTION_KEY`). Run the upgrade there and the test suites (`tests/multitenant`, `tests/commercial-docs`, `tests/scheduling`), then production. The suites delete records and refuse the address in `deploy/.env` and loopback port 3000 (`tests/guard.cjs`); on staging only, pass `ALLOW_DESTRUCTIVE_TESTS=<that address>`.
+6. **Rehearse first, on copies.** `rehearse-data.sh <image>` restores the newest backup into throwaway containers on a network with no way out and no worker, so the copy cannot reach production's database or send anything to a customer; it lets the new image migrate that copy and fails if a workspace did not migrate or any table in a workspace has fewer rows than before. `rehearse-apps.sh <image>` copies the test stack, upgrades the copy and runs `tests/run-all.sh` against it. The suites delete records and refuse the address in `deploy/.env` and loopback port 3000 (`tests/guard.cjs`); on a staging server restored from a production backup, pass `ALLOW_DESTRUCTIVE_TESTS=<that address>`.
 7. **`ENCRYPTION_KEY` never changes.** It decrypts connected mailboxes, app secrets and 2FA. Backups store a fingerprint of it, never the key, and `restore.sh` refuses a mismatch. Keep `.env` in the password manager; a backup is useless without it.
-8. **Keep old images.** Never delete an image tag that a backup's `manifest.json` still names; `restore.sh` needs it.
+8. **Keep old images.** Never delete an image tag that a backup's `manifest.json` still names; `restore.sh` needs it and there is no registry to pull it from. `auto-update.sh` removes only superseded images it built itself that neither production, the test stack nor any backup names.
 9. **App releases never remove objects or fields.** On upgrade the server deletes whatever the new version no longer declares, with its data, in every workspace. Run `twenty app plan --json | node scripts/check-app-plan.mjs` against the owner workspace before every publish; it fails on any deletion. Add fields, or stop using old ones.
 10. **One client first.** Install a new app version in our own workspace, then one client, then the rest.
-11. **Upgrades happen in a maintenance window.** The CRM is offline while it migrates (about 2 minutes in the rehearsal, longer with more data). Announce it to clients.
+11. **Upgrades happen in a maintenance window.** The CRM is offline while it migrates (the data rehearsal logs how long the copy took). Announce it to clients.
 12. **Never sync this repository's `main` from upstream Twenty.** The build always downloads the pinned upstream tag, so it never needs it. A sync brings back Twenty's own workflows (deploys to their cloud, translation and AI-catalog syncs), which fail here without their secrets and use our Actions minutes. The only workflows here are `platform-twenty-rebrand.yml` and `platform-twenty-upstream-watch.yml`.
 
 ## Backups
@@ -45,12 +47,14 @@ Restoring one client only (everyone else keeps their newer data) is a manual job
 
 ## Upgrading Twenty
 
-1. The upstream watch (its issue, or its failed run while Issues are off) says a release is out and whether we are ready to build. Read Twenty's release notes for breaking changes.
-2. If it says not ready, fix `branding/` first. A patch rewritten for the new release keeps its old version in `branding/overrides/previous/`, and a rebrand target in a file the old release does not have gets `newIn` in `apply.mjs`, so the release production runs can still be built. Then run the build workflow with `dry_run: true` and the new tag.
-3. Run it without dry run. It builds `platform-twenty:X.Y.Z-pN`, pushes it and creates release `X.Y.Z-pN` (the source offer in the app links there).
-4. Staging: `deploy/ops/upgrade.sh ghcr.io/<owner>/platform-twenty:X.Y.Z-pN`, then the test suites.
-5. Production, in the window: the same command. Add `--yes` only in automation.
-6. Update `upstreamTag` in `branding/brand.config.json` and the `IMAGE` in `deploy/.env.example`, then delete `branding/overrides/previous/` and the `newIn` flags in `apply.mjs`.
+1. The upstream watch (its issue, or its failed run while Issues are off) says a release is out. By the next Monday morning the server has built and rehearsed it: `deploy/ops/auto-update.sh --status` gives the verdict, and the output of each stage is under `/var/lib/inventivecrm-update/logs/`. To not wait for Monday, run `deploy/ops/auto-update.sh` by hand; it takes about an hour and leaves production alone.
+2. If it says not ready, the status names the stage. Branding that no longer fits is fixed in `branding/`: a patch rewritten for the new release keeps its old version in `branding/overrides/previous/`, and a rebrand target in a file the old release does not have gets `newIn` in `apply.mjs`, so the release production runs can still be built. Lost rows or a failed app suite mean the release is not safe for us yet; read the stage's log before anything else. Then run `auto-update.sh` again.
+3. Read Twenty's release notes for breaking changes.
+4. Push the tag `X.Y.Z-pN` the status gives (the commit the image was built from). The About text in the app links to it as the source of the running version, which the AGPL requires.
+5. Production, in the window: the command the status gives, `deploy/ops/upgrade.sh platform-twenty:X.Y.Z-pN`. It takes its own backup and rolls back by itself on failure. Add `--yes` only in automation.
+6. Update `upstreamTag` in `branding/brand.config.json` and the `IMAGE` in `deploy/.env.example`, then delete `branding/overrides/previous/` and the `newIn` flags in `apply.mjs`. The test stack moves to the new image by itself at the next rehearsal.
+
+The stages also run on their own: `build-image.sh <twenty/vX.Y.Z> <image>`, `rehearse-data.sh <image> [backup]`, `rehearse-apps.sh <image>`. The `platform-twenty rebrand and build` workflow on GitHub builds the same image and pushes it to a registry with a release; it is only needed if images are ever served from a registry instead of built on the server.
 
 To roll back by hand later (for example a problem found the next day): `deploy/ops/restore.sh latest-pre-upgrade`. Anything clients entered since the upgrade is then only in the `before-restore` backup, so decide with them first.
 
@@ -82,3 +86,10 @@ On 3 November 2026 the scripts were run against our `deploy/docker-compose.yml` 
 - a forced failed upgrade rolled itself back with no data lost
 - `latest`, a downgrade, a changed `ENCRYPTION_KEY`, no backups, and two operations at once were all refused
 - `check-app-plan.mjs` blocked an app release that removed one field (4 items would have been destroyed)
+
+On 17 November 2026 the automatic pipeline ran end to end for Twenty 2.59.3, from cron's environment:
+
+- `build-image.sh` rebranded and built `platform-twenty:2.59.3-p1` on the server. Twenty's translation step only passed once its worker start-up limit was raised for the build stages; the setting does not reach the image.
+- `rehearse-data.sh` upgraded a sealed copy of the nightly backup from 2.55.0 in 200 s. All 123 tables kept their rows; four empty workflow tables were removed by the upgrade. The smoke test passed on the copy.
+- `rehearse-apps.sh` failed, as it should have. Twenty 2.59 requires a signed-in browser session and a browser cookie for app connections (`/auth/apps/authorize`), so the suites' connect steps for Resend, Stripe, Revolut and the calendar reconnect stop there. The verdict was `not-ready`; production stayed on 2.55.0.
+

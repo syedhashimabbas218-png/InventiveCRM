@@ -16,6 +16,8 @@ if [ -f "$DEPLOY_DIR/ops.env" ]; then
 fi
 BACKUP_DIR=${BACKUP_DIR:-/var/backups/inventivecrm}
 STATE_DIR=${STATE_DIR:-$DEPLOY_DIR/state}
+# shellcheck disable=SC2034
+PLATFORM_DIR=$(dirname "$DEPLOY_DIR")
 SERVER_HEALTH_URL=${SERVER_HEALTH_URL:-http://127.0.0.1:3000/healthz}
 mkdir -p "$STATE_DIR" "$BACKUP_DIR"
 
@@ -62,6 +64,24 @@ take_lock() {
   flock -n 9 || die "another backup, upgrade or restore is running"
   export OPS_LOCK_HELD=1
 }
+
+# One rehearsal at a time: they use fixed container names and a good share of the server's memory.
+take_rehearsal_lock() {
+  exec 8>"$STATE_DIR/rehearsal.lock"
+  flock -n 8 || die "another rehearsal is running"
+}
+
+# Labels an image with the branding it was built from, so changed branding gets a new -pN image.
+branding_revision() {
+  local revision
+  revision=$(git -C "$PLATFORM_DIR" rev-parse HEAD:./branding)
+  [ -z "$(git -C "$PLATFORM_DIR" status --porcelain -- branding)" ] || revision+=-dirty
+  printf '%s' "$revision"
+}
+
+# The image keeps starting when a workspace failed to migrate, so its log is the only sign. Reads a log on stdin.
+# Not grep -q: it stops at the first match, and under pipefail the writer's broken pipe then hides that match.
+upgrade_errors_logged() { grep -E 'Upgrade completed with errors|Some workspaces may not be fully migrated' >/dev/null; }
 
 psql_db() { compose exec -T db psql -v ON_ERROR_STOP=1 -U "$(env_value PG_DATABASE_USER)" "$@"; }
 

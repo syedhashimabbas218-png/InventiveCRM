@@ -5,7 +5,7 @@
 
 curl -fsS --max-time 10 "$SERVER_HEALTH_URL" >/dev/null || die "smoke: health check failed"
 base=${SERVER_HEALTH_URL%/healthz}
-curl -fsS --max-time 20 "$base/" | grep -q '<div id="root"' || die "smoke: the web app did not load"
+curl -fsS --max-time 20 "$base/" | grep '<div id="root"' >/dev/null || die "smoke: the web app did not load"
 
 for key_file in "${SMOKE_KEYS_DIR:-/nonexistent}"/*.key; do
   [ -f "$key_file" ] || continue
