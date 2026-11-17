@@ -26,7 +26,7 @@ export default defineObject({
   labelIdentifierFieldMetadataUniversalIdentifier: field.name,
   fields: [
     textField({ universalIdentifier: field.name, name: 'name', label: 'Invoice', icon: 'IconFileInvoice' }),
-    textField({ universalIdentifier: field.invoiceNumber, name: 'invoiceNumber', label: 'Number', icon: 'IconHash' }),
+    textField({ universalIdentifier: field.invoiceNumber, name: 'invoiceNumber', label: 'Number', icon: 'IconHash', isUnique: true }),
     selectField({ universalIdentifier: field.kind, name: 'kind', label: 'Type', icon: 'IconFiles' }, INVOICE_KINDS, 'INVOICE'),
     selectField({ universalIdentifier: field.status, name: 'status', label: 'Status', icon: 'IconProgress' }, INVOICE_STATUSES, 'DRAFT'),
     selectField({ universalIdentifier: field.template, name: 'template', label: 'Template', icon: 'IconTemplate' }, INVOICE_TEMPLATES),
@@ -47,6 +47,9 @@ export default defineObject({
     textField({ universalIdentifier: field.paymentReference, name: 'paymentReference', label: 'Payment reference', icon: 'IconHash' }),
     numberField({ universalIdentifier: field.paymentLinkAmountPence, name: 'paymentLinkAmountPence', label: 'Link amount (pence)', icon: 'IconCurrencyPound' }, { integer: true }),
     dateTimeField({ universalIdentifier: field.paymentLinkCreatedAt, name: 'paymentLinkCreatedAt', label: 'Link created', icon: 'IconClock' }),
+    dateTimeField({ universalIdentifier: field.paymentCheckedAt, name: 'paymentCheckedAt', label: 'Payment last checked', icon: 'IconRefresh', isAuditLogged: false }),
+    textField({ universalIdentifier: field.paymentLinkError, name: 'paymentLinkError', label: 'Online payment problem', icon: 'IconAlertTriangle', description: 'Why the pay-now link could not be created or checked, if it could not.' }),
+    textField({ universalIdentifier: field.paymentLinkRequestKey, name: 'paymentLinkRequestKey', label: 'Link request key', icon: 'IconKey', description: 'Idempotency key of the latest pay-now link request.', isAuditLogged: false }),
     filesField({ universalIdentifier: field.pdf, name: 'pdf', label: 'PDF', icon: 'IconFileTypePdf' }),
     dateTimeField({ universalIdentifier: field.lastSentAt, name: 'lastSentAt', label: 'Last sent to client', icon: 'IconSend' }),
     textField({ universalIdentifier: field.layoutUsed, name: 'layoutUsed', label: 'Layout used', icon: 'IconTemplate', description: 'Which template was picked for the PDF, and why.' }),
@@ -58,5 +61,6 @@ export default defineObject({
     dateField({ universalIdentifier: field.nextRecurrenceDate, name: 'nextRecurrenceDate', label: 'Next invoice date', icon: 'IconCalendarRepeat' }),
     dateField({ universalIdentifier: field.recurrenceEndDate, name: 'recurrenceEndDate', label: 'Stop repeating after', icon: 'IconCalendarOff' }),
     booleanField({ universalIdentifier: field.autoIssueRecurring, name: 'autoIssueRecurring', label: 'Issue repeats automatically', icon: 'IconSend' }, true),
+    textField({ universalIdentifier: field.recurrenceKey, name: 'recurrenceKey', label: 'Repeat key', icon: 'IconKey', description: 'Recurring invoice and date this repeat was created for, so a date is never billed twice.', isUnique: true }),
   ],
 });

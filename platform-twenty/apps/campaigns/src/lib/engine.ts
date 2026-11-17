@@ -1,8 +1,23 @@
 import { createHmac, randomUUID } from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
 
-import { metadata } from 'src/lib/api';
+import { type CampaignChannel } from 'src/constants/enums';
+import { metadata, TwentyUnavailableError } from 'src/lib/api';
 import { designProblems, renderEmail, type Brand, type Contact } from 'src/lib/design';
-import { BATCH_SIZE, listDomains, ResendError, resendKey, sendBatch, sendOne, type OutgoingEmail } from 'src/lib/resend';
+import {
+  acceptedEarlier,
+  BATCH_SIZE,
+  isInvalidMessage,
+  isQuotaReached,
+  listDomains,
+  refusedOutright,
+  ResendError,
+  resendKey,
+  retryDelayMs,
+  sendBatch,
+  sendOne,
+  type OutgoingEmail,
+} from 'src/lib/resend';
 import {
   acquireLease,
   ALL_CONSENTED,
@@ -12,9 +27,10 @@ import {
   campaignStatus,
   campaignsWithStatus,
   claimBatch,
-  consentOf,
+  type ContactState,
   contactOf,
   createRecipients,
+  currentContacts,
   existingRecipients,
   getMailingList,
   inFlightRecipients,
@@ -25,12 +41,12 @@ import {
   recentlySent,
   type Recipient,
   recountCampaign,
+  releaseBatch,
   releaseLease,
   suppressedAddresses,
   suppressedAmong,
   updateCampaign,
   updateCampaignIf,
-  updateRecipients,
   updateRecipientsIf,
 } from 'src/lib/store';
 import { newNonce, recipientToken } from 'src/lib/tokens';
@@ -49,6 +65,8 @@ const EMAIL_PATTERN = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/;
 
 export const isEmail = (value: string) => value.length <= 254 && EMAIL_PATTERN.test(value);
 
+export const isLocalPart = (value: string) => /^[a-z0-9._+-]{1,64}$/i.test(value.trim());
+
 export const fromAddress = (campaign: Pick<Campaign, 'fromName' | 'fromLocalPart' | 'fromDomain'>) => {
   const name = campaign.fromName.replace(/["<>\r\n]/g, '').trim();
   const address = `${campaign.fromLocalPart.trim().toLowerCase()}@${campaign.fromDomain.trim().toLowerCase()}`;
@@ -57,27 +75,35 @@ export const fromAddress = (campaign: Pick<Campaign, 'fromName' | 'fromLocalPart
 
 export const RESEND_UNREACHABLE = 'Resend could not be reached to check your sending domain. Try again in a minute.';
 
-// Everything that must be true before a campaign may leave; the studio shows the same list before scheduling.
-export const campaignProblems = async (campaign: Campaign, brand: Brand) => {
+// What can be checked without asking Resend. Also checked again when a prepared campaign starts sending, because the
+// campaign record can be edited in the CRM in the meantime.
+export const contentProblems = (campaign: Campaign, brand: Brand) => {
   const problems: string[] = [];
   if (!campaign.listId) problems.push('Choose who to send it to.');
   if (campaign.channel === 'EMAIL') {
     if (!campaign.subject.trim()) problems.push('Add a subject line.');
-    if (!/^[a-z0-9._+-]{1,64}$/i.test(campaign.fromLocalPart.trim())) problems.push('Choose a sending address.');
+    if (!isLocalPart(campaign.fromLocalPart)) problems.push('Choose a sending address.');
     if (campaign.replyTo && !isEmail(campaign.replyTo.trim())) problems.push('The reply-to address is not a valid email address.');
     problems.push(...designProblems(campaign.design, brand));
-    const key = await resendKey();
-    if (!key) problems.push('Connect your Resend account under Settings, Accounts.');
-    else {
-      const domains = await listDomains(key).catch(() => null);
-      if (!domains) problems.push(RESEND_UNREACHABLE);
-      else if (!campaign.fromDomain.trim()) problems.push('Choose the domain to send from.');
-      else if (!domains.some((domain) => domain.name === campaign.fromDomain.trim().toLowerCase() && domain.status === 'verified'))
-        problems.push(`The domain ${campaign.fromDomain} is not verified in your Resend account.`);
-    }
   } else {
     if (!/^[a-z0-9_]{1,512}$/.test(campaign.whatsappTemplate)) problems.push('Choose an approved WhatsApp template (its name, in lower case).');
     if (!process.env.WHATSAPP_GATEWAY_URL || !process.env.WHATSAPP_GATEWAY_SECRET) problems.push('WhatsApp sending is not set up on this server yet.');
+  }
+  return problems;
+};
+
+// Everything that must be true before a campaign may leave; the studio shows the same list before scheduling.
+export const campaignProblems = async (campaign: Campaign, brand: Brand) => {
+  const problems = contentProblems(campaign, brand);
+  if (campaign.channel !== 'EMAIL') return problems;
+  const key = await resendKey();
+  if (!key) problems.push('Connect your Resend account under Settings, Accounts.');
+  else {
+    const domains = await listDomains(key).catch(() => null);
+    if (!domains) problems.push(RESEND_UNREACHABLE);
+    else if (!campaign.fromDomain.trim()) problems.push('Choose the domain to send from.');
+    else if (!domains.some((domain) => domain.name === campaign.fromDomain.trim().toLowerCase() && domain.status === 'verified'))
+      problems.push(`The domain ${campaign.fromDomain} is not verified in your Resend account.`);
   }
   return problems;
 };
@@ -91,23 +117,27 @@ export const phoneOf = (phones: Person['phones']) => {
   return number && code ? `+${code}${number}` : '';
 };
 
+export const addressOf = (person: Pick<Person, 'emails' | 'phones'>, channel: CampaignChannel) => normaliseAddress(channel === 'EMAIL' ? (person.emails?.primaryEmail ?? '') : phoneOf(person.phones), channel);
+
 export const STOPPED = 'Stopped before sending.';
 
+const RUN_BUDGET_MS = 90_000;
 const PAGE_BUDGET_MS = 15_000;
+// A provider call may take its full 30 s timeout and must then be recorded before the lease or the function runs out.
+const SEND_BUDGET_MS = 45_000;
 
 // Turns one page of the audience after another into recipient rows until the run's time is used up. Everyone gets a
 // row, so the report can say why someone was skipped. Returns true once the whole audience is done.
 const prepareSome = async (campaign: Campaign, timeLeft: () => number) => {
+  // A run can stop between finishing the audience and moving the campaign on.
+  if (campaign.prepareCursor === 'DONE') return true;
   if (campaign.listId !== ALL_CONSENTED && !(await getMailingList(campaign.listId))) throw new CampaignError('The mailing list no longer exists.');
   const suppressed = await suppressedAddresses(campaign.channel);
   let cursor = campaign.prepareCursor || null;
   while (timeLeft() > PAGE_BUDGET_MS) {
     if ((await campaignStatus(campaign.id)) !== 'PREPARING') return false;
     const page = await audiencePage(campaign.listId, campaign.channel, cursor);
-    const candidates = page.people.map((person) => {
-      const raw = campaign.channel === 'EMAIL' ? (person.emails?.primaryEmail ?? '').trim() : phoneOf(person.phones);
-      return { person, address: raw ? normaliseAddress(raw, campaign.channel) : '' };
-    });
+    const candidates = page.people.map((person) => ({ person, address: addressOf(person, campaign.channel) }));
     // A page repeated after a crash, or an address shared by two contacts, is not queued twice.
     const existing = await existingRecipients(campaign.id, candidates.map((candidate) => candidate.person.id), candidates.map((candidate) => candidate.address).filter(Boolean));
     const seenPeople = new Set(existing.map((row) => row.personId));
@@ -127,7 +157,12 @@ const prepareSome = async (campaign: Campaign, timeLeft: () => number) => {
               ? 'Same address as another contact.'
               : null;
       const name = ([person.name?.firstName, person.name?.lastName].filter(Boolean).join(' ') || address || 'Contact').slice(0, 200);
-      rows.push(reason ? { name, destination: address, status: 'SKIPPED', error: reason, nonce: '', campaignId: campaign.id, personId: person.id } : { name, destination: address, status: 'QUEUED', nonce: newNonce(), campaignId: campaign.id, personId: person.id });
+      const { firstName, lastName, companyName } = contactOf(person);
+      rows.push(
+        reason
+          ? { name, destination: address, status: 'SKIPPED', error: reason, nonce: '', campaignId: campaign.id, personId: person.id }
+          : { name, destination: address, status: 'QUEUED', nonce: newNonce(), campaignId: campaign.id, personId: person.id, personalisation: { firstName, lastName, companyName } },
+      );
       if (!reason) seen.add(address);
       seenPeople.add(person.id);
     }
@@ -139,8 +174,12 @@ const prepareSome = async (campaign: Campaign, timeLeft: () => number) => {
   return false;
 };
 
+// Personalised from what was stored when the audience was prepared, so a retried batch repeats the request first sent
+// under its idempotency key. Rows prepared before that was stored fall back to the contact record.
+const contactFor = (recipient: Recipient): Contact => recipient.personalisation ?? contactOf(recipient.person ? { ...recipient.person, emails: null } : null);
+
 const emailFor = (campaign: Campaign, brand: Brand, recipient: Recipient, base: string): OutgoingEmail => {
-  const contact: Contact = { ...contactOf(recipient.person ? { ...recipient.person, emails: { primaryEmail: recipient.address } } : null), email: recipient.address };
+  const contact: Contact = { ...contactFor(recipient), email: recipient.address };
   const unsubscribe = unsubscribeUrl(base, recipient);
   const rendered = renderEmail(campaign.design, brand, { subject: campaign.subject, previewText: campaign.previewText, unsubscribeUrl: unsubscribe, contact });
   return {
@@ -158,43 +197,78 @@ const emailFor = (campaign: Campaign, brand: Brand, recipient: Recipient, base: 
   };
 };
 
-// Status first with one filtered update (so a bounce that arrived meanwhile is kept), then the message ids.
-const recordSent = async (batchKey: string, sent: { id: string; messageId: string | null }[], failed: { id: string; error: string }[]) => {
-  const now = new Date().toISOString();
-  if (sent.length) await updateRecipientsIf({ ids: sent.map((entry) => entry.id), batchKey, status: 'SENDING' }, { status: 'SENT', sentAt: now });
-  for (const entry of failed) await updateRecipientsIf({ ids: [entry.id], status: 'SENDING' }, { status: 'FAILED', error: entry.error.slice(0, 300) });
-  await updateRecipients(sent.filter((entry) => entry.messageId).map((entry) => ({ id: entry.id, data: { providerMessageId: entry.messageId, sentAt: now } })));
+// Filtered on SENDING, so a delivery or bounce a webhook recorded meanwhile is kept. Provider message ids are not
+// stored: events carry the recipient tag, which is how the webhook finds the row.
+const recordSent = async (batchKey: string, sentIds: string[], failed: { id: string; error: string }[]) => {
+  if (sentIds.length) await updateRecipientsIf({ ids: sentIds, batchKey, status: 'SENDING' }, { status: 'SENT', sentAt: new Date().toISOString() });
+  for (const error of new Set(failed.map((entry) => entry.error)))
+    await updateRecipientsIf({ ids: failed.filter((entry) => entry.error === error).map((entry) => entry.id), batchKey, status: 'SENDING' }, { status: 'FAILED', error: error.slice(0, 300) });
 };
 
-const sendEmailBatch = async (campaign: Campaign, brand: Brand, key: string, recipients: Recipient[], base: string, batchKey: string) => {
-  const emails = recipients.map((recipient) => emailFor(campaign, brand, recipient, base));
+const SINGLE_SEND_GAP_MS = 600;
+
+// By recipient, not position, so a retry reuses each message's key however many rows of the batch moved on since.
+export const singleSendKey = (batchKey: string, recipientId: string) => `${batchKey}:${recipientId}`;
+
+// Single sends start at least SINGLE_SEND_GAP_MS apart, which stays under Resend's default rate limit.
+export const paceDelay = (lastStartedAt: number, now: number) => Math.max(0, lastStartedAt + SINGLE_SEND_GAP_MS - now);
+
+const sendSingle = async (key: string, email: OutgoingEmail, idempotencyKey: string, timeLeft: () => number) => {
   try {
-    const ids = await sendBatch(key, emails, batchKey);
-    await recordSent(
-      batchKey,
-      recipients.flatMap((recipient, index) => (ids[index] ? [{ id: recipient.id, messageId: ids[index] }] : [])),
-      recipients.flatMap((recipient, index) => (ids[index] ? [] : [{ id: recipient.id, error: 'Resend did not accept this message.' }])),
-    );
+    return await sendOne(key, email, idempotencyKey);
   } catch (error) {
-    // A batch is refused as a whole when one message is invalid, so send that batch one by one to find it.
-    if (!(error instanceof ResendError) || (error.status !== 400 && error.status !== 422)) throw error;
-    const sent: { id: string; messageId: string | null }[] = [];
-    const failed: { id: string; error: string }[] = [];
-    try {
-      for (const [index, email] of emails.entries()) {
-        const recipient = recipients[index];
-        if (!recipient) continue;
-        try {
-          sent.push({ id: recipient.id, messageId: await sendOne(key, email, `${batchKey}:${index}`) });
-        } catch (single) {
-          if (single instanceof ResendError && (single.status === 400 || single.status === 422)) failed.push({ id: recipient.id, error: single.message });
-          else throw single;
-        }
-      }
-    } finally {
-      await recordSent(batchKey, sent, failed);
-    }
+    const wait = retryDelayMs(error);
+    if (wait === null || timeLeft() - wait < SEND_BUDGET_MS) throw error;
+    await sleep(wait);
+    return sendOne(key, email, idempotencyKey);
   }
+};
+
+// A batch is refused as a whole when one message is invalid, so the rows still waiting go one by one to find it. Rows
+// left when time runs out stay SENDING for the next run, which retries them under the same keys.
+const sendOneByOne = async (campaign: Campaign, brand: Brand, key: string, recipients: Recipient[], base: string, batchKey: string, timeLeft: () => number) => {
+  const sent: string[] = [];
+  const failed: { id: string; error: string }[] = [];
+  let lastStartedAt = 0;
+  try {
+    for (const recipient of recipients) {
+      if (timeLeft() < SEND_BUDGET_MS) break;
+      await sleep(paceDelay(lastStartedAt, Date.now()));
+      lastStartedAt = Date.now();
+      try {
+        await sendSingle(key, emailFor(campaign, brand, recipient, base), singleSendKey(batchKey, recipient.id), timeLeft);
+        sent.push(recipient.id);
+      } catch (error) {
+        if (acceptedEarlier(error)) sent.push(recipient.id);
+        else if (isInvalidMessage(error)) failed.push({ id: recipient.id, error: (error as Error).message });
+        else throw error;
+      }
+    }
+  } finally {
+    await recordSent(batchKey, sent, failed);
+  }
+};
+
+// The request always holds every row of the batch in its original order, so a retry matches the first attempt.
+const sendEmailBatch = async (campaign: Campaign, brand: Brand, key: string, batch: Recipient[], base: string, batchKey: string, timeLeft: () => number) => {
+  const waiting = batch.filter((recipient) => recipient.status === 'SENDING');
+  let ids: string[];
+  try {
+    ids = await sendBatch(key, batch.map((recipient) => emailFor(campaign, brand, recipient, base)), batchKey);
+  } catch (error) {
+    if (acceptedEarlier(error)) {
+      await recordSent(batchKey, waiting.map((recipient) => recipient.id), []);
+      return;
+    }
+    if (!isInvalidMessage(error)) throw error;
+    await sendOneByOne(campaign, brand, key, waiting, base, batchKey, timeLeft);
+    return;
+  }
+  await recordSent(
+    batchKey,
+    batch.flatMap((recipient, index) => (ids[index] ? [recipient.id] : [])),
+    batch.flatMap((recipient, index) => (ids[index] ? [] : [{ id: recipient.id, error: 'Resend did not accept this message.' }])),
+  );
 };
 
 // Hands one batch to InventiveChat, which owns the WhatsApp number, templates and the Meta connection. The batch id
@@ -208,7 +282,7 @@ const sendWhatsAppBatch = async (campaign: Campaign, recipients: Recipient[], ba
     batchId: batchKey,
     template: { name: campaign.whatsappTemplate, language: campaign.whatsappVariables.language || 'en' },
     messages: recipients.map((recipient) => {
-      const contact = contactOf(recipient.person ? { ...recipient.person, emails: null } : null);
+      const contact = contactFor(recipient);
       return {
         recipientId: recipient.id,
         to: recipient.address,
@@ -229,27 +303,34 @@ const sendWhatsAppBatch = async (campaign: Campaign, recipients: Recipient[], ba
     body,
     signal: AbortSignal.timeout(30_000),
   });
-  const reply = (await response.json().catch(() => ({}))) as { accepted?: { recipientId: string; messageId?: string }[]; error?: string };
+  const reply = (await response.json().catch(() => ({}))) as { accepted?: { recipientId: string }[]; error?: string };
   if (response.status >= 500) throw new ResendError(`The WhatsApp service answered ${response.status}`, response.status, 'gateway_error');
   if (!response.ok) throw new CampaignError(`The WhatsApp service answered ${response.status}${reply.error ? `: ${reply.error}` : ''}`);
-  const accepted = new Map((reply.accepted ?? []).map((entry) => [entry.recipientId, entry.messageId ?? '']));
+  const accepted = new Set((reply.accepted ?? []).map((entry) => entry.recipientId));
   await recordSent(
     batchKey,
-    recipients.flatMap((recipient) => (accepted.has(recipient.id) ? [{ id: recipient.id, messageId: accepted.get(recipient.id) || null }] : [])),
+    recipients.flatMap((recipient) => (accepted.has(recipient.id) ? [recipient.id] : [])),
     recipients.flatMap((recipient) => (accepted.has(recipient.id) ? [] : [{ id: recipient.id, error: 'The WhatsApp service did not accept this message.' }])),
   );
 };
 
-// Consent and the do-not-contact list are checked again right before each batch: a campaign can wait days for a
-// quota to reset, and people unsubscribe in the meantime.
-const holdBack = async (campaign: Campaign, recipients: Recipient[]) => {
-  const consent = new Map((await consentOf(recipients.flatMap((recipient) => (recipient.personId ? [recipient.personId] : [])))).map((person) => [person.id, campaign.channel === 'EMAIL' ? person.emailMarketingConsent : person.whatsappMarketingConsent]));
+export const holdBackReason = (recipient: Pick<Recipient, 'address'>, person: ContactState | undefined, channel: CampaignChannel, isSuppressed: (address: string) => boolean) => {
+  if (!person) return 'The contact was deleted.';
+  if (!(channel === 'EMAIL' ? person.emailMarketingConsent : person.whatsappMarketingConsent)) return 'Withdrew consent before sending.';
+  if (addressOf(person, channel) !== recipient.address) return 'Their address changed after the campaign was prepared.';
+  if (isSuppressed(recipient.address)) return 'On the do-not-contact list.';
+  return null;
+};
+
+// Consent, the address and the do-not-contact list are checked again right before each batch: a campaign can wait days
+// for a quota to reset, and people unsubscribe or change address in the meantime.
+const holdBack = async (campaign: Campaign, recipients: Recipient[], suppressedAtStart: Set<string>) => {
+  const people = new Map((await currentContacts(recipients.flatMap((recipient) => (recipient.personId ? [recipient.personId] : [])))).map((person) => [person.id, person]));
   const suppressed = await suppressedAmong(recipients.map((recipient) => recipient.address), campaign.channel);
   const reasons = new Map<string, string>();
   for (const recipient of recipients) {
-    if (!recipient.personId || !consent.has(recipient.personId)) reasons.set(recipient.id, 'The contact was deleted.');
-    else if (!consent.get(recipient.personId)) reasons.set(recipient.id, 'Withdrew consent before sending.');
-    else if (suppressed.has(recipient.address)) reasons.set(recipient.id, 'On the do-not-contact list.');
+    const reason = holdBackReason(recipient, recipient.personId ? people.get(recipient.personId) : undefined, campaign.channel, (address) => suppressed.has(address) || suppressedAtStart.has(address));
+    if (reason) reasons.set(recipient.id, reason);
   }
   for (const reason of new Set(reasons.values()))
     await updateRecipientsIf({ ids: [...reasons].filter(([, value]) => value === reason).map(([id]) => id), status: 'QUEUED' }, { status: 'SKIPPED', error: reason });
@@ -258,30 +339,34 @@ const holdBack = async (campaign: Campaign, recipients: Recipient[]) => {
 
 const RETRY_WINDOW_MS = 23 * 3_600_000;
 
-const deliver = async (campaign: Campaign, brand: Brand, key: string | null, recipients: Recipient[], base: string, batchKey: string) => {
-  if (campaign.channel === 'EMAIL') await sendEmailBatch(campaign, brand, key as string, recipients, base, batchKey);
+const deliver = async (campaign: Campaign, brand: Brand, key: string | null, recipients: Recipient[], base: string, batchKey: string, timeLeft: () => number) => {
+  if (campaign.channel === 'EMAIL') await sendEmailBatch(campaign, brand, key as string, recipients, base, batchKey, timeLeft);
   else await sendWhatsAppBatch(campaign, recipients, base, batchKey);
 };
 
-// A run that died mid-batch leaves rows in SENDING. They are sent again with the same idempotency key, which Resend
-// answers from its record of the first attempt; past its 24-hour memory they are marked failed instead of risked.
-const recoverInFlight = async (campaign: Campaign, brand: Brand, key: string | null, base: string) => {
+// A run that died mid-batch leaves rows in SENDING. The batch is rebuilt as first sent and sent again with the same
+// idempotency key, which Resend answers from its record of the first attempt; past its 24-hour memory the rows are
+// marked failed instead of risked. Returns false when time ran out first.
+const recoverInFlight = async (campaign: Campaign, brand: Brand, key: string | null, base: string, timeLeft: () => number) => {
   const rows = await inFlightRecipients(campaign.id);
-  for (const batchKey of new Set(rows.map((row) => row.batchKey).filter((value): value is string => Boolean(value)))) {
-    const batch = await batchRecipients(batchKey);
-    const [first] = batch;
-    if (!first) continue;
-    if (Date.now() - Date.parse(first.updatedAt) > RETRY_WINDOW_MS) {
-      await updateRecipientsIf({ batchKey, status: 'SENDING' }, { status: 'FAILED', error: 'Sending was interrupted and could not be confirmed.' });
+  for (const batchKey of new Set(rows.flatMap((row) => (row.batchKey ? [row.batchKey] : [])))) {
+    if (timeLeft() < SEND_BUDGET_MS) return false;
+    const batch = await batchRecipients(campaign.id, batchKey);
+    if (batch.length === 0) continue;
+    const claimedAt = Math.min(...batch.map((row) => Date.parse(row.updatedAt)));
+    if (Date.now() - claimedAt > RETRY_WINDOW_MS) {
+      await updateRecipientsIf({ campaignId: campaign.id, batchKey, status: 'SENDING' }, { status: 'FAILED', error: 'Sending was interrupted and could not be confirmed.' });
       continue;
     }
-    await deliver(campaign, brand, key, batch, base, batchKey);
+    await deliver(campaign, brand, key, batch, base, batchKey, timeLeft);
   }
+  return true;
 };
 
 const MAX_BATCHES_PER_RUN = 40;
 
 const sendSome = async (campaign: Campaign, brand: Brand, base: string, timeLeft: () => number, outcome: { batches: number; finished: number }) => {
+  if (timeLeft() < SEND_BUDGET_MS) return;
   let key: string | null = null;
   if (campaign.channel === 'EMAIL') {
     key = await resendKey();
@@ -290,8 +375,10 @@ const sendSome = async (campaign: Campaign, brand: Brand, base: string, timeLeft
     if (!domains.some((domain) => domain.name === campaign.fromDomain.trim().toLowerCase() && domain.status === 'verified'))
       throw new CampaignError(`The domain ${campaign.fromDomain} is no longer verified in your Resend account.`);
   }
-  await recoverInFlight(campaign, brand, key, base);
-  while (timeLeft() > PAGE_BUDGET_MS && outcome.batches < MAX_BATCHES_PER_RUN) {
+  // Normalised like at preparation, so an entry typed by hand in another case still counts.
+  const suppressedAtStart = await suppressedAddresses(campaign.channel);
+  if (!(await recoverInFlight(campaign, brand, key, base, timeLeft))) return;
+  while (timeLeft() > SEND_BUDGET_MS && outcome.batches < MAX_BATCHES_PER_RUN) {
     // Re-read each time, so "Stop sending" takes effect before the next batch.
     if ((await campaignStatus(campaign.id)) !== 'SENDING') return;
     const candidates = await queuedRecipients(campaign.id, BATCH_SIZE);
@@ -299,43 +386,59 @@ const sendSome = async (campaign: Campaign, brand: Brand, base: string, timeLeft
       if ((await inFlightRecipients(campaign.id)).length === 0 && (await updateCampaignIf(campaign.id, ['SENDING'], { status: 'SENT', sentAt: new Date().toISOString(), lastError: '' }))) outcome.finished += 1;
       return;
     }
-    const sendable = await holdBack(campaign, candidates);
+    const sendable = await holdBack(campaign, candidates, suppressedAtStart);
     if (sendable.length === 0) continue;
     const batchKey = `${campaign.id}:${randomUUID()}`;
     const claimed = await claimBatch(
+      campaign.id,
       sendable.map((recipient) => recipient.id),
       batchKey,
     );
     if (claimed.length === 0) continue;
-    await deliver(campaign, brand, key, claimed, base, batchKey);
+    try {
+      await deliver(campaign, brand, key, claimed, base, batchKey, timeLeft);
+    } catch (error) {
+      // Only a first attempt is put back: a retried batch may have been taken the first time.
+      if (refusedOutright(error)) await releaseBatch(campaign.id, batchKey);
+      throw error;
+    }
     outcome.batches += 1;
   }
 };
 
-const RUN_BUDGET_MS = 90_000;
-
 const failCampaign = (campaignId: string, message: string) => updateCampaignIf(campaignId, ['SCHEDULED', 'PREPARING', 'SENDING'], { status: 'FAILED', lastError: message.slice(0, 500) });
 
-// Only real network failures and the provider's own "slow down" or outage answers are worth retrying.
+// Twenty's own wording when its database timed out or lost the connection; other GraphQL errors are real faults.
+const TWENTY_DATABASE_HICCUP = /^GraphQL error: .*(Query read timeout|Connection terminated)/;
+
+const isTwentyHiccup = (error: unknown) => error instanceof TwentyUnavailableError || (error instanceof Error && TWENTY_DATABASE_HICCUP.test(error.message));
+
+// Only network failures, the provider's own "slow down" or outage answers and Twenty being briefly unavailable are
+// worth retrying.
 export const isTransient = (error: unknown) => {
-  if (error instanceof ResendError) return error.status === 429 || error.status === 409 || error.status >= 500;
+  if (error instanceof ResendError) return error.status === 429 || (error.status === 409 && !acceptedEarlier(error)) || error.status >= 500;
+  if (isTwentyHiccup(error)) return true;
   if (!(error instanceof Error)) return false;
   return error.name === 'TimeoutError' || error.name === 'AbortError' || (error.name === 'TypeError' && error.message === 'fetch failed');
 };
 
 const pauseMessage = (error: unknown) =>
-  error instanceof ResendError && (error.code === 'daily_quota_exceeded' || error.code === 'monthly_quota_exceeded')
+  isQuotaReached(error)
     ? 'Your Resend plan limit is reached. Sending continues automatically when it resets.'
     : error instanceof ResendError && error.status === 429
       ? 'Resend asked us to slow down. Sending continues shortly.'
-      : 'The sending service could not be reached. Sending is retried every two minutes.';
+      : isTwentyHiccup(error)
+        ? 'The CRM was busy or restarting. Sending is retried every two minutes.'
+        : 'The sending service could not be reached. Sending is retried every two minutes.';
 
 export const runCampaigns = async (now = Date.now()) => {
   const started = Date.now();
   const timeLeft = () => RUN_BUDGET_MS - (Date.now() - started);
   const outcome = { started: 0, batches: 0, finished: 0, paused: [] as string[] };
   const base = await functionsBaseUrl();
-  const brand = await loadBrand();
+  const { id: _brandId, ...brand } = await loadBrand();
+  // A campaign keeps the brand kit it started with, so every batch, and every retry of one, renders the same.
+  const brandFor = (campaign: Campaign) => campaign.brandSnapshot ?? brand;
 
   for (const campaign of await campaignsWithStatus(['SCHEDULED'])) {
     if (!campaign.scheduledAt || new Date(campaign.scheduledAt).getTime() > now) continue;
@@ -343,7 +446,7 @@ export const runCampaigns = async (now = Date.now()) => {
     // Resend being briefly unreachable is no reason to fail a campaign; it starts on a later run.
     if (problems.length === 1 && problems[0] === RESEND_UNREACHABLE) await updateCampaign(campaign.id, { lastError: RESEND_UNREACHABLE });
     else if (problems.length) await failCampaign(campaign.id, problems.join(' '));
-    else if (await updateCampaignIf(campaign.id, ['SCHEDULED'], { status: 'PREPARING', startedAt: new Date().toISOString(), lastError: '', prepareCursor: '' })) outcome.started += 1;
+    else if (await updateCampaignIf(campaign.id, ['SCHEDULED'], { status: 'PREPARING', startedAt: new Date().toISOString(), lastError: '', prepareCursor: '', brandSnapshot: brand })) outcome.started += 1;
   }
 
   for (const listed of await campaignsWithStatus(['PREPARING', 'SENDING'])) {
@@ -353,10 +456,15 @@ export const runCampaigns = async (now = Date.now()) => {
       let campaign = listed;
       if (campaign.status === 'PREPARING') {
         if (!(await prepareSome(campaign, timeLeft))) continue;
+        const problems = contentProblems(campaign, brandFor(campaign));
+        if (problems.length) {
+          await failCampaign(campaign.id, problems.join(' '));
+          continue;
+        }
         if (!(await updateCampaignIf(campaign.id, ['PREPARING'], { status: 'SENDING' }))) continue;
         campaign = { ...campaign, status: 'SENDING' };
       }
-      await sendSome(campaign, brand, base, timeLeft, outcome);
+      await sendSome(campaign, brandFor(campaign), base, timeLeft, outcome);
     } catch (error) {
       if (isTransient(error)) {
         await updateCampaign(listed.id, { lastError: pauseMessage(error) });
@@ -371,6 +479,9 @@ export const runCampaigns = async (now = Date.now()) => {
     }
   }
 
-  for (const campaign of await recentlySent(new Date(now - 14 * 86_400_000).toISOString())) await recountCampaign(campaign.id);
+  for (const campaign of await recentlySent(new Date(now - 14 * 86_400_000).toISOString())) {
+    if (timeLeft() <= 0) break;
+    await recountCampaign(campaign.id, campaign.counts);
+  }
   return outcome;
 };

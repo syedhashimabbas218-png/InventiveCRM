@@ -8,6 +8,15 @@ export const haversineKm = (a: Point, b: Point) => {
   return 2 * 6371.0088 * Math.asin(Math.sqrt(h));
 };
 
+const GRID_STEPS_PER_DEGREE = 100;
+
+// Public answers are computed from a point on a 0.01 degree grid (about 1 km), so probing many nearby points cannot
+// narrow an advisor's base down further than that.
+export const snapToGrid = (point: Point): Point => ({
+  lat: Math.round(point.lat * GRID_STEPS_PER_DEGREE) / GRID_STEPS_PER_DEGREE,
+  lng: Math.round(point.lng * GRID_STEPS_PER_DEGREE) / GRID_STEPS_PER_DEGREE,
+});
+
 type Ring = [number, number][];
 export type ServiceArea = { type: 'Polygon'; coordinates: Ring[] } | { type: 'MultiPolygon'; coordinates: Ring[][] };
 

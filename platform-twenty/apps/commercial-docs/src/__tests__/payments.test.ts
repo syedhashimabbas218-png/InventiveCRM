@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { connectPage, isTrustedCallback, providerFromConnectionName } from 'src/lib/payment-connect';
-import { formEncode, outstandingPence } from 'src/lib/payments';
+import { formEncode, isPaymentPageUrl, outstandingPence } from 'src/lib/payments';
 
 const micros = (pence: number) => ({ amountMicros: pence * 10_000 });
 
@@ -17,6 +17,16 @@ describe('payments', () => {
     expect(outstandingPence({ total: micros(12_000), amountPaid: micros(2_000) })).toBe(10_000);
     expect(outstandingPence({ total: micros(12_000), amountPaid: micros(15_000) })).toBe(0);
     expect(outstandingPence({ total: micros(5_000), amountPaid: null })).toBe(5_000);
+  });
+
+  it('takes issued credit notes off what is owed, but not drafts or voided ones', () => {
+    const creditNote = (pence: number, overrides: { status?: string; issuedAt?: string | null; kind?: string } = {}) => ({
+      node: { kind: 'CREDIT_NOTE', status: 'ISSUED', issuedAt: '2026-11-10T09:00:00.000Z', total: micros(pence), ...overrides },
+    });
+    const creditNotes = { edges: [creditNote(3_000), creditNote(1_000, { issuedAt: null, status: 'DRAFT' }), creditNote(500, { status: 'VOID' })] };
+    expect(outstandingPence({ total: micros(12_000), amountPaid: micros(2_000), creditNotes })).toBe(7_000);
+    expect(outstandingPence({ total: micros(12_000), amountPaid: micros(10_000), creditNotes })).toBe(0);
+    expect(outstandingPence({ total: micros(12_000), amountPaid: null, creditNotes: null })).toBe(12_000);
   });
 
   it('maps connection names to providers', () => {
@@ -39,5 +49,33 @@ describe('payments', () => {
     expect(page).not.toContain('<script>x</script>');
     expect(page).toContain('name="secretKey"');
     expect(page).toContain('type="password"');
+  });
+
+  describe('pay-now link hosts', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("accepts only Stripe and Revolut payment pages over https", () => {
+      expect(isPaymentPageUrl('https://buy.stripe.com/test_8wM5kE', false)).toBe(true);
+      expect(isPaymentPageUrl('https://checkout.stripe.com/c/pay/cs_live_1', false)).toBe(true);
+      expect(isPaymentPageUrl('https://checkout.revolut.com/payment-link/abc', false)).toBe(true);
+      expect(isPaymentPageUrl('https://sandbox-checkout.revolut.com/payment-link/abc', false)).toBe(true);
+      expect(isPaymentPageUrl('http://buy.stripe.com/x', false)).toBe(false);
+      expect(isPaymentPageUrl('https://buy.stripe.com.evil.example/x', false)).toBe(false);
+      expect(isPaymentPageUrl('https://evil.example/?u=https://buy.stripe.com/x', false)).toBe(false);
+      expect(isPaymentPageUrl('https://user@buy.stripe.com/x', false)).toBe(false);
+      expect(isPaymentPageUrl('https://buy.stripe.com:8443/x', false)).toBe(false);
+      expect(isPaymentPageUrl('javascript:alert(1)', false)).toBe(false);
+      expect(isPaymentPageUrl('', false)).toBe(false);
+      expect(isPaymentPageUrl(null, false)).toBe(false);
+    });
+
+    it('accepts the test double pages only when a payment double is configured', () => {
+      vi.stubEnv('STRIPE_API_URL', '');
+      vi.stubEnv('REVOLUT_API_URL', '');
+      expect(isPaymentPageUrl('https://buy.stripe.test/plink_1')).toBe(false);
+      vi.stubEnv('STRIPE_API_URL', 'http://127.0.0.1:8096');
+      expect(isPaymentPageUrl('https://buy.stripe.test/plink_1')).toBe(true);
+      expect(isPaymentPageUrl('https://checkout.revolut.test/payment-link/1')).toBe(true);
+    });
   });
 });

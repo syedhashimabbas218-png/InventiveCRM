@@ -1,9 +1,9 @@
 import { type AppointmentStatus } from 'src/constants/enums';
 import { type AssignmentCandidate, pickAdvisor, type RoundRobinStrategy } from 'src/engine/assignment';
 import { heldInterval } from 'src/engine/availability';
-import { reservationKeys, seatKey } from 'src/engine/slots';
+import { reservationKeys, seatKey, seatOrder } from 'src/engine/slots';
 import { DAY, MINUTE } from 'src/engine/time';
-import { gql, nodes } from 'src/lib/api';
+import { asApplication, gql, nodes, TwentyUnavailableError } from 'src/lib/api';
 import { type AdvisorAvailability, appointmentsFor, type CustomerLocation, searchAvailability } from 'src/lib/availability-service';
 import { findOrCreateContact } from 'src/lib/contacts';
 import { type AppointmentTypeRecord, type BookingLinkRecord, type IntakeQuestion, loadSettings, membershipOf } from 'src/lib/records';
@@ -158,7 +158,7 @@ const orderedPlans = async (request: BookingRequest, candidates: AdvisorAvailabi
     const session = availability?.sessions.get(start);
     if (capacity > 1 && session) {
       // Joining a group session: only a seat is claimed; the host is already held by the session.
-      return Array.from({ length: capacity - session.booked }, (_, index) => session.booked + index + 1).map((seat) => ({
+      return seatOrder(capacity, session.booked).map((seat) => ({
         hostId: advisorId,
         participants: [advisorId],
         rows: [{ key: seatKey(session.sessionKey, seat), advisorId, startsAt: at }],
@@ -180,6 +180,29 @@ const orderedPlans = async (request: BookingRequest, candidates: AdvisorAvailabi
     ];
   });
 };
+
+// The record carries this attempt's nonce, so a twin submission's booking with the same key is never the one removed.
+const createdByThisAttempt = async (idempotencyKey: string, nonce: string) => {
+  const data = await gql<{ appointments: { edges: { node: { id: string; manageNonce: string } }[] } }>(
+    `query($key: String!) { appointments(filter: { idempotencyKey: { eq: $key } }, first: 1) { edges { node { id manageNonce } } } }`,
+    { key: idempotencyKey },
+  );
+  const found = nodes(data.appointments)[0];
+  return found?.manageNonce === nonce ? found.id : null;
+};
+
+// A failed booking leaves nothing behind. When Twenty did not answer the create itself, the record may exist anyway.
+// Runs as the app: a staff member booking from the CRM may not be allowed to delete records.
+const discardFailedBooking = (idempotencyKey: string, nonce: string, appointmentId: string | null, error: unknown, keys: string[]) =>
+  asApplication(async () => {
+    try {
+      const created = appointmentId ?? (error instanceof TwentyUnavailableError ? await createdByThisAttempt(idempotencyKey, nonce) : null);
+      if (created) await gql(`mutation($id: UUID!) { deleteAppointment(id: $id) { id } }`, { id: created });
+    } catch (cleanupError) {
+      console.error(`failed booking ${idempotencyKey} was not removed: ${(cleanupError as Error).message}`);
+    }
+    await releaseReservations({ keys }).catch((cleanupError) => console.error(`failed booking ${idempotencyKey} kept its time: ${(cleanupError as Error).message}`));
+  });
 
 export type BookingResult = { appointmentId: string; nonce: string; start: number; end: number; advisorName: string; status: AppointmentStatus; existing: boolean };
 
@@ -224,7 +247,15 @@ export const bookAppointment = async (request: BookingRequest): Promise<BookingR
 
   let search;
   try {
-    search = await searchAvailability({ type, fixedAdvisorId, from: start - DAY, to: end + DAY, now, customer: request.location });
+    search = await searchAvailability({
+      type,
+      fixedAdvisorId,
+      from: start - DAY,
+      to: end + DAY,
+      now,
+      customer: request.location,
+      snapCustomerToGrid: request.source === 'PUBLIC_PAGE' || request.source === 'EMBED',
+    });
   } catch (error) {
     if ((error as { code?: string }).code === 'LOCATION_REQUIRED') throw new BookingError('LOCATION_REQUIRED', (error as Error).message);
     throw error;
@@ -235,12 +266,13 @@ export const bookAppointment = async (request: BookingRequest): Promise<BookingR
   const plan = await tryPlans(await orderedPlans(request, free, start, end, now));
   if (!plan) throw new BookingError('SLOT_TAKEN', 'Someone has just booked that time. Please pick another.');
 
+  const nonce = newNonce();
+  let appointmentId: string | null = null;
   try {
     const settings = await loadSettings();
     const contact = await findOrCreateContact({ name: request.customer.name, email: request.customer.email, phone: request.customer.phone ?? null }, settings);
     const host = free.find((item) => item.advisor.id === plan.hostId);
     const travel = host?.travel.get(start);
-    const nonce = newNonce();
     const status: AppointmentStatus = type.requiresApproval ? 'PENDING' : 'CONFIRMED';
     const { createAppointment } = await gql<{ createAppointment: { id: string } }>(`mutation($data: AppointmentCreateInput!) { createAppointment(data: $data) { id } }`, {
       data: {
@@ -277,6 +309,7 @@ export const bookAppointment = async (request: BookingRequest): Promise<BookingR
         companyId: contact.companyId,
       },
     });
+    appointmentId = createAppointment.id;
     await gql(`mutation($keys: [String!], $data: SlotReservationUpdateInput!) { updateSlotReservations(filter: { key: { in: $keys } }, data: $data) { id } }`, {
       keys: plan.rows.map((row) => row.key),
       data: { appointmentId: createAppointment.id },
@@ -291,7 +324,7 @@ export const bookAppointment = async (request: BookingRequest): Promise<BookingR
     });
     return { appointmentId: createAppointment.id, nonce, start, end, advisorName: host?.advisor.name ?? '', status, existing: false };
   } catch (error) {
-    await releaseReservations({ keys: plan.rows.map((row) => row.key) });
+    await discardFailedBooking(request.idempotencyKey, nonce, appointmentId, error, plan.rows.map((row) => row.key));
     // Two identical submissions at once: the second hits the unique idempotency key, so return the first booking.
     if (isUniqueViolation(error)) {
       const winner = await existingByKey(request);
@@ -317,6 +350,7 @@ export type AppointmentRecord = {
   manageNonce: string;
   sessionKey: string;
   seat: number | null;
+  idempotencyKey: string | null;
   cancelledAt: string | null;
   remindersSent: string;
   notifiedStartsAt: string | null;
@@ -334,13 +368,14 @@ export type AppointmentRecord = {
 };
 
 export const APPOINTMENT_FIELDS = `id title status startsAt endsAt customerName customerEmail customerPhone customerTimeZone meetingFormat location meetingUrl manageNonce
-  sessionKey seat cancelledAt remindersSent notifiedStartsAt calendarStatus intakeAnswers appointmentTypeId advisorId personId customerLatitude customerLongitude customerPostcode
+  sessionKey seat idempotencyKey cancelledAt remindersSent notifiedStartsAt calendarStatus intakeAnswers appointmentTypeId advisorId personId customerLatitude customerLongitude customerPostcode
   advisor { id name email timeZone workspaceMemberId memberSeal }
   participants(first: 50) { edges { node { advisorId participantRole } } }`;
 
-export const loadAppointment = async (id: string, typeFields: string) => {
+// A deletedAt filter is what makes Twenty return a soft-deleted record.
+export const loadAppointment = async (id: string, typeFields: string, { deleted = false }: { deleted?: boolean } = {}) => {
   const data = await gql<{ appointments: { edges: { node: AppointmentRecord }[] } }>(
-    `query($id: UUID!) { appointments(filter: { id: { eq: $id } }) { edges { node { ${APPOINTMENT_FIELDS} appointmentType { ${typeFields} } } } } }`,
+    `query($id: UUID!) { appointments(filter: { id: { eq: $id }${deleted ? ', deletedAt: { is: NOT_NULL }' : ''} }) { edges { node { ${APPOINTMENT_FIELDS} appointmentType { ${typeFields} } } } } }`,
     { id },
   );
   return nodes(data.appointments)[0] ?? null;
@@ -406,6 +441,7 @@ export const rescheduleAppointment = async (appointment: AppointmentRecord, newS
     startsAt: new Date(newStart).toISOString(),
     endsAt: new Date(end).toISOString(),
     status: appointment.status === 'PENDING' ? 'PENDING' : 'RESCHEDULED',
+    ...(newStart !== Date.parse(appointment.startsAt) ? { remindersSent: '' } : {}),
   });
   if (stale.length > 0) await releaseReservations({ keys: stale });
   await gql(`mutation($data: SchedulingAuditEventCreateInput!) { createSchedulingAuditEvent(data: $data) { id } }`, {

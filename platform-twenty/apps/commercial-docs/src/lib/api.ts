@@ -11,6 +11,14 @@ export const runAsApplication =
   (...args: TArgs) =>
     applicationAccess.run(true, () => handler(...args));
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
+// Twenty could not answer at all (timeout, restart, proxy error page), as opposed to refusing the query: worth retrying.
+export class TwentyUnavailableError extends Error {}
+
+// Twenty hands an API-key caller the app's own token, so a route acting for a person must refuse anyone who is not one.
+export const isSignedInPerson = (event: { userWorkspaceId?: string | null }) => typeof event.userWorkspaceId === 'string' && event.userWorkspaceId.length > 0;
+
 const getEnvironment = () => {
   const url = process.env.TWENTY_API_URL;
   const token = (applicationAccess.getStore() ? process.env.TWENTY_APP_APPLICATION_ACCESS_TOKEN : undefined) ?? process.env.TWENTY_APP_ACCESS_TOKEN ?? process.env.TWENTY_API_KEY;
@@ -24,12 +32,19 @@ const request = async <TData>(
   variables: Record<string, unknown> = {},
 ): Promise<TData> => {
   const { url, token } = getEnvironment();
-  const response = await fetch(`${url}/${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ query, variables }),
-  });
-  const payload = (await response.json()) as { data?: TData; errors?: { message: string }[] };
+  let response: Response;
+  try {
+    response = await fetch(`${url}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    throw new TwentyUnavailableError(`Twenty did not answer: ${(error as Error).message}`);
+  }
+  const payload = (await response.json().catch(() => null)) as { data?: TData; errors?: { message: string }[] } | null;
+  if (!payload) throw new TwentyUnavailableError(`Twenty answered ${response.status} without a GraphQL body`);
   if (payload.errors?.length) {
     throw new Error(`GraphQL error: ${payload.errors.map((error) => error.message).join('; ')}`);
   }

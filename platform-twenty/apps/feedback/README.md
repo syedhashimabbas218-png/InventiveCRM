@@ -8,17 +8,19 @@ review. Built on the Twenty apps SDK; installs per workspace.
 
 | Step | Behaviour |
 |---|---|
-| Trigger | Every 15 minutes the job looks for appointments set to **Completed** (Scheduling app) and invoices set to **Paid** (Quotes & Invoices app) since its last run. Either app may be missing; its source is then skipped. The first run only records the time, so earlier customers are never asked |
-| Who | One request per appointment or invoice, and nobody is asked twice within the cool-down (default 60 days). Customers without an email address, or without WhatsApp consent for WhatsApp, are skipped and the request says why |
+| Trigger | Every 15 minutes the job looks for appointments set to **Completed** (Scheduling app) and invoices set to **Paid** (Quotes & Invoices app) since its last run, oldest change first, 200 per source per run; a backlog continues on the next run. Either app may be missing; its source is then skipped. Any other error stops the scan without moving its cursor, so nobody is lost, and the run still sends what is due. The first run only records the time, so earlier customers are never asked |
+| Who | One request per appointment or invoice (the source record id is unique), and nobody is asked twice within the cool-down (default 60 days); failed and skipped requests do not count towards it. Customers without an email address, or without WhatsApp consent for WhatsApp, are skipped and the request says why |
 | When | After the delay (default 2 hours). The link stays open for 14 days by default |
+| Sending | Each request is claimed (**Sending**) before it goes out, so overlapping runs never send it twice. A failed send is tried again after 30 minutes, then 2 hours, and is **Failed** after the third attempt. A request still Sending after 30 minutes was interrupted; it is marked Failed and not sent again, since it may have arrived. A run stops taking new requests after about 4 minutes |
 | How | Email from our mail server, sent as "<business> via InventiveCRM", with the 0 to 10 scale as one-tap links; or WhatsApp through InventiveChat (event `feedback.survey` in `../commercial-docs/WHATSAPP_HANDOFF.md`); or both |
 | Answer | A public page at `<workspace>/s/feedback/<token>` (signed per workspace, like Scheduling's manage links). Customers can change their answer until the link expires |
-| Low score | At or below the alert score (default 6), the first answer creates a follow-up **Task** linked to the customer and emails the alert list once |
+| Low score | At or below the alert score (default 6), the first answer creates a follow-up **Task** linked to the customer (their comment shown as plain text) and emails the alert list once; the email says if the task could not be created |
 | High score | At or above the review score (default 9), the thank-you page offers the Google review link (https only) |
 | Overview | Scheduling-style page in twenty-ui: NPS, answers, response rate, the promoter/passive/detractor split, latest comments |
 
 Staff can also ask one customer straight away through the admin route (`askNow`); a button on the customer record is still to come. Manual requests are
-sent even while automatic asking is off.
+sent even while automatic asking is off, but not to a customer asked in the last 24 hours or with a survey waiting, and at most 30 per workspace per
+hour. `/feedback/admin` and `/feedback/run` answer only people signed in to the workspace (403 for API keys).
 
 ## Settings
 
@@ -41,5 +43,6 @@ id: `f69757a9-c451-4ac3-8042-79a99ad8e749`.
 
 ## Tests
 
-`yarn test` covers scoring, thresholds, review links, link signing across workspaces and email escaping.
+`yarn test` covers scoring, thresholds, review links, link signing across workspaces, email escaping, the retry schedule, the scan
+cursor, which errors stop a scan, picking whom to ask, and the plain-text comment in follow-up tasks.
 `../../tests/feedback/e2e.mjs` runs the whole loop on the throwaway test server (13 checks).

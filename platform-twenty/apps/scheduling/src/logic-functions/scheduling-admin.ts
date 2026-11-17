@@ -4,9 +4,12 @@ import { Response } from 'twenty-sdk/logic-function';
 import { IDS } from 'src/constants/ids';
 import { recordSystemError } from 'src/lib/lifecycle';
 import { AdminError, handleAdmin } from 'src/lib/admin';
+import { isSignedInPerson } from 'src/lib/api';
 import { BookingError } from 'src/lib/booking';
+import { notSignedInResponse } from 'src/lib/route-access';
 
 const handler = async (event: RoutePayload<Record<string, unknown>>) => {
+  if (!isSignedInPerson(event)) return notSignedInResponse();
   try {
     return new Response(JSON.stringify(await handleAdmin(event.body ?? {})), { status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
   } catch (error) {

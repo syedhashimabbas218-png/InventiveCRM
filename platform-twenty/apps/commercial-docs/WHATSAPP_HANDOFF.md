@@ -16,6 +16,7 @@ The Quotes & Invoices app does not send WhatsApp messages itself. It hands each 
     "type": "INVOICE",
     "number": "ACME-0016",
     "total": { "amountPence": 11400, "currency": "GBP", "formatted": "£114.00" },
+    "amountDue": { "amountPence": 11400, "currency": "GBP", "formatted": "£114.00" },
     "issueDate": "2026-11-03",
     "dueDate": "2026-11-17",
     "validUntil": null,
@@ -29,6 +30,7 @@ The Quotes & Invoices app does not send WhatsApp messages itself. It hands each 
 |---|---|
 | `event` | `invoice.send`, `credit_note.send`, `quote.send` or `invoice.overdue_reminder`. Pick the Meta template from this |
 | `deliveryId` | Our record id. Echo it in every callback |
+| `document.amountDue` | What is still owed: the total less payments and issued credit notes on an invoice, the total otherwise. Use it in reminder and pay-now templates; `paymentUrl` charges this amount |
 | `recipient.phone` | E.164. Only sent when the contact has agreed to WhatsApp messages |
 | `document.pdf.url` | Signed, time-limited link. Download it straight away and upload it to Meta as the document header; do not store the link |
 | `statusCallbackUrl` | Per workspace. Post status updates here |

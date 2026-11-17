@@ -3,6 +3,7 @@ import { listConnections, reportConnectionAuthFailure } from 'twenty-sdk/logic-f
 import { type Provider } from 'src/constants/enums';
 import { type Interval } from 'src/engine/availability';
 import { cachedForRun, gql, nodes } from 'src/lib/api';
+import { allPages, PAGE_INFO, type Page } from 'src/lib/pagination';
 import { verifyAdvisorMemberSeal } from 'src/lib/tokens';
 import { googleCalendar } from 'src/lib/calendar/google';
 import { microsoftCalendar } from 'src/lib/calendar/microsoft';
@@ -62,16 +63,30 @@ export const linkedMember = async (advisor: AdvisorRef) => {
   return verifyAdvisorMemberSeal(advisor.id, advisor.workspaceMemberId, seal) ? advisor.workspaceMemberId : null;
 };
 
-export const loadAdvisorCalendars = async (advisor: AdvisorRef): Promise<AdvisorCalendar[]> => {
+// One query for a whole slot search instead of one per advisor.
+export const calendarSettingsByAdvisor = async (advisorIds: string[]) => {
+  const byAdvisor = new Map<string, CalendarSettingRecord[]>();
+  if (advisorIds.length === 0) return byAdvisor;
+  const settings = await allPages((after) =>
+    gql<{ calendarSettings: Page<CalendarSettingRecord> }>(
+      `query($ids: [UUID!], $after: String) { calendarSettings(filter: { advisorId: { in: $ids } }, first: 500, after: $after) { edges { node { ${SETTING_FIELDS} } } ${PAGE_INFO} } }`,
+      { ids: advisorIds, after },
+    ).then((data) => data.calendarSettings),
+  );
+  for (const setting of settings) if (setting.advisorId) byAdvisor.set(setting.advisorId, [...(byAdvisor.get(setting.advisorId) ?? []), setting]);
+  return byAdvisor;
+};
+
+export const loadAdvisorCalendars = async (advisor: AdvisorRef, preloadedSettings?: CalendarSettingRecord[]): Promise<AdvisorCalendar[]> => {
   const memberId = await linkedMember(advisor);
-  const [connections, settingsData] = await Promise.all([
+  const [connections, settings] = await Promise.all([
     memberId ? allCalendarConnections().then((list) => list.filter((connection) => connection.workspaceMemberId === memberId)) : Promise.resolve([]),
-    gql<{ calendarSettings: { edges: { node: CalendarSettingRecord }[] } }>(
-      `query($advisorId: UUID!) { calendarSettings(filter: { advisorId: { eq: $advisorId } }) { edges { node { ${SETTING_FIELDS} } } } }`,
-      { advisorId: advisor.id },
-    ),
+    preloadedSettings ??
+      gql<{ calendarSettings: { edges: { node: CalendarSettingRecord }[] } }>(
+        `query($advisorId: UUID!) { calendarSettings(filter: { advisorId: { eq: $advisorId } }) { edges { node { ${SETTING_FIELDS} } } } }`,
+        { advisorId: advisor.id },
+      ).then((data) => nodes(data.calendarSettings)),
   ]);
-  const settings = nodes(settingsData.calendarSettings);
   const calendars: AdvisorCalendar[] = [];
 
   for (const connection of connections) {

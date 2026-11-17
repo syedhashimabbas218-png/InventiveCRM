@@ -23,6 +23,10 @@ type SyncRow = {
 const SYNC_FIELDS = 'id name provider connectionId calendarId externalEventId status attempts externalUpdatedAt syncedAt advisorId appointmentId';
 const BACKOFF_MINUTES = [1, 5, 15, 60, 240, 240, 240, 240];
 export const MAX_SYNC_ATTEMPTS = BACKOFF_MINUTES.length;
+export const RECONCILE_DAYS = 14;
+
+// Minutes to wait after this many failed attempts, or null once the outbox gives up.
+export const backoffMinutesAfter = (attempts: number) => (attempts >= MAX_SYNC_ATTEMPTS ? null : (BACKOFF_MINUTES[attempts - 1] ?? null));
 
 const syncKey = (appointment: AppointmentRecord, advisorId: string) =>
   appointment.sessionKey ? `session:${appointment.sessionKey}:${advisorId}` : `appointment:${appointment.id}:${advisorId}`;
@@ -78,14 +82,21 @@ const isActive = (appointment: AppointmentRecord, groupSize: number | null) => a
 
 // Brings each participant's calendar in line with the appointment. Twenty is the source of truth: the event is
 // created, moved or deleted to match, and failures stay in the outbox for the retry job.
-export const syncAppointment = async (appointment: AppointmentRecord) => {
+// A soft-deleted appointment can no longer be updated, so its calendar outcome is not written back to it.
+export const syncAppointment = async (appointment: AppointmentRecord, { updateAppointmentRecord = true }: { updateAppointmentRecord?: boolean } = {}) => {
   const advisorIds = nodes(appointment.participants).map((participant) => participant.advisorId);
   const participants = advisorIds.length > 0 ? advisorIds : appointment.advisorId ? [appointment.advisorId] : [];
-  const existing = await gql<{ calendarSyncs: { edges: { node: SyncRow }[] } }>(
-    `query($names: [String!]) { calendarSyncs(filter: { name: { in: $names } }, first: 100) { edges { node { ${SYNC_FIELDS} } } } }`,
-    { names: participants.map((advisorId) => syncKey(appointment, advisorId)) },
-  );
-  const rows = nodes(existing.calendarSyncs);
+  const rows =
+    participants.length === 0
+      ? []
+      : nodes(
+          (
+            await gql<{ calendarSyncs: { edges: { node: SyncRow }[] } }>(
+              `query($names: [String!]) { calendarSyncs(filter: { name: { in: $names } }, first: 100) { edges { node { ${SYNC_FIELDS} } } } }`,
+              { names: participants.map((advisorId) => syncKey(appointment, advisorId)) },
+            )
+          ).calendarSyncs,
+        );
   const groupSize = appointment.sessionKey ? (await sessionMembers(appointment.sessionKey)).length : null;
   const outcomes: string[] = [];
   let meetingUrl: string | null = null;
@@ -106,6 +117,10 @@ export const syncAppointment = async (appointment: AppointmentRecord) => {
       if (row && row.externalEventId) {
         await upsertRow(row, { status: 'GAVE_UP', lastError: 'The calendar this event was written to is no longer connected.' });
         outcomes.push('FAILED');
+      } else if (row && wanted === 'DELETE' && row.status !== 'SYNCED') {
+        // Nothing was ever written to a calendar, so there is nothing to delete.
+        await upsertRow(row, { operation: 'DELETE', status: 'SYNCED', lastError: '', nextAttemptAt: null });
+        outcomes.push('SYNCED');
       } else outcomes.push('NOT_CONNECTED');
       continue;
     }
@@ -138,15 +153,16 @@ export const syncAppointment = async (appointment: AppointmentRecord) => {
       outcomes.push('SYNCED');
     } catch (error) {
       const attempts = (row?.attempts ?? 0) + 1;
-      const backoffMinutes = BACKOFF_MINUTES[attempts - 1];
       const permanent = error instanceof CalendarAuthError || (error instanceof CalendarRequestError && !error.retryable);
-      const gaveUp = permanent || backoffMinutes === undefined || attempts >= MAX_SYNC_ATTEMPTS;
+      const backoffMinutes = permanent ? null : backoffMinutesAfter(attempts);
+      const gaveUp = backoffMinutes === null;
       await upsertRow(row, {
         ...base,
         status: gaveUp ? 'GAVE_UP' : 'FAILED',
         attempts,
         lastError: (error as Error).message.slice(0, 500),
-        nextAttemptAt: gaveUp ? null : new Date(Date.now() + Math.max(backoffMinutes * MINUTE, error instanceof CalendarRequestError ? (error.retryAfterMs ?? 0) : 0)).toISOString(),
+        nextAttemptAt:
+          backoffMinutes === null ? null : new Date(Date.now() + Math.max(backoffMinutes * MINUTE, error instanceof CalendarRequestError ? (error.retryAfterMs ?? 0) : 0)).toISOString(),
       });
       if (error instanceof CalendarAuthError) await updateSetting(target.setting.id, { status: 'NEEDS_RECONNECT', lastError: (error as Error).message.slice(0, 500) });
       if (gaveUp && row?.status !== 'GAVE_UP' && advisor.email)
@@ -171,7 +187,7 @@ export const syncAppointment = async (appointment: AppointmentRecord) => {
   const updates: Record<string, unknown> = {};
   if (calendarStatus !== appointment.calendarStatus) updates.calendarStatus = calendarStatus;
   if (meetingUrl && meetingUrl !== appointment.meetingUrl) updates.meetingUrl = meetingUrl;
-  if (Object.keys(updates).length > 0)
+  if (updateAppointmentRecord && Object.keys(updates).length > 0)
     await gql(`mutation($id: UUID!, $data: AppointmentUpdateInput!) { updateAppointment(id: $id, data: $data) { id } }`, { id: appointment.id, data: updates });
   return { calendarStatus, meetingUrl, outcomes };
 };
@@ -215,20 +231,74 @@ export const reconcileRow = async (row: SyncRow, appointment: AppointmentRecord)
   return 'in-sync';
 };
 
+type SyncRows = { calendarSyncs: { edges: { node: SyncRow }[] } };
+
+const DUE = '{ status: { in: [PENDING, FAILED] }, or: [{ nextAttemptAt: { is: NULL } }, { nextAttemptAt: { lte: $now } }] }';
+
 export const dueSyncRows = async (now: number) => {
-  const data = await gql<{ calendarSyncs: { edges: { node: SyncRow }[] } }>(
-    `query($now: DateTime!) { calendarSyncs(filter: { status: { in: [PENDING, FAILED] }, or: [{ nextAttemptAt: { is: NULL } }, { nextAttemptAt: { lte: $now } }] }, first: 100) { edges { node { ${SYNC_FIELDS} } } } }`,
+  const data = await gql<SyncRows>(
+    `query($now: DateTime!) { calendarSyncs(filter: ${DUE}, orderBy: [{ nextAttemptAt: AscNullsFirst }], first: 100) { edges { node { ${SYNC_FIELDS} } } } }`,
     { now: new Date(now).toISOString() },
   );
   return nodes(data.calendarSyncs);
 };
 
+// A conditional update only returns the rows it changed, so a cron run and a manual run never retry the same row.
+export const claimDueRows = async (ids: string[], now: number, leaseUntil: string) => {
+  if (ids.length === 0) return [];
+  const data = await gql<{ updateCalendarSyncs: SyncRow[] }>(
+    `mutation($ids: [UUID!], $now: DateTime!, $data: CalendarSyncUpdateInput!) {
+      updateCalendarSyncs(filter: { id: { in: $ids }, and: [${DUE}] }, data: $data) { ${SYNC_FIELDS} }
+    }`,
+    { ids, now: new Date(now).toISOString(), data: { nextAttemptAt: leaseUntil } },
+  );
+  return data.updateCalendarSyncs;
+};
+
+export const giveUpRows = async (ids: string[], reason: string) => {
+  if (ids.length === 0) return;
+  await gql(`mutation($ids: [UUID!], $data: CalendarSyncUpdateInput!) { updateCalendarSyncs(filter: { id: { in: $ids } }, data: $data) { id } }`, {
+    ids,
+    data: { status: 'GAVE_UP', nextAttemptAt: null, lastError: reason },
+  });
+};
+
+// A claimed row the sync did not touch (advisor gone, no longer on the appointment, no calendar to write to) would
+// otherwise come due again on every run.
+export const backOffUntouchedRows = async (ids: string[], leaseUntil: string, now: number) => {
+  if (ids.length === 0) return 0;
+  const data = await gql<SyncRows>(
+    `query($ids: [UUID!], $lease: DateTime!) { calendarSyncs(filter: { id: { in: $ids }, status: { in: [PENDING, FAILED] }, nextAttemptAt: { eq: $lease } }, first: 100) { edges { node { ${SYNC_FIELDS} } } } }`,
+    { ids, lease: leaseUntil },
+  );
+  const untouched = nodes(data.calendarSyncs);
+  for (const row of untouched) {
+    const attempts = (row.attempts ?? 0) + 1;
+    const backoffMinutes = backoffMinutesAfter(attempts);
+    await gql(`mutation($id: UUID!, $data: CalendarSyncUpdateInput!) { updateCalendarSync(id: $id, data: $data) { id } }`, {
+      id: row.id,
+      data: {
+        attempts,
+        status: backoffMinutes === null ? 'GAVE_UP' : row.status,
+        nextAttemptAt: backoffMinutes === null ? null : new Date(now + backoffMinutes * MINUTE).toISOString(),
+        lastError: 'Nothing to write to: the advisor, their calendar or their place on the appointment is gone.',
+      },
+    });
+  }
+  return untouched.length;
+};
+
+// Least recently checked first, and each row is stamped once checked, so every upcoming event gets its turn.
 export const upcomingSyncedRows = async (now: number) => {
-  const data = await gql<{ calendarSyncs: { edges: { node: SyncRow }[] } }>(
-    `query($now: DateTime!) { calendarSyncs(filter: { status: { eq: SYNCED }, operation: { eq: UPSERT }, appointment: { endsAt: { gte: $now } } }, first: 200) { edges { node { ${SYNC_FIELDS} } } } }`,
-    { now: new Date(now).toISOString() },
+  const variables = { now: new Date(now).toISOString(), until: new Date(now + RECONCILE_DAYS * 86_400_000).toISOString() };
+  const data = await gql<SyncRows>(
+    `query($now: DateTime!, $until: DateTime!) { calendarSyncs(filter: { status: { eq: SYNCED }, operation: { eq: UPSERT }, appointment: { endsAt: { gte: $now }, startsAt: { lte: $until } } }, orderBy: [{ syncedAt: AscNullsFirst }], first: 50) { edges { node { ${SYNC_FIELDS} } } } }`,
+    variables,
   ).catch(() =>
-    gql<{ calendarSyncs: { edges: { node: SyncRow }[] } }>(`{ calendarSyncs(filter: { status: { eq: SYNCED }, operation: { eq: UPSERT } }, first: 200) { edges { node { ${SYNC_FIELDS} } } } }`),
+    gql<SyncRows>(`{ calendarSyncs(filter: { status: { eq: SYNCED }, operation: { eq: UPSERT } }, orderBy: [{ syncedAt: AscNullsFirst }], first: 50) { edges { node { ${SYNC_FIELDS} } } } }`),
   );
   return nodes(data.calendarSyncs);
 };
+
+export const markChecked = (rowId: string) =>
+  gql(`mutation($id: UUID!, $data: CalendarSyncUpdateInput!) { updateCalendarSync(id: $id, data: $data) { id } }`, { id: rowId, data: { syncedAt: new Date().toISOString() } });

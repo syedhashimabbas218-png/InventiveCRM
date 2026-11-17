@@ -2,7 +2,7 @@ import { defineObject } from 'twenty-sdk/define';
 
 import { RECIPIENT_STATUSES } from 'src/constants/enums';
 import { IDS } from 'src/constants/ids';
-import { dateTimeField, selectField, textField } from 'src/objects/field-builders';
+import { dateTimeField, jsonField, selectField, textField } from 'src/objects/field-builders';
 
 const field = IDS.recipient.fields;
 
@@ -30,5 +30,6 @@ export default defineObject({
     dateTimeField({ universalIdentifier: field.bouncedAt, name: 'bouncedAt', label: 'Bounced', icon: 'IconMailOff' }),
     dateTimeField({ universalIdentifier: field.complainedAt, name: 'complainedAt', label: 'Marked as spam', icon: 'IconAlertTriangle' }),
     dateTimeField({ universalIdentifier: field.unsubscribedAt, name: 'unsubscribedAt', label: 'Unsubscribed', icon: 'IconUserMinus' }),
+    jsonField({ universalIdentifier: field.personalisation, name: 'personalisation', label: 'Personalisation', icon: 'IconBraces', description: 'Name and company as they were when the audience was prepared.' }),
   ],
 });

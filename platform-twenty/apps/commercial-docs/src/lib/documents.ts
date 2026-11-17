@@ -1,9 +1,10 @@
 import { type InvoiceTemplate, type RecurrenceFrequency, type VatRate, type VatRounding } from 'src/constants/enums';
 import { IDS } from 'src/constants/ids';
 import { gql, nodes, uploadFile } from 'src/lib/api';
-import { type Address, type BusinessProfile, type Customer, checkInvoice, checkQuote } from 'src/lib/compliance';
-import { addDays, nextRecurrenceDate, todayInLondon } from 'src/lib/dates';
-import { computeLineNetPence, computeTotals, computeVatPence, gbp, microsToPence } from 'src/lib/money';
+import { type Address, type BusinessProfile, type Customer, checkInvoice, checkQuote, replaceIssueLine } from 'src/lib/compliance';
+import { addDays, formatUkDate, nextRecurrenceDate, todayInLondon } from 'src/lib/dates';
+import { computeLineNetPence, computeTotals, computeVatPence, type DocumentTotals, gbp, microsToPence } from 'src/lib/money';
+import { claimSequenceNumber, isUniqueViolation } from 'src/lib/numbering';
 import { ensurePaymentLink } from 'src/lib/payments';
 import { deliverDocument } from 'src/lib/delivery';
 import { renderDocumentPdf } from 'src/lib/document-layout';
@@ -103,6 +104,23 @@ const formatNumber = (prefix: string | null, next: number | null, padding: numbe
 
 const sameMoney = (money: Money, pence: number) => microsToPence(money?.amountMicros) === pence && money?.currencyCode === 'GBP';
 
+const totalsUpdates = (document: { subtotal: Money; vatTotal: Money; total: Money }, totals: DocumentTotals) => {
+  const updates: Record<string, unknown> = {};
+  if (!sameMoney(document.subtotal, totals.subtotalPence)) updates.subtotal = gbp(totals.subtotalPence);
+  if (!sameMoney(document.vatTotal, totals.vatPence)) updates.vatTotal = gbp(totals.vatPence);
+  if (!sameMoney(document.total, totals.totalPence)) updates.total = gbp(totals.totalPence);
+  return updates;
+};
+
+// What the client was sent, and what a pay-now link charges, never changes: the record says how to correct it instead.
+const frozenTotalsUpdate = (complianceIssues: string | null, linesChanged: boolean, note: string) => {
+  const issues = replaceIssueLine(complianceIssues, note, linesChanged ? note : null);
+  return issues === (complianceIssues ?? '') ? null : { complianceIssues: issues };
+};
+
+const CHANGED_AFTER_ISSUE = 'Lines were changed after this invoice was issued. The issued totals and PDF stay as they are: raise a credit note to correct it.';
+const CHANGED_AFTER_SEND = 'Lines were changed after this quote was sent. The sent totals and PDF stay as they are: send a new quote for the changed work.';
+
 // ---------- Line maintenance ----------
 
 type LineKind = 'invoiceLine' | 'quoteLine';
@@ -195,10 +213,11 @@ type InvoiceRecord = {
   recurrenceEndDate: string | null;
   autoIssueRecurring: boolean | null;
   issuedAt: string | null;
+  complianceIssues: string | null;
   companyId: string | null;
   personId: string | null;
   creditedInvoiceId: string | null;
-  creditedInvoice: { id: string; invoiceNumber: string | null; total: Money } | null;
+  creditedInvoice: { id: string; invoiceNumber: string | null; total: Money; paymentLinkStatus: string | null } | null;
   sourceQuote: { quoteNumber: string | null } | null;
   company: CompanyRecord;
   person: PersonRecord;
@@ -207,8 +226,8 @@ type InvoiceRecord = {
 
 const INVOICE_FIELDS = `id name invoiceNumber kind status template issueDate supplyDate dueDate paymentTermsDays purchaseOrderNumber notes
   subtotal { ${MONEY} } vatTotal { ${MONEY} } total { ${MONEY} } amountPaid { ${MONEY} }
-  isRecurring recurrenceFrequency recurrenceInterval nextRecurrenceDate recurrenceEndDate autoIssueRecurring issuedAt
-  companyId personId creditedInvoiceId creditedInvoice { id invoiceNumber total { ${MONEY} } } sourceQuote { quoteNumber }
+  isRecurring recurrenceFrequency recurrenceInterval nextRecurrenceDate recurrenceEndDate autoIssueRecurring issuedAt complianceIssues
+  companyId personId creditedInvoiceId creditedInvoice { id invoiceNumber total { ${MONEY} } paymentLinkStatus } sourceQuote { quoteNumber }
   ${PARTY_FIELDS} lines(first: 200) { edges { node { ${LINE_FIELDS} } } }`;
 
 export const loadInvoice = async (id: string): Promise<InvoiceRecord | null> => {
@@ -231,11 +250,12 @@ const invoiceTotals = (invoice: InvoiceRecord, profile: BusinessProfile | null) 
 export const refreshInvoiceTotals = async (invoiceId: string) => {
   const [invoice, profile] = await Promise.all([loadInvoice(invoiceId), loadProfile()]);
   if (!invoice) return;
-  const totals = invoiceTotals(invoice, profile);
-  const updates: Record<string, unknown> = {};
-  if (!sameMoney(invoice.subtotal, totals.subtotalPence)) updates.subtotal = gbp(totals.subtotalPence);
-  if (!sameMoney(invoice.vatTotal, totals.vatPence)) updates.vatTotal = gbp(totals.vatPence);
-  if (!sameMoney(invoice.total, totals.totalPence)) updates.total = gbp(totals.totalPence);
+  const updates = totalsUpdates(invoice, invoiceTotals(invoice, profile));
+  if (invoice.issuedAt) {
+    const note = frozenTotalsUpdate(invoice.complianceIssues, Object.keys(updates).length > 0, CHANGED_AFTER_ISSUE);
+    if (note) await updateInvoice(invoiceId, note);
+    return;
+  }
   if (Object.keys(updates).length > 0) await updateInvoice(invoiceId, updates);
 };
 
@@ -245,26 +265,53 @@ const NUMBERING = {
   QUOTE: { counter: 'nextQuoteNumber', prefix: 'quotePrefix', fallback: 'QUO-', object: 'quotes', field: 'quoteNumber' },
 } as const;
 
-// Picks the next unused number without consuming it, so a failed issue never leaves a gap in the sequence.
-const peekNumber = async (profile: BusinessProfile, kind: keyof typeof NUMBERING) => {
+type NumberingKind = keyof typeof NUMBERING;
+
+const numberOf = (profile: BusinessProfile, kind: NumberingKind, sequence: number) =>
+  formatNumber(profile[NUMBERING[kind].prefix] as string | null, sequence, profile.numberPadding, NUMBERING[kind].fallback);
+
+// Deleted documents still hold their number, so the deletedAt filter makes them count as used.
+const peekNumber = async (profile: BusinessProfile, kind: NumberingKind, from: number) => {
   const config = NUMBERING[kind];
-  let next = (profile[config.counter] as number | null) ?? 1;
+  let next = from;
   for (;;) {
-    const number = formatNumber(profile[config.prefix] as string | null, next, profile.numberPadding, config.fallback);
     const data = await gql<Record<typeof config.object, { edges: unknown[] }>>(
-      `query($number: String!) { ${config.object}(filter: { ${config.field}: { eq: $number } }, first: 1) { edges { node { id } } } }`,
-      { number },
+      `query($number: String!) { ${config.object}(filter: { ${config.field}: { eq: $number }, or: [{ deletedAt: { is: NULL } }, { deletedAt: { is: NOT_NULL } }] }, first: 1) { edges { node { id } } } }`,
+      { number: numberOf(profile, kind, next) },
     );
-    if (data[config.object].edges.length === 0) return { number, next };
+    if (data[config.object].edges.length === 0) return next;
     next += 1;
   }
 };
 
-const commitNumber = (profile: BusinessProfile, kind: keyof typeof NUMBERING, used: number) =>
+const commitNumber = (profile: BusinessProfile, kind: NumberingKind, used: number) =>
   gql(`mutation($id: UUID!, $data: BusinessProfileUpdateInput!) { updateBusinessProfile(id: $id, data: $data) { id } }`, {
     id: profile.id,
     data: { [NUMBERING[kind].counter]: used + 1 },
   });
+
+// The number is written on the record before the slow PDF work, so two documents issued at once never share one.
+// A failed issue keeps it for the retry, so the sequence has no gaps. Null: another run numbered this record first.
+const claimNumber = async (profile: BusinessProfile, kind: NumberingKind, recordId: string): Promise<string | null> => {
+  const { counter, object, field } = NUMBERING[kind];
+  const mutation = `update${capitalise(object)}`;
+  const sequence = await claimSequenceNumber({
+    start: (profile[counter] as number | null) ?? 1,
+    findFree: (from) => peekNumber(profile, kind, from),
+    claim: async (candidate) => {
+      const data = await gql<Record<string, { id: string }[] | undefined>>(
+        `mutation($id: UUID!, $number: String!) {
+          ${mutation}(filter: { id: { eq: $id }, or: [{ ${field}: { is: NULL } }, { ${field}: { eq: "" } }] }, data: { ${field}: $number }) { id }
+        }`,
+        { id: recordId, number: numberOf(profile, kind, candidate) },
+      );
+      return (data[mutation] ?? []).length > 0;
+    },
+  });
+  if (sequence === null) return null;
+  await commitNumber(profile, kind, sequence);
+  return numberOf(profile, kind, sequence);
+};
 
 const attachToClientCard = async ({
   bytes,
@@ -305,6 +352,8 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
   if (!invoice) return { issued: false, issues: ['Invoice not found.'] };
   // Issued invoices are frozen: corrections go through a credit note, never a silent re-issue.
   if (invoice.issuedAt) return { issued: true, issues: [], number: invoice.invoiceNumber || undefined };
+  // Put back to Draft (after a failure, or by the daily run) while this job waited in the queue.
+  if (invoice.status !== 'ISSUED') return { issued: false, issues: [] };
 
   const kind = invoice.kind === 'CREDIT_NOTE' ? 'CREDIT_NOTE' : 'INVOICE';
   const template: InvoiceTemplate =
@@ -331,8 +380,8 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
 
   const paymentTermsDays = invoice.paymentTermsDays ?? profile.defaultPaymentTermsDays ?? 30;
   const dueDate = invoice.dueDate ?? addDays(issueDate, paymentTermsDays);
-  const reserved = invoice.invoiceNumber ? null : await peekNumber(profile, kind);
-  const number = invoice.invoiceNumber || reserved?.number || '';
+  const number = invoice.invoiceNumber || (await claimNumber(profile, kind, invoiceId));
+  if (!number) return { issued: false, issues: [] };
   const totals = computeTotals(lines.map(toCalculationLine), {
     rounding: roundingOf(profile),
     reverseCharge: template === 'UK_REVERSE_CHARGE_INVOICE',
@@ -377,16 +426,21 @@ export const issueInvoice = async (invoiceId: string): Promise<{ issued: boolean
     complianceIssues: '',
     issuedAt: new Date().toISOString(),
   });
-  if (reserved) await commitNumber(profile, kind, reserved.next);
   await attachToClientCard({ bytes, filename, companyId, personId: invoice.personId });
 
+  const provider = profile.onlinePayments === 'STRIPE' || profile.onlinePayments === 'REVOLUT' ? profile.onlinePayments : null;
+  const refreshLink = (id: string) =>
+    provider
+      ? ensurePaymentLink(id, provider, profile.tradingName || profile.legalName || '').catch((error: Error) => console.error(`Could not create a payment link for invoice ${id}: ${error.message}`))
+      : Promise.resolve();
   if (kind === 'CREDIT_NOTE' && invoice.creditedInvoice) {
     const creditedTotal = microsToPence(invoice.creditedInvoice.total?.amountMicros);
     if (creditedTotal > 0 && totals.totalPence >= creditedTotal) await updateInvoice(invoice.creditedInvoice.id, { status: 'VOID' });
+    // A part credit lowers what is owed, so the open link is replaced before the client can pay the old amount.
+    else if (invoice.creditedInvoice.paymentLinkStatus === 'OPEN') await refreshLink(invoice.creditedInvoice.id);
   }
   // A pay-now link goes into the first email; if the provider is down the invoice is still issued and sent.
-  if (kind !== 'CREDIT_NOTE' && (profile.onlinePayments === 'STRIPE' || profile.onlinePayments === 'REVOLUT'))
-    await ensurePaymentLink(invoiceId, profile.onlinePayments, profile.tradingName || profile.legalName || '').catch((error: Error) => console.error(`Could not create a payment link for invoice ${invoiceId}: ${error.message}`));
+  if (kind !== 'CREDIT_NOTE') await refreshLink(invoiceId);
   await sendAfterIssue('invoice', invoiceId, profile);
   return { issued: true, issues: [], number };
 };
@@ -407,6 +461,7 @@ type QuoteRecord = {
   vatTotal: Money;
   total: Money;
   sentAt: string | null;
+  complianceIssues: string | null;
   companyId: string | null;
   personId: string | null;
   company: CompanyRecord;
@@ -415,7 +470,7 @@ type QuoteRecord = {
 };
 
 const QUOTE_FIELDS = `id name quoteNumber status issueDate validUntil title notes terms subtotal { ${MONEY} } vatTotal { ${MONEY} } total { ${MONEY} }
-  sentAt companyId personId ${PARTY_FIELDS} lines(first: 200) { edges { node { ${LINE_FIELDS} } } }`;
+  sentAt complianceIssues companyId personId ${PARTY_FIELDS} lines(first: 200) { edges { node { ${LINE_FIELDS} } } }`;
 
 export const loadQuote = async (id: string): Promise<QuoteRecord | null> => {
   const data = await gql<{ quotes: { edges: { node: QuoteRecord }[] } }>(
@@ -440,11 +495,12 @@ const quoteTotals = (quote: QuoteRecord, profile: BusinessProfile | null) =>
 export const refreshQuoteTotals = async (quoteId: string) => {
   const [quote, profile] = await Promise.all([loadQuote(quoteId), loadProfile()]);
   if (!quote) return;
-  const totals = quoteTotals(quote, profile);
-  const updates: Record<string, unknown> = {};
-  if (!sameMoney(quote.subtotal, totals.subtotalPence)) updates.subtotal = gbp(totals.subtotalPence);
-  if (!sameMoney(quote.vatTotal, totals.vatPence)) updates.vatTotal = gbp(totals.vatPence);
-  if (!sameMoney(quote.total, totals.totalPence)) updates.total = gbp(totals.totalPence);
+  const updates = totalsUpdates(quote, quoteTotals(quote, profile));
+  if (quote.sentAt) {
+    const note = frozenTotalsUpdate(quote.complianceIssues, Object.keys(updates).length > 0, CHANGED_AFTER_SEND);
+    if (note) await updateQuote(quoteId, note);
+    return;
+  }
   if (Object.keys(updates).length > 0) await updateQuote(quoteId, updates);
 };
 
@@ -452,6 +508,7 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
   const [quote, profile] = await Promise.all([loadQuote(quoteId), loadProfile()]);
   if (!quote) return { sent: false, issues: ['Quote not found.'] };
   if (quote.sentAt) return { sent: true, issues: [], number: quote.quoteNumber || undefined };
+  if (quote.status !== 'SENT') return { sent: false, issues: [] };
   const lines = sortedLines(nodes(quote.lines));
   const customer = customerOf(quote.company, quote.person);
   const issues = checkQuote({ profile, customer, lines });
@@ -462,8 +519,8 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
 
   const issueDate = quote.issueDate ?? todayInLondon();
   const validUntil = quote.validUntil ?? addDays(issueDate, profile.quoteValidityDays ?? 30);
-  const reserved = quote.quoteNumber ? null : await peekNumber(profile, 'QUOTE');
-  const number = quote.quoteNumber || reserved?.number || '';
+  const number = quote.quoteNumber || (await claimNumber(profile, 'QUOTE', quoteId));
+  if (!number) return { sent: false, issues: [] };
   const totals = quoteTotals(quote, profile);
   const quoteCompanyId = quote.companyId ?? quote.person?.company?.id ?? null;
   const { bytes, layoutUsed } = await renderDocumentPdf(
@@ -496,7 +553,6 @@ export const sendQuote = async (quoteId: string): Promise<{ sent: boolean; issue
     complianceIssues: '',
     sentAt: new Date().toISOString(),
   });
-  if (reserved) await commitNumber(profile, 'QUOTE', reserved.next);
   await attachToClientCard({
     bytes,
     filename,
@@ -559,7 +615,86 @@ export const convertQuoteToInvoice = async (quoteId: string): Promise<{ invoiceI
   return { invoiceId: createInvoice.id };
 };
 
-// ---------- Daily run: recurring invoices and overdue status ----------
+// ---------- Daily run: recurring invoices, overdue status and stuck documents ----------
+
+export const DAILY_RUN_TIMEOUT_SECONDS = 300;
+
+const RECURRING_FAILURE = 'Could not create the repeat';
+
+type RecurringChild = { id: string; createdAt: string; lines: { edges: { node: { id: string } }[] } };
+
+// Repeats made before recurrenceKey existed are found by parent and date.
+const findRecurringChild = async (parentId: string, runDate: string, recurrenceKey: string) => {
+  const data = await gql<{ invoices: { edges: { node: RecurringChild }[] } }>(
+    `query($filter: InvoiceFilterInput!) { invoices(filter: $filter, orderBy: [{ createdAt: AscNullsFirst }], first: 1) { edges { node { id createdAt lines(first: 1) { edges { node { id } } } } } } }`,
+    { filter: { or: [{ recurrenceKey: { eq: recurrenceKey } }, { recurringParentId: { eq: parentId }, issueDate: { eq: runDate } }] } },
+  );
+  return nodes(data.invoices)[0] ?? null;
+};
+
+// Conditional on the date, so an overlapping run that already moved the schedule on is not undone.
+const advanceRecurrence = (template: InvoiceRecord, runDate: string, frequency: RecurrenceFrequency) => {
+  const next = nextRecurrenceDate(runDate, frequency, template.recurrenceInterval ?? 1);
+  const finished = Boolean(template.recurrenceEndDate && next > template.recurrenceEndDate);
+  const issues = replaceIssueLine(template.complianceIssues, RECURRING_FAILURE, null);
+  return gql(`mutation($id: UUID!, $runDate: Date!, $data: InvoiceUpdateInput!) { updateInvoices(filter: { id: { eq: $id }, nextRecurrenceDate: { eq: $runDate } }, data: $data) { id } }`, {
+    id: template.id,
+    runDate,
+    data: { nextRecurrenceDate: finished ? null : next, isRecurring: !finished, ...(issues !== (template.complianceIssues ?? '') ? { complianceIssues: issues } : {}) },
+  });
+};
+
+// The unique recurrenceKey makes creating the repeat the claim, so overlapping runs never bill one date twice.
+// A repeat left by a run that died part-way is finished instead of duplicated.
+const createRecurringChild = async (template: InvoiceRecord, runDate: string, frequency: RecurrenceFrequency): Promise<string | null> => {
+  const recurrenceKey = `${template.id}:${runDate}`;
+  let child = await findRecurringChild(template.id, runDate, recurrenceKey);
+  let createdHere = false;
+  if (!child) {
+    try {
+      const { createInvoice } = await gql<{ createInvoice: { id: string; createdAt: string } }>(
+        `mutation($data: InvoiceCreateInput!) { createInvoice(data: $data) { id createdAt } }`,
+        {
+          data: {
+            name: `Recurring from ${template.invoiceNumber || template.name || 'invoice'}`,
+            kind: 'INVOICE',
+            status: 'DRAFT',
+            template: template.template,
+            companyId: template.companyId,
+            personId: template.personId,
+            recurringParentId: template.id,
+            recurrenceKey,
+            issueDate: runDate,
+            supplyDate: runDate,
+            paymentTermsDays: template.paymentTermsDays,
+            purchaseOrderNumber: template.purchaseOrderNumber,
+            notes: template.notes,
+            isRecurring: false,
+          },
+        },
+      );
+      child = { ...createInvoice, lines: { edges: [] } };
+      createdHere = true;
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      child = await findRecurringChild(template.id, runDate, recurrenceKey);
+      // Only a deleted repeat holds the key without being found: someone removed it, so that date is skipped.
+      if (!child) {
+        await advanceRecurrence(template, runDate, frequency);
+        return null;
+      }
+    }
+  }
+  // Younger than a daily run can last: the run that created it may still be filling it in, and finishes it.
+  if (!createdHere && Date.now() - Date.parse(child.createdAt) < DAILY_RUN_TIMEOUT_SECONDS * 1000) return null;
+  if (child.lines.edges.length === 0) await copyLines(nodes(template.lines), { invoiceId: child.id });
+  await refreshInvoiceTotals(child.id);
+  // Setting the status fires the same issue handler a user triggers, which runs the UK checks and files the PDF.
+  if (template.autoIssueRecurring !== false)
+    await gql(`mutation($id: UUID!) { updateInvoices(filter: { id: { eq: $id }, status: { eq: DRAFT }, issuedAt: { is: NULL } }, data: { status: ISSUED }) { id } }`, { id: child.id });
+  await advanceRecurrence(template, runDate, frequency);
+  return child.id;
+};
 
 export const runRecurringInvoices = async (today: string = todayInLondon()) => {
   const data = await gql<{ invoices: { edges: { node: InvoiceRecord }[] } }>(
@@ -568,41 +703,21 @@ export const runRecurringInvoices = async (today: string = todayInLondon()) => {
   );
   const created: string[] = [];
   for (const template of nodes(data.invoices)) {
-    if (!template.recurrenceFrequency || !template.nextRecurrenceDate) continue;
-    if (template.recurrenceEndDate && template.nextRecurrenceDate > template.recurrenceEndDate) {
-      await updateInvoice(template.id, { isRecurring: false });
-      continue;
-    }
     const runDate = template.nextRecurrenceDate;
-    const { createInvoice } = await gql<{ createInvoice: { id: string } }>(
-      `mutation($data: InvoiceCreateInput!) { createInvoice(data: $data) { id } }`,
-      {
-        data: {
-          name: `Recurring from ${template.invoiceNumber || template.name || 'invoice'}`,
-          kind: 'INVOICE',
-          status: 'DRAFT',
-          template: template.template,
-          companyId: template.companyId,
-          personId: template.personId,
-          recurringParentId: template.id,
-          issueDate: runDate,
-          supplyDate: runDate,
-          paymentTermsDays: template.paymentTermsDays,
-          purchaseOrderNumber: template.purchaseOrderNumber,
-          notes: template.notes,
-          isRecurring: false,
-        },
-      },
-    );
-    await copyLines(nodes(template.lines), { invoiceId: createInvoice.id });
-    await refreshInvoiceTotals(createInvoice.id);
-    // Setting the status fires the same issue handler a user triggers, which runs the UK checks and files the PDF.
-    if (template.autoIssueRecurring !== false) await updateInvoice(createInvoice.id, { status: 'ISSUED' });
-
-    const next = nextRecurrenceDate(runDate, template.recurrenceFrequency, template.recurrenceInterval ?? 1);
-    const finished = Boolean(template.recurrenceEndDate && next > template.recurrenceEndDate);
-    await updateInvoice(template.id, { nextRecurrenceDate: finished ? null : next, isRecurring: !finished });
-    created.push(createInvoice.id);
+    if (!template.recurrenceFrequency || !runDate) continue;
+    try {
+      if (template.recurrenceEndDate && runDate > template.recurrenceEndDate) {
+        await updateInvoice(template.id, { isRecurring: false });
+        continue;
+      }
+      const childId = await createRecurringChild(template, runDate, template.recurrenceFrequency);
+      if (childId) created.push(childId);
+    } catch (error) {
+      // One broken template must not stop the others; the schedule stays put, so the next run tries this date again.
+      const message = `${RECURRING_FAILURE} for ${formatUkDate(runDate)}: ${(error as Error).message}. The next daily run tries again.`;
+      console.error(`Recurring invoice ${template.id}: ${message}`);
+      await updateInvoice(template.id, { complianceIssues: replaceIssueLine(template.complianceIssues, RECURRING_FAILURE, message) }).catch(() => undefined);
+    }
   }
   return created;
 };
@@ -614,12 +729,60 @@ export const markOverdueInvoices = async (today: string = todayInLondon()) => {
   );
   const overdue = nodes(data.invoices);
   const profile = overdue.length > 0 ? await loadProfile() : null;
+  let marked = 0;
   for (const invoice of overdue) {
-    await updateInvoice(invoice.id, { status: 'OVERDUE' });
+    // Only the run whose update changed the row sends the reminder, so overlapping runs send it once.
+    const { updateInvoices } = await gql<{ updateInvoices: { id: string }[] }>(
+      `mutation($id: UUID!) { updateInvoices(filter: { id: { eq: $id }, status: { in: [ISSUED, PART_PAID] } }, data: { status: OVERDUE }) { id } }`,
+      { id: invoice.id },
+    );
+    if (updateInvoices.length === 0) continue;
+    marked += 1;
     if (profile?.sendOverdueReminders)
       await deliverDocument({ kind: 'invoice', id: invoice.id, profile, reminder: true }).catch((error: Error) =>
         console.error(`Could not send a reminder for invoice ${invoice.id}: ${error.message}`),
       );
   }
-  return overdue.length;
+  return marked;
+};
+
+const STUCK_AFTER_MS = 15 * 60_000;
+
+const STUCK = [
+  {
+    objects: 'invoices',
+    type: 'Invoice',
+    status: 'ISSUED',
+    doneField: 'issuedAt',
+    note: 'Issuing did not finish (usually the PDF took too long) and nothing was sent. Set the status to Issued again to retry; any number it was given is kept.',
+  },
+  {
+    objects: 'quotes',
+    type: 'Quote',
+    status: 'SENT',
+    doneField: 'sentAt',
+    note: 'Sending did not finish (usually the PDF took too long) and nothing was sent. Set the status to Sent again to retry; any number it was given is kept.',
+  },
+] as const;
+
+// An issue job killed by its time limit cannot run its own failure handling, which would leave the document marked
+// Issued or Sent with no PDF and no explanation.
+export const releaseStuckDocuments = async (now: number = Date.now()) => {
+  const before = new Date(now - STUCK_AFTER_MS).toISOString();
+  let released = 0;
+  for (const target of STUCK) {
+    const stuck = { status: { eq: target.status }, [target.doneField]: { is: 'NULL' } };
+    const data = await gql<Record<string, { edges: { node: { id: string } }[] } | undefined>>(
+      `query($filter: ${target.type}FilterInput!) { ${target.objects}(filter: $filter, first: 100) { edges { node { id } } } }`,
+      { filter: { ...stuck, updatedAt: { lt: before } } },
+    );
+    for (const record of nodes(data[target.objects])) {
+      const result = await gql<Record<string, { id: string }[] | undefined>>(
+        `mutation($filter: ${target.type}FilterInput!, $data: ${target.type}UpdateInput!) { update${capitalise(target.objects)}(filter: $filter, data: $data) { id } }`,
+        { filter: { id: { eq: record.id }, ...stuck }, data: { status: 'DRAFT', complianceIssues: target.note } },
+      );
+      released += (result[`update${capitalise(target.objects)}`] ?? []).length;
+    }
+  }
+  return released;
 };

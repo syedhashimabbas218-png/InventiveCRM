@@ -1,11 +1,13 @@
 import { type Interval, mergeIntervals, subtractIntervals, workingIntervals } from 'src/engine/availability';
-import { type GeoMeasure, geoEligibility, haversineKm, parseServiceArea, type Point, rankByLocation } from 'src/engine/geo';
+import { type GeoMeasure, geoEligibility, haversineKm, parseServiceArea, type Point, rankByLocation, snapToGrid } from 'src/engine/geo';
 import { generateSlots, RESERVATION_TICK_MINUTES } from 'src/engine/slots';
 import { addDays, DAY, isoWeekKey, MINUTE, utcToZoned, zonedToUtc } from 'src/engine/time';
 import { fallbackTravelMinutes, neighbouringStops, type Stop, travelFeasibility } from 'src/engine/travel';
 import { gql, nodes } from 'src/lib/api';
-import { advisorExternalBusy, loadAdvisorCalendars } from 'src/lib/calendar/connections';
+import { advisorExternalBusy, calendarSettingsByAdvisor, type CalendarSettingRecord, loadAdvisorCalendars } from 'src/lib/calendar/connections';
+import { mapWithConcurrency } from 'src/lib/concurrency';
 import { travelMatrix } from 'src/lib/geo/services';
+import { allPages, PAGE_INFO, type Page } from 'src/lib/pagination';
 import {
   type AdvisorRecord,
   advisorPoint,
@@ -50,18 +52,21 @@ export type SearchResult = {
 };
 
 const TICK = RESERVATION_TICK_MINUTES * MINUTE;
+const ADVISOR_CONCURRENCY = 6;
 
 export const appointmentsFor = async (advisorIds: string[], from: number, to: number) => {
   if (advisorIds.length === 0) return [];
-  const data = await gql<{ appointments: { edges: { node: BookedAppointment }[] } }>(
-    `query($ids: [UUID!], $from: DateTime!, $to: DateTime!) {
-      appointments(filter: { advisorId: { in: $ids }, startsAt: { lt: $to }, endsAt: { gt: $from }, status: { neq: CANCELLED } }, first: 1000) {
-        edges { node { id advisorId appointmentTypeId startsAt endsAt status sessionKey createdAt customerLatitude customerLongitude meetingFormat office { latitude longitude } } }
-      }
-    }`,
-    { ids: advisorIds, from: new Date(from).toISOString(), to: new Date(to).toISOString() },
+  return allPages((after) =>
+    gql<{ appointments: Page<BookedAppointment> }>(
+      `query($ids: [UUID!], $from: DateTime!, $to: DateTime!, $after: String) {
+        appointments(filter: { advisorId: { in: $ids }, startsAt: { lt: $to }, endsAt: { gt: $from }, status: { neq: CANCELLED } }, first: 500, after: $after) {
+          edges { node { id advisorId appointmentTypeId startsAt endsAt status sessionKey createdAt customerLatitude customerLongitude meetingFormat office { latitude longitude } } }
+          ${PAGE_INFO}
+        }
+      }`,
+      { ids: advisorIds, from: new Date(from).toISOString(), to: new Date(to).toISOString(), after },
+    ).then((data) => data.appointments),
   );
-  return nodes(data.appointments);
 };
 
 // Reserved ticks are the authoritative busy time inside Twenty: they cover every booking's buffers and every
@@ -169,6 +174,7 @@ const advisorStarts = async (
   customer: CustomerLocation | null,
   defaultTimeZone: string,
   ignore: Ignore | null,
+  calendarSettings: CalendarSettingRecord[],
 ): Promise<{ starts: number[]; failures: string[]; travel: Map<number, { minutes: number | null; verified: boolean }> }> => {
   const failures: string[] = [];
   const schedule = advisorSchedule(advisor, type);
@@ -176,7 +182,7 @@ const advisorStarts = async (
   const timeZone = schedule.timeZone || advisor.timeZone || defaultTimeZone;
   const working = workingIntervals({ rules: schedule.weeklyHours, overrides: nodes(schedule.overrides), timeZone, from: window.from, to: window.to });
 
-  const calendars = await loadAdvisorCalendars(advisor);
+  const calendars = await loadAdvisorCalendars(advisor, calendarSettings);
   const external = await advisorExternalBusy(calendars, window.from - DAY, window.to + DAY);
   if (external.failures.length > 0) return { starts: [], failures: external.failures, travel: new Map() };
 
@@ -265,6 +271,7 @@ export const searchAvailability = async ({
   now,
   customer,
   ignore = null,
+  snapCustomerToGrid = false,
 }: {
   ignore?: Ignore | null;
   type: AppointmentTypeRecord;
@@ -273,6 +280,8 @@ export const searchAvailability = async ({
   to: number;
   now: number;
   customer: CustomerLocation | null;
+  // Public requests: who covers the customer and how far away is judged from a grid point; travel uses the exact one.
+  snapCustomerToGrid?: boolean;
 }): Promise<SearchResult> => {
   const settings = await loadSettings();
   const window = { from: Math.max(from, now), to: Math.min(to, now + (type.horizonDays ?? 60) * DAY + DAY) };
@@ -293,7 +302,8 @@ export const searchAvailability = async ({
   let routing: SearchResult['routing'] = 'NOT_NEEDED';
   if (needsLocation(type)) {
     if (!customer) throw Object.assign(new Error('A location is needed for this appointment type.'), { code: 'LOCATION_REQUIRED' });
-    const measured = await measureAdvisors(advisors, customer.point);
+    const coveragePoint = snapCustomerToGrid ? snapToGrid(customer.point) : customer.point;
+    const measured = await measureAdvisors(advisors, coveragePoint);
     measures = measured.measures;
     routing = measured.routed ? 'ROAD' : 'STRAIGHT_LINE';
     if (type.distanceBasis === 'STRAIGHT_LINE') for (const measure of measures.values()) measure.roadKm = null;
@@ -307,22 +317,27 @@ export const searchAvailability = async ({
         postcodeTerritory: advisor.postcodeTerritory ? advisor.postcodeTerritory.split(',').map((entry) => entry.trim()).filter(Boolean) : [],
       };
       const measure = measures.get(advisor.id) ?? { straightKm: null, roadKm: null, travelMinutes: null, routed: false };
-      const verdict = geoEligibility(geoAdvisor, customer.point, customer.postcode, measure, type.locationMode === 'NONE' ? 'WITHIN_RADIUS' : type.locationMode);
+      const verdict = geoEligibility(geoAdvisor, coveragePoint, customer.postcode, measure, type.locationMode === 'NONE' ? 'WITHIN_RADIUS' : type.locationMode);
       if (!verdict.eligible) excluded.push({ advisorId: advisor.id, name: advisor.name, reason: verdict.reason });
       return verdict.eligible;
     });
   }
 
   const ids = advisors.map((advisor) => advisor.id);
-  const [reserved, bookings] = await Promise.all([
+  const [reserved, bookings, calendarSettings] = await Promise.all([
     reservedIntervals(ids, window.from - DAY, window.to + DAY, ignore?.appointmentId ?? null),
     appointmentsFor(ids, window.from - 8 * DAY, window.to + 8 * DAY),
+    calendarSettingsByAdvisor(ids),
   ]);
 
   const capacity = Math.max(1, type.capacity ?? 1);
+  // Bounded because each advisor costs several calls against Twenty's per-app request limit.
+  const computedByAdvisor = await mapWithConcurrency(advisors, ADVISOR_CONCURRENCY, (advisor) =>
+    advisorStarts(advisor, type, window, reserved.get(advisor.id) ?? [], bookings, now, customer, settings.defaultTimeZone, ignore, calendarSettings.get(advisor.id) ?? []),
+  );
   const results: AdvisorAvailability[] = [];
-  for (const advisor of advisors) {
-    const computed = await advisorStarts(advisor, type, window, reserved.get(advisor.id) ?? [], bookings, now, customer, settings.defaultTimeZone, ignore);
+  for (const [index, advisor] of advisors.entries()) {
+    const computed = computedByAdvisor[index]!;
     if (computed.failures.length > 0) excluded.push({ advisorId: advisor.id, name: advisor.name, reason: computed.failures.join('; ') });
 
     // Group sessions with seats left stay bookable although the host is already held by the session.

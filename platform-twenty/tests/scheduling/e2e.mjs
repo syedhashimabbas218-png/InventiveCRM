@@ -181,24 +181,24 @@ assert('the connection stays flagged until Bob reconnects, then his times come b
 // Provider outage during a calendar write: retried by the sync job, no duplicates.
 const fi = email('fi');
 await mock('/admin/outage', { email: 'alice@googlemail.test', on: false });
-await book(types.aliceIntro, at(8, '09:00'), { name: 'Fi Customer', email: fi });
+await book(types.aliceIntro, at(0, '09:00'), { name: 'Fi Customer', email: fi });
 await synced(fi);
 const fiAppointment = (await appointmentByEmail(fi))[0];
 await mock('/admin/outage', { email: 'alice@googlemail.test', on: true });
-await api.gql(`mutation($id: UUID!, $data: AppointmentUpdateInput!) { updateAppointment(id: $id, data: $data) { id } }`, { id: fiAppointment.id, data: { startsAt: at(8, '12:00'), endsAt: at(8, '12:30') } });
+await api.gql(`mutation($id: UUID!, $data: AppointmentUpdateInput!) { updateAppointment(id: $id, data: $data) { id } }`, { id: fiAppointment.id, data: { startsAt: at(0, '12:00'), endsAt: at(0, '12:30') } });
 const failing = await waitFor('sync failure recorded', async () => ((await appointmentByEmail(fi))[0].calendarStatus === 'PENDING' ? true : null), 60000).catch(() => false);
 await mock('/admin/outage', { email: 'alice@googlemail.test', on: false });
 await api.gql(`mutation { updateCalendarSyncs(filter: { status: { eq: FAILED } }, data: { nextAttemptAt: null }) { id } }`).catch(() => null);
 const syncNow = await fetch(`${W}/s/scheduling/sync-now`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' }, body: '{}' });
 const recovered = (await appointmentByEmail(fi))[0];
 const fiEvents = (await events('alice@googlemail.test')).filter((event) => event.title?.includes('Fi Customer') && event.status !== 'cancelled');
-assert('a Google outage during a move is retried and recovers without a duplicate event', failing && syncNow.ok && recovered.calendarStatus === 'SYNCED' && fiEvents.length === 1 && fiEvents[0].start === at(8, '12:00'), `pending seen: ${failing}, now ${recovered.calendarStatus}, events ${fiEvents.length} at ${fiEvents[0]?.start}`);
+assert('a Google outage during a move is retried and recovers without a duplicate event', failing && syncNow.ok && recovered.calendarStatus === 'SYNCED' && fiEvents.length === 1 && fiEvents[0].start === at(0, '12:00'), `pending seen: ${failing}, now ${recovered.calendarStatus}, events ${fiEvents.length} at ${fiEvents[0]?.start}`);
 
 // External edits in Google are put back (Twenty is the source of truth).
-await mock('/admin/edit-event', { email: 'alice@googlemail.test', id: fiEvents[0].id, start: at(8, '16:00'), end: at(8, '16:30') });
+await mock('/admin/edit-event', { email: 'alice@googlemail.test', id: fiEvents[0].id, start: at(0, '16:00'), end: at(0, '16:30') });
 await fetch(`${W}/s/scheduling/sync-now`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' }, body: '{}' });
 const restored = (await events('alice@googlemail.test')).find((event) => event.id === fiEvents[0].id);
-assert('an event moved directly in Google is moved back to the booked time and logged', restored?.start === at(8, '12:00'), restored?.start);
+assert('an event moved directly in Google is moved back to the booked time and logged', restored?.start === at(0, '12:00'), restored?.start);
 
 // Google rate limits arrive as 403: they are retried, and the account is not flagged for reconnecting.
 const ri = email('ri');

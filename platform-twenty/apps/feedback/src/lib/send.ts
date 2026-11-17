@@ -25,6 +25,22 @@ export const toE164 = (phones: { primaryPhoneNumber: string | null; primaryPhone
 
 const business = (settings: FeedbackSettings) => settings.businessName?.trim() || 'Our team';
 
+// Nodemailer waits minutes by default; a hanging mail server must not use up the job's 300 s.
+const mailTransport = () => {
+  const { SMTP_HOST, SMTP_PORT, SMTP_SECURITY, SMTP_USERNAME, SMTP_PASSWORD } = process.env;
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: Number(SMTP_PORT || 587),
+    secure: SMTP_SECURITY === 'TLS',
+    requireTLS: SMTP_SECURITY === 'STARTTLS',
+    ignoreTLS: SMTP_SECURITY === 'NONE',
+    auth: SMTP_USERNAME ? { user: SMTP_USERNAME, pass: SMTP_PASSWORD } : undefined,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+};
+
 export const buildSurveyEmail = ({ firstName, url, settings }: { firstName: string; url: string; settings: FeedbackSettings }) => {
   const question = settings.question?.trim() || 'How likely are you to recommend us to a friend or colleague?';
   const subject = `How did we do? ${business(settings)} would like your feedback`;
@@ -46,19 +62,11 @@ export const buildSurveyEmail = ({ firstName, url, settings }: { firstName: stri
 };
 
 export const sendSurveyEmail = async ({ to, firstName, url, settings }: { to: string; firstName: string; url: string; settings: FeedbackSettings }) => {
-  const { SMTP_HOST, SMTP_PORT, SMTP_SECURITY, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_ADDRESS } = process.env;
+  const { SMTP_HOST, SMTP_FROM_ADDRESS } = process.env;
   if (!SMTP_HOST || !SMTP_FROM_ADDRESS) throw new Error('The mail server is not configured (SMTP_HOST and SMTP_FROM_ADDRESS).');
-  const transport = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT || 587),
-    secure: SMTP_SECURITY === 'TLS',
-    requireTLS: SMTP_SECURITY === 'STARTTLS',
-    ignoreTLS: SMTP_SECURITY === 'NONE',
-    auth: SMTP_USERNAME ? { user: SMTP_USERNAME, pass: SMTP_PASSWORD } : undefined,
-  });
   const email = buildSurveyEmail({ firstName, url, settings });
   // Our domain signs this mail, so the sender always shows it comes through us.
-  await transport.sendMail({ from: { name: `${business(settings)} via InventiveCRM`, address: SMTP_FROM_ADDRESS }, to, ...email });
+  await mailTransport().sendMail({ from: { name: `${business(settings)} via InventiveCRM`, address: SMTP_FROM_ADDRESS }, to, ...email });
 };
 
 // Hands the survey to InventiveChat (WHATSAPP_HANDOFF.md, event feedback.survey), which owns templates and numbers.
@@ -87,15 +95,7 @@ export const sendSurveyWhatsApp = async ({ requestId, phone, name, url, settings
 };
 
 export const sendAlertEmail = async ({ to, subject, text }: { to: string[]; subject: string; text: string }) => {
-  const { SMTP_HOST, SMTP_PORT, SMTP_SECURITY, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_ADDRESS } = process.env;
+  const { SMTP_HOST, SMTP_FROM_ADDRESS } = process.env;
   if (!SMTP_HOST || !SMTP_FROM_ADDRESS || to.length === 0) return;
-  const transport = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT || 587),
-    secure: SMTP_SECURITY === 'TLS',
-    requireTLS: SMTP_SECURITY === 'STARTTLS',
-    ignoreTLS: SMTP_SECURITY === 'NONE',
-    auth: SMTP_USERNAME ? { user: SMTP_USERNAME, pass: SMTP_PASSWORD } : undefined,
-  });
-  await transport.sendMail({ from: { name: 'InventiveCRM Feedback', address: SMTP_FROM_ADDRESS }, to, subject, text });
+  await mailTransport().sendMail({ from: { name: 'InventiveCRM Feedback', address: SMTP_FROM_ADDRESS }, to, subject, text });
 };

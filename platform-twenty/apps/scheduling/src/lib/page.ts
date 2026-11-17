@@ -94,7 +94,8 @@ function advisorStep(){root.innerHTML='<h2>Choose who you would like to meet</h2
 // ---- calendar step
 function monthStart(d){return new Date(d.getFullYear(),d.getMonth(),1)}
 function calendarStep(mode){S.mode=mode||S.mode||'book';if(!S.month)S.month=monthStart(new Date());loadMonth()}
-function loadMonth(){root.innerHTML='<p class="muted">Loading available times…</p>';var from=new Date(Math.max(S.month.getTime(),Date.now()-864e5));var days=Math.ceil((new Date(S.month.getFullYear(),S.month.getMonth()+1,1)-from)/864e5)+1;
+// from is a whole hour so identical requests reach the proxy cache
+function loadMonth(){root.innerHTML='<p class="muted">Loading available times…</p>';var from=new Date(Math.floor(Math.max(S.month.getTime(),Date.now()-864e5)/36e5)*36e5);var days=Math.ceil((new Date(S.month.getFullYear(),S.month.getMonth()+1,1)-from)/864e5)+1;
  var req=S.mode==='reschedule'?{action:'rescheduleSlots',token:C.token,from:from.toISOString(),days:days}:{action:'slots',slug:C.slug,from:from.toISOString(),days:days,advisorId:S.advisor&&S.advisor.id,location:S.location};
  post(req).then(function(r){S.slots=r.slots;drawCalendar()}).catch(function(e){root.innerHTML='';fail(e)})}
 function drawCalendar(){var byDay={};S.slots.forEach(function(s){var k=dayKey(s.start);(byDay[k]=byDay[k]||[]).push(s)});

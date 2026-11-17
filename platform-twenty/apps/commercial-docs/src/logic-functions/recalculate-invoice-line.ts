@@ -6,6 +6,10 @@ import { refreshLine } from 'src/lib/documents';
 
 type LineEvent = { recordId: string; properties: { before?: { invoiceId?: string | null }; after?: { invoiceId?: string | null } } };
 
+// Updates run only when one of these changes, so this function's own netAmount and vatAmount writes start no
+// further round. Created, deleted and restored lines always run.
+const TOTALS_FIELDS = ['quantity', 'unitPrice', 'discountPercent', 'vatRate', 'product', 'productId', 'invoice', 'invoiceId'];
+
 const handler = async (payload: DatabaseEventPayload<LineEvent>) => {
   const parentHint = payload.properties.after?.invoiceId ?? payload.properties.before?.invoiceId ?? null;
   await refreshLine('invoiceLine', payload.recordId, parentHint);
@@ -19,6 +23,6 @@ export default defineLogicFunction({
   name: 'recalculate-invoice-line',
   description: 'Fills invoice lines from the price list and keeps line and invoice totals up to date.',
   timeoutSeconds: 30,
-  databaseEventTriggerSettings: { eventName: 'invoiceLine.*' },
+  databaseEventTriggerSettings: { eventName: 'invoiceLine.*', updatedFields: TOTALS_FIELDS },
   handler: runAsApplication(handler),
 });

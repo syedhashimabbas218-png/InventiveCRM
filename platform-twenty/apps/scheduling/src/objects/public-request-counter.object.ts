@@ -11,11 +11,12 @@ export default defineObject({
   namePlural: 'publicRequestCounters',
   labelSingular: "Public request counter",
   labelPlural: "Public request counters",
-  description: "Rate-limit counters for the public booking pages (hashed client address per minute).",
+  description: "Rate limits for the public booking pages: one row per request, by hashed client address and time window.",
   icon: 'IconGauge',
   labelIdentifierFieldMetadataUniversalIdentifier: field.key,
   fields: [
     textField({ universalIdentifier: field.key, name: 'key', label: "Key", icon: 'IconKey', isUnique: true }),
+    textField({ universalIdentifier: field.bucket, name: 'bucket', label: "Bucket", icon: 'IconGauge' }),
     numberField({ universalIdentifier: field.count, name: 'count', label: "Requests", icon: 'IconHash' }, { integer: true, defaultValue: 0 }),
     dateTimeField({ universalIdentifier: field.windowStart, name: 'windowStart', label: "Window", icon: 'IconClock' }),
   ],

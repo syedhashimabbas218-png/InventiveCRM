@@ -86,6 +86,10 @@ export const sendMail = async ({
     requireTLS: SMTP_SECURITY === 'STARTTLS',
     ignoreTLS: SMTP_SECURITY === 'NONE',
     auth: SMTP_USERNAME ? { user: SMTP_USERNAME, pass: SMTP_PASSWORD } : undefined,
+    // A silent mail server must not hold a function until its timeout.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
   await transport.sendMail({
     from: { name: fromName, address: SMTP_FROM_ADDRESS },

@@ -1,5 +1,5 @@
 import styled from '@emotion/styled';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Callout } from 'twenty-ui/components/feedback';
 import { IconArrowLeft, IconBrandWhatsapp, IconMail, IconPlus, IconTrash } from 'twenty-ui/icon';
 import { Card } from 'twenty-ui/primitives/surfaces';
@@ -229,18 +229,29 @@ export const NewCampaign = ({ overview, onBack, onCreated }: { overview: Overvie
   );
 };
 
+const REPORT_REFRESH_MS = 45_000;
+
 type Report = { campaign: Omit<Campaign, 'design'>; problems: { id: string; name: string; address: string; status: string; error: string | null }[] };
 
 export const CampaignReport = ({ campaignId, onBack, onOpenCampaign, openRecipients }: { campaignId: string; onBack: () => void; onOpenCampaign: (id: string) => void; openRecipients: (id: string) => void }) => {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState('');
+  const fetchReport = () => callAdmin<Report>({ action: 'report', id: campaignId });
   const load = () =>
-    callAdmin<Report>({ action: 'report', id: campaignId })
+    fetchReport()
       .then(setReport)
       .catch((loadError: Error) => setError(loadError.message));
   useEffect(() => {
     load();
   }, [campaignId]);
+
+  const inProgress = report?.campaign.status === 'PREPARING' || report?.campaign.status === 'SENDING';
+  useEffect(() => {
+    if (!inProgress) return;
+    // A failed background refresh keeps the last report on screen; the next one tries again.
+    const timer = setInterval(() => fetchReport().then(setReport).catch(() => {}), REPORT_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [inProgress, campaignId]);
 
   const act = async (action: 'cancel' | 'resume' | 'duplicate') => {
     try {
@@ -318,6 +329,8 @@ export const CampaignReport = ({ campaignId, onBack, onOpenCampaign, openRecipie
 type Member = { id: string; person: { id: string; name: { firstName: string; lastName: string } | null; emails: { primaryEmail: string | null } | null; emailMarketingConsent: boolean | null; whatsappMarketingConsent: boolean | null } | null };
 type FoundPerson = Member['person'] & { company: { name: string } | null };
 
+const SEARCH_DELAY_MS = 300;
+
 const consentLabel = (person: NonNullable<Member['person']>) => [person.emailMarketingConsent ? 'email' : '', person.whatsappMarketingConsent ? 'WhatsApp' : ''].filter(Boolean).join(' and ') || 'no consent yet';
 
 const personName = (person: NonNullable<Member['person']>) => [person.name?.firstName, person.name?.lastName].filter(Boolean).join(' ') || person.emails?.primaryEmail || 'Unnamed contact';
@@ -351,12 +364,21 @@ export const Lists = ({ overview, initialListId, onBack, onChanged }: { overview
     }
   };
 
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestSearch = useRef(0);
+  // Waits for a pause in typing, and drops answers to searches the person has already typed past.
   const search = (value: string) => {
     setQuery(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const searchNumber = ++latestSearch.current;
     if (value.trim().length < 2) return setFound([]);
-    callAdmin<{ people: FoundPerson[] }>({ action: 'searchPeople', query: value })
-      .then((result) => setFound(result.people))
-      .catch(() => setFound([]));
+    searchTimer.current = setTimeout(() => {
+      callAdmin<{ people: FoundPerson[] }>({ action: 'searchPeople', query: value })
+        .catch(() => ({ people: [] }))
+        .then((result) => {
+          if (searchNumber === latestSearch.current) setFound(result.people);
+        });
+    }, SEARCH_DELAY_MS);
   };
 
   return (

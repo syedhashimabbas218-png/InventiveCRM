@@ -41,7 +41,11 @@ export const IDS = {
       error: '341cc432-0671-45fd-92d4-2b322829b59c',
       followUpTaskId: '0785b73e-5f3a-4358-b720-a77699363083',
       reviewLinkShown: 'b5fb24a9-7a8d-4891-9dfe-1f8efaf793a9',
-      recipient: '449f700c-2c1e-417d-8dde-67dc6bf07e8d'
+      recipient: '449f700c-2c1e-417d-8dde-67dc6bf07e8d',
+      attempts: '04694e27-b780-4191-81ba-58100b2bd252'
+    },
+    statusOptions: {
+      sending: 'df4e7216-a7a8-4715-97f3-fcb57aa7ab43'
     }
   },
   personExtension: {

@@ -44,7 +44,7 @@ createServer(async (request, response) => {
       return send(response, 200, { ok: true });
     }
     if (url.pathname === '/admin/fail-next') {
-      failNext = { path: body.path ?? '/emails/batch', skip: body.skip ?? 0 };
+      failNext = { path: body.path ?? '/emails/batch', skip: body.skip ?? 0, retryAfter: String(body.retryAfter ?? 1) };
       return send(response, 200, { ok: true });
     }
     if (url.pathname === '/admin/emails') return send(response, 200, emails);
@@ -66,8 +66,9 @@ createServer(async (request, response) => {
   if (failNext && failNext.path === url.pathname) {
     if (failNext.skip > 0) failNext.skip -= 1;
     else {
+      const { retryAfter } = failNext;
       failNext = null;
-      return send(response, 429, { name: 'rate_limit_exceeded', message: 'Too many requests.' }, { 'retry-after': '1' });
+      return send(response, 429, { name: 'rate_limit_exceeded', message: 'Too many requests.' }, { 'retry-after': retryAfter });
     }
   }
 

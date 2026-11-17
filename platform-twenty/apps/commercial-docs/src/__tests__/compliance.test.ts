@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type BusinessProfile, checkInvoice } from 'src/lib/compliance';
+import { type BusinessProfile, checkInvoice, replaceIssueLine } from 'src/lib/compliance';
 
 const address = { addressStreet1: '1 High Street', addressCity: 'Leeds', addressPostcode: 'LS1 1AA', addressCountry: 'United Kingdom' };
 
@@ -60,5 +60,24 @@ describe('UK invoice checks', () => {
   it('requires a credit note to reference the invoice it credits', () => {
     const issues = checkInvoice({ ...base, kind: 'CREDIT_NOTE', profile: profile(), template: 'UK_VAT_INVOICE' });
     expect(issues).toEqual(['A credit note must reference the invoice it credits: set Credited invoice.']);
+  });
+});
+
+describe('issues to fix', () => {
+  const note = 'Lines were changed after this invoice was issued.';
+
+  it('adds a note once and keeps the other issues', () => {
+    expect(replaceIssueLine(null, note, note)).toBe(note);
+    expect(replaceIssueLine(`Other problem\n${note}`, note, note)).toBe(`Other problem\n${note}`);
+    expect(replaceIssueLine('Other problem', note, note)).toBe(`Other problem\n${note}`);
+  });
+
+  it('swaps a dated note for the newest one and removes it when resolved', () => {
+    const prefix = 'Could not create the repeat';
+    const older = `${prefix} for 1 November 2026: timeout.`;
+    const newer = `${prefix} for 2 November 2026: timeout.`;
+    expect(replaceIssueLine(`A\n${older}`, prefix, newer)).toBe(`A\n${newer}`);
+    expect(replaceIssueLine(`A\n${older}`, prefix, null)).toBe('A');
+    expect(replaceIssueLine('', prefix, null)).toBe('');
   });
 });

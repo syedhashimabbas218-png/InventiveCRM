@@ -107,6 +107,10 @@ export const IDS = {
       paymentLinkStatus: 'dae8b5f0-0ad0-4a40-9af7-d429615054de',
       paymentLinkAmountPence: 'c351aa6d-21e1-4b30-8d19-66fc62da5c02',
       paymentLinkCreatedAt: 'e1e9cecd-26e5-4a15-9705-8b8566b3b930',
+      paymentCheckedAt: '5beb38d3-2df6-406a-bd50-91b2329a8678',
+      paymentLinkError: '5a916e25-45dd-4eb5-aafe-f96b6dc164e4',
+      paymentLinkRequestKey: '9dfd99ab-a686-4e9b-beea-c55abbefd8e0',
+      recurrenceKey: '3a808e5e-2c88-4489-b8a2-bfc47441ce2b',
       layoutUsed: '03a87c0a-955b-4ce1-8c33-dda27879cef7',
       deliveries: '8eca2bfe-3963-432b-970e-972ba32573af',
       lastSentAt: '5dd5a4db-7d17-49d7-9473-14dc3b48c415',
@@ -218,6 +222,18 @@ export const IDS = {
     fields: {
       quoteLines: '93bd7062-13a4-4259-8d73-67c9f805f9ef',
       invoiceLines: 'c76b8629-3fcf-4e40-84f6-23a104d666e3',
+    },
+  },
+  indexes: {
+    invoiceStatusDueDate: {
+      index: '96083a36-1619-4a60-87f7-498ccc236b28',
+      status: 'e6092406-3c12-4679-abdb-11e7fcf68a45',
+      dueDate: 'd0b73846-23ee-4a35-8fc0-0b231c93df83',
+    },
+    invoicePaymentCheck: {
+      index: '09e0551b-a8e1-4c05-a67a-faf13f3b916f',
+      paymentLinkStatus: '948d4162-187d-4e47-934d-852a4a01238e',
+      paymentCheckedAt: '8f2e5673-c81d-40cf-9e8d-91b371e347cd',
     },
   },
   views: {

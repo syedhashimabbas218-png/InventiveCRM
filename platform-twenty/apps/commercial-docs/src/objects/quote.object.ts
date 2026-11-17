@@ -17,7 +17,7 @@ export default defineObject({
   labelIdentifierFieldMetadataUniversalIdentifier: field.name,
   fields: [
     textField({ universalIdentifier: field.name, name: 'name', label: 'Quote', icon: 'IconFileDescription' }),
-    textField({ universalIdentifier: field.quoteNumber, name: 'quoteNumber', label: 'Quote number', icon: 'IconHash' }),
+    textField({ universalIdentifier: field.quoteNumber, name: 'quoteNumber', label: 'Quote number', icon: 'IconHash', isUnique: true }),
     selectField({ universalIdentifier: field.status, name: 'status', label: 'Status', icon: 'IconProgress' }, QUOTE_STATUSES, 'DRAFT'),
     dateField({ universalIdentifier: field.issueDate, name: 'issueDate', label: 'Quote date', icon: 'IconCalendar' }),
     dateField({ universalIdentifier: field.validUntil, name: 'validUntil', label: 'Valid until', icon: 'IconCalendarDue' }),

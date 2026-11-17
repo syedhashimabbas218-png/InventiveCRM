@@ -1,12 +1,11 @@
 import { defineLogicFunction } from 'twenty-sdk/define';
 import { jsonSchemaToInputSchema } from 'twenty-sdk/logic-function';
 
-import { type DeliveryChannel } from 'src/constants/enums';
 import { IDS } from 'src/constants/ids';
-import { deliverDocument } from 'src/lib/delivery';
+import { deliverDocument, requestedChannels } from 'src/lib/delivery';
 import { loadProfile } from 'src/lib/documents';
 
-type Input = { invoiceId?: string; quoteId?: string; channels?: DeliveryChannel[]; reminder?: boolean };
+type Input = { invoiceId?: string; quoteId?: string; channels?: unknown; reminder?: boolean };
 
 const inputSchema = {
   type: 'object',
@@ -27,9 +26,11 @@ const handler = async (event: Input & { body?: Input | null }) => {
   const kind = input.invoiceId ? 'invoice' : input.quoteId ? 'quote' : null;
   const id = input.invoiceId || input.quoteId;
   if (!kind || !id) return { success: false, message: 'Give an invoiceId or a quoteId.', deliveries: [] };
+  const channels = requestedChannels(input.channels);
+  if (channels === null) return { success: false, message: 'channels can only be EMAIL and WHATSAPP.', deliveries: [] };
   const profile = await loadProfile();
   if (!profile) return { success: false, message: 'Create a Business profile first.', deliveries: [] };
-  const deliveries = await deliverDocument({ kind, id, profile, channels: input.channels, reminder: input.reminder === true });
+  const deliveries = await deliverDocument({ kind, id, profile, channels, reminder: input.reminder === true });
   if (deliveries.length === 0)
     return { success: false, message: 'Only issued invoices and sent quotes can be sent.', deliveries };
   return {

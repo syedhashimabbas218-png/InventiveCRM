@@ -3,8 +3,10 @@ import { Response } from 'twenty-sdk/logic-function';
 
 import { IDS } from 'src/constants/ids';
 import { AdminError, handleAdmin } from 'src/lib/admin';
+import { isSignedInPerson } from 'src/lib/api';
 
 const handler = async (event: RoutePayload<Record<string, unknown>>) => {
+  if (!isSignedInPerson(event)) return new Response(JSON.stringify({ error: 'Only people signed in to this workspace can do this.' }), { status: 403, headers: { 'content-type': 'application/json' } });
   try {
     return new Response(JSON.stringify(await handleAdmin(event.body ?? {})), { status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
   } catch (error) {

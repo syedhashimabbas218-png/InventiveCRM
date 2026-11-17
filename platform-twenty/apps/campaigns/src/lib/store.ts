@@ -25,16 +25,24 @@ export type Campaign = {
   whatsappVariables: Record<string, string>;
   lastError: string;
   prepareCursor: string;
+  brandSnapshot: Brand | null;
+  recentTestSends: string;
   counts: Record<CountField, number>;
 };
 
 export const COUNT_FIELDS = ['recipientCount', 'sentCount', 'deliveredCount', 'openedCount', 'clickedCount', 'bouncedCount', 'complainedCount', 'unsubscribedCount', 'failedCount', 'skippedCount'] as const;
 export type CountField = (typeof COUNT_FIELDS)[number];
 
-const CAMPAIGN_FIELDS = `id name channel status subject previewText fromName fromLocalPart fromDomain replyTo listId listName design scheduledAt startedAt sentAt whatsappTemplate whatsappVariables lastError prepareCursor ${COUNT_FIELDS.join(' ')}`;
+const CAMPAIGN_FIELDS = `id name channel status subject previewText fromName fromLocalPart fromDomain replyTo listId listName design scheduledAt startedAt sentAt whatsappTemplate whatsappVariables lastError prepareCursor brandSnapshot recentTestSends ${COUNT_FIELDS.join(' ')}`;
 const CAMPAIGN_SUMMARY_FIELDS = `id name channel status subject listName scheduledAt startedAt sentAt lastError updatedAt ${COUNT_FIELDS.join(' ')}`;
 
-type RawCampaign = Omit<Campaign, 'design' | 'counts' | 'whatsappVariables'> & { design: unknown; whatsappVariables: unknown } & Record<CountField, number | null>;
+type RawCampaign = Omit<Campaign, 'design' | 'counts' | 'whatsappVariables' | 'brandSnapshot'> & { design: unknown; whatsappVariables: unknown; brandSnapshot: unknown } & Record<CountField, number | null>;
+
+export const toBrandSnapshot = (value: unknown): Brand | null => {
+  if (!value || typeof value !== 'object') return null;
+  const stored = value as Record<string, unknown>;
+  return Object.fromEntries(Object.entries(DEFAULT_BRAND).map(([key, fallback]) => [key, typeof stored[key] === 'string' ? stored[key] : fallback])) as Brand;
+};
 
 const toCampaign = (raw: RawCampaign): Campaign => ({
   ...raw,
@@ -50,6 +58,8 @@ const toCampaign = (raw: RawCampaign): Campaign => ({
   whatsappTemplate: raw.whatsappTemplate ?? '',
   lastError: raw.lastError ?? '',
   prepareCursor: raw.prepareCursor ?? '',
+  recentTestSends: raw.recentTestSends ?? '',
+  brandSnapshot: toBrandSnapshot(raw.brandSnapshot),
   design: parseDesign(raw.design),
   whatsappVariables: raw.whatsappVariables && typeof raw.whatsappVariables === 'object' ? (raw.whatsappVariables as Record<string, string>) : {},
   counts: Object.fromEntries(COUNT_FIELDS.map((field) => [field, raw[field] ?? 0])) as Record<CountField, number>,
@@ -73,11 +83,16 @@ export const campaignsWithStatus = async (statuses: CampaignStatus[]) =>
     ).marketingCampaigns,
   ).map(toCampaign);
 
+// Most recent first, so the campaigns still collecting events are recounted before time runs out.
 export const recentlySent = async (sinceIso: string) =>
   nodes(
-    (await gql<{ marketingCampaigns: { edges: { node: { id: string } }[] } }>(`query($since: DateTime) { marketingCampaigns(filter: { status: { eq: SENT }, sentAt: { gte: $since } }, first: 50) { edges { node { id } } } }`, { since: sinceIso }))
-      .marketingCampaigns,
-  );
+    (
+      await gql<{ marketingCampaigns: { edges: { node: { id: string } & Record<CountField, number | null> }[] } }>(
+        `query($since: DateTime) { marketingCampaigns(filter: { status: { eq: SENT }, sentAt: { gte: $since } }, orderBy: [{ sentAt: DescNullsLast }], first: 50) { edges { node { id ${COUNT_FIELDS.join(' ')} } } } }`,
+        { since: sinceIso },
+      )
+    ).marketingCampaigns,
+  ).map((raw) => ({ id: raw.id, counts: Object.fromEntries(COUNT_FIELDS.map((field) => [field, raw[field] ?? 0])) as Record<CountField, number> }));
 
 export const createCampaign = async (data: Record<string, unknown>) =>
   (await gql<{ createMarketingCampaign: { id: string } }>(`mutation($data: MarketingCampaignCreateInput!) { createMarketingCampaign(data: $data) { id } }`, { data })).createMarketingCampaign.id;
@@ -108,6 +123,20 @@ export const acquireLease = async (id: string) =>
 
 export const releaseLease = (id: string) => updateCampaign(id, { lockedUntil: null });
 
+// Compare-and-set on the stored value, so two test sends at once cannot both take the last free slot.
+export const replaceTestSends = async (id: string, previous: string, next: string) =>
+  (
+    previous
+      ? await gql<{ updateMarketingCampaigns: { id: string }[] }>(
+          `mutation($id: UUID, $previous: String, $data: MarketingCampaignUpdateInput!) { updateMarketingCampaigns(filter: { id: { eq: $id }, recentTestSends: { eq: $previous } }, data: $data) { id } }`,
+          { id, previous, data: { recentTestSends: next } },
+        )
+      : await gql<{ updateMarketingCampaigns: { id: string }[] }>(
+          `mutation($id: UUID, $data: MarketingCampaignUpdateInput!) { updateMarketingCampaigns(filter: { id: { eq: $id }, or: [{ recentTestSends: { is: NULL } }, { recentTestSends: { eq: "" } }] }, data: $data) { id } }`,
+          { id, data: { recentTestSends: next } },
+        )
+  ).updateMarketingCampaigns.length === 1;
+
 export const campaignStatus = async (id: string) =>
   (await gql<{ marketingCampaign: { status: CampaignStatus } | null }>(`query($id: UUID!) { marketingCampaign(filter: { id: { eq: $id } }) { status } }`, { id })).marketingCampaign?.status ?? null;
 
@@ -124,13 +153,21 @@ export type Recipient = {
   campaignId: string;
   personId: string | null;
   person: { name: { firstName: string; lastName: string } | null; company: { name: string } | null } | null;
+  personalisation: Contact | null;
 };
 
-const RECIPIENT_FIELDS = 'id createdAt updatedAt name destination status batchKey nonce providerMessageId campaignId personId person { name { firstName lastName } company { name } }';
+const RECIPIENT_FIELDS = 'id createdAt updatedAt name destination status batchKey nonce providerMessageId campaignId personId person { name { firstName lastName } company { name } } personalisation';
 
-type RawRecipient = Omit<Recipient, 'address'> & { destination: string | null };
+type RawRecipient = Omit<Recipient, 'address' | 'personalisation'> & { destination: string | null; personalisation: unknown };
 
-const toRecipient = ({ destination, ...raw }: RawRecipient): Recipient => ({ ...raw, address: destination ?? '' });
+const toPersonalisation = (value: unknown): Contact | null => {
+  if (!value || typeof value !== 'object') return null;
+  const stored = value as Record<string, unknown>;
+  const text = (key: string) => (typeof stored[key] === 'string' ? stored[key] : '');
+  return { firstName: text('firstName'), lastName: text('lastName'), companyName: text('companyName') };
+};
+
+const toRecipient = ({ destination, personalisation, ...raw }: RawRecipient): Recipient => ({ ...raw, address: destination ?? '', personalisation: toPersonalisation(personalisation) });
 
 export const getRecipient = async (id: string) => {
   const raw = (await gql<{ campaignRecipient: RawRecipient | null }>(`query($id: UUID!) { campaignRecipient(filter: { id: { eq: $id } }) { ${RECIPIENT_FIELDS} } }`, { id })).campaignRecipient;
@@ -161,18 +198,22 @@ export const queuedRecipients = (campaignId: string, limit: number) => recipient
 
 export const inFlightRecipients = (campaignId: string) => recipientsWhere('{ campaignId: { eq: $campaign }, status: { eq: SENDING } }', { campaign: campaignId }, 500);
 
-export const batchRecipients = (batchKey: string) => recipientsWhere('{ batchKey: { eq: $batch }, status: { eq: SENDING } }', { batch: batchKey }, 200);
+// Every row ever sent under the key, whatever webhooks did to it since: a retry must repeat the original request.
+export const batchRecipients = (campaignId: string, batchKey: string) => recipientsWhere('{ campaignId: { eq: $campaign }, batchKey: { eq: $batch } }', { campaign: campaignId, batch: batchKey }, 200);
 
 // Moves queued recipients to SENDING under one batch key; only rows still queued are taken, so two runs never
 // send the same person.
-export const claimBatch = async (ids: string[], batchKey: string) => {
+export const claimBatch = async (campaignId: string, ids: string[], batchKey: string) => {
   await gql(`mutation($ids: [UUID], $data: CampaignRecipientUpdateInput!) { updateCampaignRecipients(filter: { id: { in: $ids }, status: { eq: QUEUED } }, data: $data) { id } }`, { ids, data: { status: 'SENDING', batchKey } });
-  return batchRecipients(batchKey);
+  return batchRecipients(campaignId, batchKey);
 };
 
+// For a batch the provider refused outright: nothing in it was taken, so it can go out again under a new key.
+export const releaseBatch = (campaignId: string, batchKey: string) => updateRecipientsIf({ campaignId, batchKey, status: 'SENDING' }, { status: 'QUEUED', batchKey: '' });
+
 // Status changes that must not overwrite what a webhook already recorded (delivered, bounced and so on).
-export const updateRecipientsIf = async (filter: { ids?: string[]; batchKey?: string; campaignId?: string; status: RecipientStatus; error?: string }, data: Record<string, unknown>) => {
-  const parts = [`status: { eq: ${filter.status} }`];
+export const updateRecipientsIf = async (filter: { ids?: string[]; batchKey?: string; campaignId?: string; status: RecipientStatus | RecipientStatus[]; error?: string }, data: Record<string, unknown>) => {
+  const parts = [Array.isArray(filter.status) ? `status: { in: [${filter.status.join(', ')}] }` : `status: { eq: ${filter.status} }`];
   const variables: Record<string, unknown> = { data };
   const declarations = ['$data: CampaignRecipientUpdateInput!'];
   if (filter.ids) (parts.push('id: { in: $ids }'), declarations.push('$ids: [UUID]'), (variables.ids = filter.ids));
@@ -183,15 +224,18 @@ export const updateRecipientsIf = async (filter: { ids?: string[]; batchKey?: st
   return (await gql<{ updateCampaignRecipients: { id: string }[] }>(`mutation(${declarations.join(', ')}) { updateCampaignRecipients(filter: { ${parts.join(', ')} }, data: $data) { id } }`, variables)).updateCampaignRecipients.length;
 };
 
-// Twenty refuses an empty "in" list, so each condition is only added when it has values.
+// Twenty refuses an empty "in" list and GraphQL an unused variable, so each list is only added when it has values.
 export const existingRecipients = async (campaignId: string, personIds: string[], destinations: string[]) => {
-  const conditions = [personIds.length ? '{ personId: { in: $people } }' : '', destinations.length ? '{ destination: { in: $destinations } }' : ''].filter(Boolean);
-  if (conditions.length === 0) return [];
+  const lists = [
+    { name: 'people', type: '[UUID]', condition: '{ personId: { in: $people } }', values: personIds },
+    { name: 'destinations', type: '[String]', condition: '{ destination: { in: $destinations } }', values: destinations },
+  ].filter((list) => list.values.length > 0);
+  if (lists.length === 0) return [];
   return nodes(
     (
       await gql<{ campaignRecipients: { edges: { node: { personId: string | null; destination: string | null } }[] } }>(
-        `query($campaign: UUID, $people: [UUID], $destinations: [String]) { campaignRecipients(filter: { campaignId: { eq: $campaign }, or: [${conditions.join(', ')}] }, first: 1000) { edges { node { personId destination } } } }`,
-        { campaign: campaignId, people: personIds, destinations },
+        `query($campaign: UUID, ${lists.map((list) => `$${list.name}: ${list.type}`).join(', ')}) { campaignRecipients(filter: { campaignId: { eq: $campaign }, or: [${lists.map((list) => list.condition).join(', ')}] }, first: 1000) { edges { node { personId destination } } } }`,
+        { campaign: campaignId, ...Object.fromEntries(lists.map((list) => [list.name, list.values])) },
       )
     ).campaignRecipients,
   );
@@ -202,39 +246,39 @@ export const createRecipients = async (rows: Record<string, unknown>[]) => {
     await gql(`mutation($data: [CampaignRecipientCreateInput!]!) { createCampaignRecipients(data: $data) { id } }`, { data: rows.slice(start, start + 100) });
 };
 
-// Twenty allows each resolver once per request, so updates go one by one, a few at a time.
-export const updateRecipients = async (updates: { id: string; data: Record<string, unknown> }[]) => {
-  for (let start = 0; start < updates.length; start += 10)
-    await Promise.all(
-      updates.slice(start, start + 10).map((update) => gql(`mutation($id: UUID!, $data: CampaignRecipientUpdateInput!) { updateCampaignRecipient(id: $id, data: $data) { id } }`, { id: update.id, data: update.data })),
-    );
-};
+export const updateRecipient = (id: string, data: Record<string, unknown>) =>
+  gql(`mutation($id: UUID!, $data: CampaignRecipientUpdateInput!) { updateCampaignRecipient(id: $id, data: $data) { id } }`, { id, data });
 
-export const updateRecipient = (id: string, data: Record<string, unknown>) => updateRecipients([{ id, data }]);
+// Event counts come from Twenty's aggregates in one query; it answers null rather than 0 for a campaign with no rows.
+const EVENT_COUNTS = {
+  deliveredCount: 'countNotEmptyDeliveredAt',
+  openedCount: 'countNotEmptyOpenedAt',
+  clickedCount: 'countNotEmptyClickedAt',
+  bouncedCount: 'countNotEmptyBouncedAt',
+  complainedCount: 'countNotEmptyComplainedAt',
+  unsubscribedCount: 'countNotEmptyUnsubscribedAt',
+} as const;
 
-const COUNT_FILTERS: Record<CountField, string> = {
-  recipientCount: 'status: { in: [QUEUED, SENDING, SENT, DELIVERED, BOUNCED, COMPLAINED, UNSUBSCRIBED, FAILED] }',
-  sentCount: 'status: { in: [SENT, DELIVERED, BOUNCED, COMPLAINED, UNSUBSCRIBED] }',
-  deliveredCount: 'deliveredAt: { is: NOT_NULL }',
-  openedCount: 'openedAt: { is: NOT_NULL }',
-  clickedCount: 'clickedAt: { is: NOT_NULL }',
-  bouncedCount: 'bouncedAt: { is: NOT_NULL }',
-  complainedCount: 'complainedAt: { is: NOT_NULL }',
-  unsubscribedCount: 'unsubscribedAt: { is: NOT_NULL }',
-  failedCount: 'status: { eq: FAILED }',
-  skippedCount: 'status: { eq: SKIPPED }',
-};
-
-export const recountCampaign = async (campaignId: string) => {
-  const fields = COUNT_FIELDS;
-  const totals = await Promise.all(
-    fields.map(
-      async (field) =>
-        (await gql<{ campaignRecipients: { totalCount: number } }>(`query($id: UUID) { campaignRecipients(filter: { campaignId: { eq: $id } ${COUNT_FILTERS[field] ? `, ${COUNT_FILTERS[field]}` : ''} }) { totalCount } }`, { id: campaignId })).campaignRecipients.totalCount,
+// Skips the write when nothing changed, so finished campaigns are not rewritten every run.
+export const recountCampaign = async (campaignId: string, previous?: Record<CountField, number>) => {
+  const count = async (filter: string) =>
+    (await gql<{ campaignRecipients: { totalCount: number } }>(`query($id: UUID) { campaignRecipients(filter: { campaignId: { eq: $id }, ${filter} }) { totalCount } }`, { id: campaignId })).campaignRecipients.totalCount;
+  const [all, sentCount, failedCount, skippedCount] = await Promise.all([
+    gql<{ campaignRecipients: { totalCount: number } & Record<string, number | null> }>(`query($id: UUID) { campaignRecipients(filter: { campaignId: { eq: $id } }) { totalCount ${Object.values(EVENT_COUNTS).join(' ')} } }`, { id: campaignId }).then(
+      (result) => result.campaignRecipients,
     ),
-  );
-  const counts = Object.fromEntries(fields.map((field, index) => [field, totals[index]]));
-  await updateCampaign(campaignId, counts);
+    count('status: { in: [SENT, DELIVERED, BOUNCED, COMPLAINED, UNSUBSCRIBED] }'),
+    count('status: { eq: FAILED }'),
+    count('status: { eq: SKIPPED }'),
+  ]);
+  const counts = {
+    recipientCount: all.totalCount - skippedCount,
+    sentCount,
+    ...(Object.fromEntries(Object.entries(EVENT_COUNTS).map(([field, aggregate]) => [field, all[aggregate] ?? 0])) as Record<keyof typeof EVENT_COUNTS, number>),
+    failedCount,
+    skippedCount,
+  };
+  if (!previous || COUNT_FIELDS.some((field) => previous[field] !== counts[field])) await updateCampaign(campaignId, counts);
   return counts;
 };
 
@@ -293,13 +337,19 @@ export const audiencePage = async (listId: string, channel: CampaignChannel, aft
   return { people: nodes(page).flatMap((member) => (member.person ? [member.person] : [])), next: page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null };
 };
 
-export const consentOf = async (personIds: string[]) =>
+export type ContactState = Pick<Person, 'id' | 'emails' | 'phones' | 'emailMarketingConsent' | 'whatsappMarketingConsent'>;
+
+export const currentContacts = async (personIds: string[]) =>
   personIds.length === 0
     ? []
     : nodes(
-    (await gql<{ people: { edges: { node: { id: string; emailMarketingConsent: boolean | null; whatsappMarketingConsent: boolean | null } }[] } }>(`query($ids: [UUID]) { people(filter: { id: { in: $ids } }, first: 200) { edges { node { id emailMarketingConsent whatsappMarketingConsent } } } }`, { ids: personIds }))
-      .people,
-  );
+        (
+          await gql<{ people: { edges: { node: ContactState }[] } }>(
+            `query($ids: [UUID]) { people(filter: { id: { in: $ids } }, first: 200) { edges { node { id emails { primaryEmail } phones { primaryPhoneNumber primaryPhoneCallingCode } emailMarketingConsent whatsappMarketingConsent } } } }`,
+            { ids: personIds },
+          )
+        ).people,
+      );
 
 export const suppressedAmong = async (addresses: string[], channel: CampaignChannel) =>
   addresses.length === 0

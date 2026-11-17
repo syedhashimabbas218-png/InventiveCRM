@@ -150,6 +150,7 @@ const slots = async (body: Body) => {
       to: from + days * 24 * 60 * MINUTE,
       now: Date.now(),
       customer: location,
+      snapCustomerToGrid: true,
     });
     return {
       slots: result.slots.map((slot) => ({ start: new Date(slot.start).toISOString(), end: new Date(slot.end).toISOString(), seatsLeft: slot.seatsLeft })),
@@ -166,7 +167,7 @@ const nearbyAdvisors = async (body: Body) => {
   const location = await parseLocation(body.location);
   if (!location) throw new PublicError(400, 'LOCATION_REQUIRED', 'Choose a location first.');
   const from = Date.now();
-  const result = await searchAvailability({ type, fixedAdvisorId: link?.advisorId ?? null, from, to: from + 14 * 24 * 60 * MINUTE, now: from, customer: location });
+  const result = await searchAvailability({ type, fixedAdvisorId: link?.advisorId ?? null, from, to: from + 14 * 24 * 60 * MINUTE, now: from, customer: location, snapCustomerToGrid: true });
   return {
     routing: result.routing,
     customer: { lat: location.point.lat, lng: location.point.lng, label: location.label },

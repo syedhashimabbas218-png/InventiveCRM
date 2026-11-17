@@ -2,7 +2,7 @@ import { FieldType } from 'twenty-sdk/define';
 
 import { selectOptions } from 'src/constants/enums';
 
-type Base = { universalIdentifier: string; name: string; label: string; icon: string; description?: string };
+type Base = { universalIdentifier: string; name: string; label: string; icon: string; description?: string; isUnique?: boolean; isAuditLogged?: boolean };
 
 export const textField = (base: Base) => ({ ...base, type: FieldType.TEXT as const });
 

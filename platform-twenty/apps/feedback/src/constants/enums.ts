@@ -1,5 +1,10 @@
+import { IDS } from 'src/constants/ids';
+
+// New options carry an explicit id. The original ones keep the id the CLI derives from their label: giving them
+// another id now would make the server rebuild the column without their values.
 export const REQUEST_STATUSES = {
   SCHEDULED: { label: 'Scheduled', color: 'gray' },
+  SENDING: { label: 'Sending', color: 'sky', id: IDS.request.statusOptions.sending },
   SENT: { label: 'Sent', color: 'blue' },
   ANSWERED: { label: 'Answered', color: 'green' },
   FAILED: { label: 'Failed', color: 'red' },
@@ -25,8 +30,9 @@ export type Source = keyof typeof SOURCES;
 
 type OptionColor = 'blue' | 'sky' | 'green' | 'gray' | 'orange' | 'red' | 'purple';
 
-export const selectOptions = (entries: Record<string, string | { label: string; color?: string }>) =>
+export const selectOptions = (entries: Record<string, string | { label: string; color?: string; id?: string }>) =>
   Object.entries(entries).map(([value, entry], position) => ({
+    ...(typeof entry !== 'string' && entry.id ? { id: entry.id } : {}),
     value,
     label: typeof entry === 'string' ? entry : entry.label,
     color: (typeof entry === 'string' ? 'gray' : (entry.color ?? 'gray')) as OptionColor,

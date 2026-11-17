@@ -2,10 +2,11 @@ import { type CampaignChannel, TEMPLATE_CATEGORIES } from 'src/constants/enums';
 import { STARTER_TEMPLATES } from 'src/constants/starter-templates';
 import { gql, nodes } from 'src/lib/api';
 import { type Brand, FONTS, parseDesign, renderEmail, unknownVariables } from 'src/lib/design';
-import { campaignProblems, functionsBaseUrl, fromAddress, isEmail, STOPPED } from 'src/lib/engine';
+import { campaignProblems, functionsBaseUrl, fromAddress, isEmail, isLocalPart, STOPPED } from 'src/lib/engine';
 import { connectionLabel, ensureWebhook, hasWebhook, listDomains, resendKey, sendOne } from 'src/lib/resend';
 import {
   ALL_CONSENTED,
+  type Campaign,
   consentedCount,
   createCampaign,
   getCampaign,
@@ -15,6 +16,7 @@ import {
   loadBrand,
   PERSON_SEARCH_FIELDS,
   type Person,
+  replaceTestSends,
   saveBrand,
   updateCampaign,
   updateCampaignIf,
@@ -122,6 +124,27 @@ const preview = async (body: Record<string, unknown>) => {
   return { html: rendered.html, text: rendered.text, unknownVariables: unknownVariables(design, text(body.subject, 250)) };
 };
 
+export const TEST_SENDS_PER_HOUR = 10;
+
+// The test send times still inside the last hour, oldest first.
+export const recentTestSends = (stored: string, now: number) =>
+  stored
+    .split(/\s+/)
+    .filter((entry) => {
+      const sentAt = Date.parse(entry);
+      return !Number.isNaN(sentAt) && sentAt > now - 3_600_000 && sentAt <= now;
+    })
+    .slice(-TEST_SENDS_PER_HOUR);
+
+// Counted on the campaign with the signed-in person's own token, so their permissions on campaigns apply.
+const claimTestSend = async (campaign: Pick<Campaign, 'id' | 'recentTestSends'>) => {
+  const now = Date.now();
+  const recent = recentTestSends(campaign.recentTestSends, now);
+  if (recent.length >= TEST_SENDS_PER_HOUR) throw new AdminError(`A campaign can send ${TEST_SENDS_PER_HOUR} tests an hour. Try again later.`, 429);
+  if (!(await replaceTestSends(campaign.id, campaign.recentTestSends, [...recent, new Date(now).toISOString()].join(' '))))
+    throw new AdminError('Another test of this campaign is being sent. Try again in a moment.', 409);
+};
+
 const testSend = async (body: Record<string, unknown>) => {
   const campaign = await getCampaign(id(body.id));
   if (!campaign) throw new AdminError('This campaign no longer exists.', 404);
@@ -130,7 +153,8 @@ const testSend = async (body: Record<string, unknown>) => {
   if (to.length === 0 || to.length > 5 || !to.every(isEmail)) throw new AdminError('Enter up to five valid email addresses.');
   const key = await resendKey();
   if (!key) throw new AdminError('Connect your Resend account under Settings, Accounts first.');
-  if (!campaign.fromDomain || !campaign.fromLocalPart) throw new AdminError('Choose a sending address first.');
+  if (!campaign.fromDomain || !isLocalPart(campaign.fromLocalPart)) throw new AdminError('Choose a sending address first.');
+  await claimTestSend(campaign);
   const brand = await loadBrand();
   const unsubscribe = `${await functionsBaseUrl()}/campaigns/unsubscribe/test`;
   const rendered = renderEmail(campaign.design, brand, { subject: campaign.subject || campaign.name, previewText: campaign.previewText, unsubscribeUrl: unsubscribe, contact: SAMPLE_CONTACT });
@@ -184,6 +208,9 @@ const cancel = async (body: Record<string, unknown>) => {
 const resume = async (body: Record<string, unknown>) => {
   const campaign = await getCampaign(id(body.id));
   if (!campaign?.startedAt) throw new AdminError('Only a campaign that stopped part-way can be resumed.');
+  // A prepared campaign resumes straight into sending, so what stopped it must be fixed first.
+  const problems = await campaignProblems(campaign, campaign.brandSnapshot ?? (await loadBrand()));
+  if (problems.length) throw new AdminError(problems.join(' '));
   if (!(await updateCampaignIf(campaign.id, ['FAILED', 'CANCELLED'], { status: campaign.prepareCursor === 'DONE' ? 'SENDING' : 'PREPARING', lastError: '' })))
     throw new AdminError('Only a campaign that stopped part-way can be resumed.');
   await updateRecipientsIf({ campaignId: campaign.id, status: 'SKIPPED', error: STOPPED }, { status: 'QUEUED', error: '' });

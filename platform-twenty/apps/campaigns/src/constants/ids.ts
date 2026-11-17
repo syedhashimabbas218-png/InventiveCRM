@@ -35,7 +35,9 @@ export const IDS = {
       lastError: '8df2a135-38dd-4430-ad6f-3a60346f5c14',
       lockedUntil: '7c510207-5a4d-4789-b6de-f018b1610f99',
       prepareCursor: 'a4075ce5-d121-4bc7-b37a-d274a6190185',
-      recipients: 'be86ad58-50bb-40e7-8e3d-37043cf0fdbf'
+      recipients: 'be86ad58-50bb-40e7-8e3d-37043cf0fdbf',
+      brandSnapshot: '04f5580e-1670-4291-9e02-c4b491406964',
+      recentTestSends: '267af46c-59cd-43c2-9519-624028e06b17'
     }
   },
   recipient: {
@@ -56,8 +58,13 @@ export const IDS = {
       complainedAt: '31008467-d29e-44eb-93d1-36cc9e387484',
       unsubscribedAt: 'aeca7489-b97d-4c70-a592-90686911fd75',
       batchKey: 'd8eb0a85-140d-4363-ac05-582faca96b94',
-      nonce: 'fcff81b5-2ce4-46d4-b93b-4dddaf53e257'
+      nonce: 'fcff81b5-2ce4-46d4-b93b-4dddaf53e257',
+      personalisation: 'a722b2ed-cf33-4f8c-8454-dd97bc924d79'
     }
+  },
+  recipientIndexes: {
+    batchKey: { index: 'fd7a5839-1043-49bf-b24b-cc560db3883d', field: '9016cfe7-ec2b-4a18-82ef-b67fb6d87750' },
+    providerMessageId: { index: '7732f935-bfb5-4f6c-89d5-54feb0add7e8', field: '74dbb23d-1ae7-443e-bbb6-d2d0205b4cf5' }
   },
   suppression: {
     object: 'dedecceb-1e94-4afe-a5c5-e0648a0b43ae',

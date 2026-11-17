@@ -42,7 +42,7 @@ export default defineLogicFunction({
   universalIdentifier: IDS.logicFunctions.onInvoiceStatusChange,
   name: 'on-invoice-status-change',
   description: 'Issuing an invoice runs the UK checks, numbers it, renders the PDF and files it on the client card. Paid records the payment date.',
-  timeoutSeconds: 60,
+  timeoutSeconds: 180,
   databaseEventTriggerSettings: { eventName: 'invoice.updated', updatedFields: ['status'] },
   handler: runAsApplication(handler),
 });

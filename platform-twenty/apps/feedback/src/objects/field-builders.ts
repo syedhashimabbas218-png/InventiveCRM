@@ -25,7 +25,7 @@ export const dateTimeField = (base: Base) => ({ ...base, type: FieldType.DATE_TI
 
 export const jsonField = (base: Base) => ({ ...base, type: FieldType.RAW_JSON as const });
 
-export const selectField = (base: Base, entries: Record<string, string | { label: string; color?: string }>, defaultValue?: string) => ({
+export const selectField = (base: Base, entries: Record<string, string | { label: string; color?: string; id?: string }>, defaultValue?: string) => ({
   ...base,
   type: FieldType.SELECT as const,
   options: selectOptions(entries),

@@ -9,13 +9,13 @@ UK quotes, VAT invoices, credit notes and recurring billing for InventiveCRM wor
 | Business profile | One record per workspace with the details that must appear on documents: legal and trading name, address, legal structure, Companies House number, place of registration, registered office, VAT number, bank details, numbering prefixes, payment terms, VAT rounding |
 | Products and services | Price list. Picking a product on a line fills description, unit, price and VAT rate |
 | Quotes | Lines with quantity, unit price, VAT rate and discount. Set the status to **Sent** to number the quote and file its PDF on the client. Set it to **Accepted** to get a draft invoice with the same client and lines |
-| Invoices | Set the status to **Issued**: UK checks run, the invoice gets the next number, totals are frozen and the PDF is filed on the invoice and on the client's company and contact. If a check fails the invoice stays a Draft and **Issues to fix** says why |
+| Invoices | Set the status to **Issued**: UK checks run, the invoice gets the next number, totals are frozen and the PDF is filed on the invoice and on the client's company and contact. If a check fails the invoice stays a Draft and **Issues to fix** says why. Changing lines after issue leaves the issued totals and PDF as they were and **Issues to fix** asks for a credit note; the same goes for a sent quote, which asks for a new quote |
 | Credit notes | An invoice of type Credit note, linked to the invoice it credits, with its own number sequence. A full credit marks the original Void |
-| Recurring invoices | Tick Recurring, choose weekly, monthly, quarterly or yearly, every N periods, a first date and an optional end date. A daily job creates each repeat and issues it, so its PDF lands on the client card too |
-| Daily job | Creates due repeats, marks unpaid invoices past their due date Overdue and expires out-of-date quotes. Also callable at `POST /s/billing/daily-run` |
+| Recurring invoices | Tick Recurring, choose weekly, monthly, quarterly or yearly, every N periods, a first date and an optional end date. A daily job creates each repeat and issues it, so its PDF lands on the client card too. Each date is billed once even when runs overlap; a repeat that fails is noted under **Issues to fix** on the recurring invoice and tried again the next day, without holding up the others |
+| Daily job | Creates due repeats, marks unpaid invoices past their due date Overdue (sending one reminder, for what is still owed), expires out-of-date quotes, and puts back to Draft, with the reason, any invoice or quote whose issuing stopped part-way more than 15 minutes ago. Also callable at `POST /s/billing/daily-run` |
 | Paid | Setting the status to Paid records the payment date and amount |
 | Own templates | **Document templates**: upload the business's own design as a Word file or PDF. It is read and checked automatically, and the right one is picked for each document by fixed rules (no AI). See below |
-| Sending | Issued invoices and sent quotes go to the contact with the PDF, by email, WhatsApp or both (the contact's **Send documents by** field). Each attempt is a **Delivery** on the document with its status. Overdue reminders are optional |
+| Sending | Issued invoices and sent quotes go to the contact with the PDF, by email, WhatsApp or both (the contact's **Send documents by** field). Each attempt is a **Delivery** on the document with its status. Overdue reminders are optional. A document can be sent at most 5 times and a workspace 300 times in 24 hours, counting every channel; a request may name `EMAIL` and `WHATSAPP` only, each used once |
 | AI and workflows | `issue-document` (MCP `app_issue-document`) issues invoices and quotes; `send-document` (MCP `app_send-document`, also `POST /s/documents/send`) sends or re-sends one, or sends a reminder. Both are workflow actions too |
 
 All money is calculated in integer pence. VAT is worked out per rate on the summed net amounts (HMRC allows invoice-level calculation), rounded to the nearest penny or down, as set in the Business profile.
@@ -34,7 +34,7 @@ All money is calculated in integer pence. VAT is worked out per rate on the summ
 
 Checked before a document is issued, and printed on it:
 
-- Unique, sequential numbers per business. A number is only used once the PDF is stored, so failed attempts leave no gaps
+- Unique, sequential numbers per business. The number field is unique and the number is written on the document before its PDF is made, so two documents issued at the same moment never share one; a failed attempt keeps its number for the retry, so there are no gaps. A deleted document keeps its number
 - Seller's legal name, trading name and address; customer's name, and address on VAT invoices
 - Invoice date, time of supply, due date, customer reference
 - Description, quantity, unit price excluding VAT, VAT rate and line amount; totals excluding VAT, VAT per rate, total
@@ -121,17 +121,30 @@ money and takes no fee.
    secret key (sandbox keys need `REVOLUT_API_URL=https://sandbox-merchant.revolut.com`).
 2. **Choose the provider** in the Business profile under **Online payments**.
 
-From then on every issued invoice (not credit notes) gets a pay-now link for what is still owed: a single-use Stripe
-Payment Link or a Revolut order. The invoice email shows a **Pay now** button and the WhatsApp hand-off carries the link.
-**Send pay-now link** (route `POST /s/payments/link`, workflow action and AI tool) creates or refreshes the link and can
-send it on its own by WhatsApp or email ("text payments"). A part payment recorded on the invoice replaces the link with
-one for the rest and closes the old one.
+From then on every issued invoice (not credit notes) gets a pay-now link for what is still owed (the total less
+recorded payments and issued credit notes): a single-use Stripe Payment Link or a Revolut order. The invoice email shows
+a **Pay now** button and the WhatsApp hand-off carries the link. **Send pay-now link** (route `POST /s/payments/link`,
+workflow action and AI tool) creates or refreshes the link and can send it on its own by WhatsApp or email ("text
+payments"). After a part payment or a part credit note the open link is replaced with one for the rest (a credit note
+does it when issued, a payment when the invoice is next sent or reminded); the old link is first checked with the
+provider, so a payment made on it is recorded, and then closed. Reminders state the amount still owed.
 
-Every 10 minutes (or `POST /s/payments/reconcile`) open links are checked with the provider: a paid one sets the invoice
-to **Paid** (or **Part paid**) with the amount and date, and Stripe links are closed. Links of invoices marked paid or
-void by hand are closed too. Polling means nothing has to be configured in the client's Stripe or Revolut dashboard.
+Only links to Stripe's and Revolut's own payment pages (`buy.stripe.com`, `checkout.stripe.com`, `checkout.revolut.com`,
+`sandbox-checkout.revolut.com`) go into emails and WhatsApp messages, so a link edited by hand to another site is never
+sent. A Stripe account that serves payment links on its own custom domain therefore gets no **Pay now** button.
 
-Invoice fields: **Online payment** (link status), **Pay-now link**, **Paid through**, **Payment reference**.
+On `POST /s/payments/link` a signed-in person can only act on invoices their own role lets them read. Calls with an API
+key, AI tools and workflows are automation and act with the app's role, so they reach every invoice: give API keys only
+to systems trusted with that.
+
+Every 10 minutes (or `POST /s/payments/reconcile`) open links are checked with the provider, least recently checked
+first: a paid one sets the invoice to **Paid** (or **Part paid**) with the amount and date, and Stripe links are closed.
+A payment is counted only while the link is still open with the same reference, so overlapping checks never count it
+twice. Links of invoices marked paid or void by hand are closed too. A check that fails writes the reason to **Online
+payment problem**. Polling means nothing has to be configured in the client's Stripe or Revolut dashboard.
+
+Invoice fields: **Online payment** (link status), **Pay-now link**, **Paid through**, **Payment reference**, **Online
+payment problem**, **Payment last checked**.
 
 ## Not included yet
 

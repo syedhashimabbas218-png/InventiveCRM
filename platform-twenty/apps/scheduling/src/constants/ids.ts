@@ -227,6 +227,41 @@ export const IDS = {
     connections: '9ba6fbe3-2359-4141-a648-b57ba9981bce',
     dashboard: 'cb87cd0e-451e-4741-b016-5ad19004ae84',
   },
+  indexes: {
+    appointmentSessionKey: {
+      fields: {
+        sessionKey: '27036459-3033-4b4c-9c30-1944d8a9f40f',
+      },
+      index: '40c2da6f-130f-474d-8dba-1da4b284e076',
+    },
+    appointmentStatusStartsAt: {
+      fields: {
+        startsAt: '9e3e29ef-9ee0-48ac-b966-2588fd05c67f',
+        status: 'ab299b38-8e5d-4b35-ac5c-21594a7abec4',
+      },
+      index: 'adf1c897-a6a8-4ecf-8e97-c58c7e539f29',
+    },
+    calendarSyncName: {
+      fields: {
+        name: '12436eeb-e07d-4049-8964-acda308e69ca',
+      },
+      index: 'ef0114d2-47fc-46ed-a321-3dedc5099290',
+    },
+    calendarSyncStatusNextAttemptAt: {
+      fields: {
+        nextAttemptAt: '9e98a1e7-1fa8-4ad4-b2b4-d5ae2924ae8b',
+        status: 'fc71a5cb-5eba-4d3d-8bd1-369a0d8e335b',
+      },
+      index: 'f40f181c-efba-47e2-923c-3a510fc1ed79',
+    },
+    publicRequestCounterBucketWindowStart: {
+      fields: {
+        bucket: '723f41ee-50fa-441b-95fd-f13aa71a82d7',
+        windowStart: 'fdb5bee5-286a-4b58-866f-4f14b7225410',
+      },
+      index: '6f9f4445-4327-446e-bcb8-30f759012fba',
+    },
+  },
   logicFunctions: {
     bookPage: 'dd9c0b7d-fdc4-400d-9b4e-4d5ba011e81c',
     bookingApi: '06ebb356-5fbc-4292-ada3-05c0bedd93b2',
@@ -235,6 +270,7 @@ export const IDS = {
     housekeepingJob: '9c076df7-f767-4b2f-a9ae-6b281d9d8327',
     managePage: '89dfb7e5-4aa9-4f49-9753-b2fa59fc713d',
     onAppointmentCreated: 'cb5876f2-6a4f-4894-811a-8ec201b06fba',
+    onAppointmentDeleted: 'f087099c-4046-4f38-b5a4-89c8d6676b7c',
     onAppointmentUpdated: '824ca294-280a-4c48-b0cd-fd4fe1cc597f',
     remindersJob: '598ac664-d7e9-4429-a24c-5e0ae4158986',
     schedulingAdmin: '95de3b44-0084-48ca-bb52-fbd81046ea11',
@@ -292,6 +328,7 @@ export const IDS = {
   },
   publicRequestCounter: {
     fields: {
+      bucket: 'f894bb29-94ae-44e3-a94d-6707368ceb05',
       count: '234255bc-2ee0-4995-9427-7c701407ee23',
       key: 'efa7ee9d-cb61-4d8e-9654-28942843c116',
       windowStart: '11527232-a2c8-4316-8bcf-8bd6915f801d',

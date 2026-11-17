@@ -46,5 +46,7 @@ export default defineObject({
     dateTimeField({ universalIdentifier: field.lockedUntil, name: 'lockedUntil', label: 'Being worked on until', icon: 'IconLock' }),
     textField({ universalIdentifier: field.prepareCursor, name: 'prepareCursor', label: 'Preparation progress', icon: 'IconProgress' }),
     textField({ universalIdentifier: field.lastError, name: 'lastError', label: 'Problem', icon: 'IconAlertTriangle' }),
+    jsonField({ universalIdentifier: field.brandSnapshot, name: 'brandSnapshot', label: 'Brand kit used', icon: 'IconPalette', description: 'The brand kit as it was when sending started.' }),
+    textField({ universalIdentifier: field.recentTestSends, name: 'recentTestSends', label: 'Recent test sends', icon: 'IconTestPipe', description: 'When test emails were sent in the last hour.' }),
   ],
 });

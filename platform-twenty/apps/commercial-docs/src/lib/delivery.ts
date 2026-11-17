@@ -2,11 +2,12 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import nodemailer from 'nodemailer';
 
-import { type DeliveryChannel, type DeliveryStatus } from 'src/constants/enums';
+import { DELIVERY_CHANNELS, type DeliveryChannel, type DeliveryStatus } from 'src/constants/enums';
 import { downloadFile, gql, metadata, nodes } from 'src/lib/api';
 import { type BusinessProfile } from 'src/lib/compliance';
 import { formatUkDate, todayInLondon } from 'src/lib/dates';
 import { formatGbp, microsToPence } from 'src/lib/money';
+import { ensurePaymentLink, isPaymentPageUrl, outstandingPence } from 'src/lib/payments';
 
 type DocumentKind = 'invoice' | 'quote';
 
@@ -26,6 +27,8 @@ export type SendableDocument = {
   number: string;
   status: string | null;
   totalPence: number;
+  // What is still owed on an invoice after payments and credit notes; the total for other documents.
+  amountDuePence: number;
   issueDate: string | null;
   dueDate: string | null;
   validUntil: string | null;
@@ -44,32 +47,54 @@ type DocumentNode = {
   person: Recipient | null;
 };
 
-type InvoiceNode = DocumentNode & { invoiceNumber: string; kind: string | null; dueDate: string | null; paymentLinkUrl: string | null; paymentLinkStatus: string | null };
+type InvoiceNode = DocumentNode & {
+  invoiceNumber: string;
+  kind: string | null;
+  dueDate: string | null;
+  amountPaid: { amountMicros: number | string | null } | null;
+  creditNotes: { edges: { node: { kind: string | null; status: string | null; issuedAt: string | null; total: { amountMicros: number | string | null } | null } }[] } | null;
+  paymentLinkUrl: string | null;
+  paymentLinkStatus: string | null;
+  paymentLinkAmountPence: number | null;
+};
 type QuoteNode = DocumentNode & { quoteNumber: string; validUntil: string | null };
 
 const RECIPIENT = `person { id name { firstName lastName } emails { primaryEmail } phones { primaryPhoneNumber primaryPhoneCallingCode } preferredChannel whatsappOptIn }`;
 
-const loadDocument = async (kind: DocumentKind, id: string): Promise<SendableDocument | null> => {
+type LoadedDocument = SendableDocument & { hasStaleLink: boolean };
+
+const INVOICE_DOCUMENT_FIELDS = `id invoiceNumber kind status total { amountMicros } amountPaid { amountMicros } issueDate dueDate
+  creditNotes(first: 100) { edges { node { kind status issuedAt total { amountMicros } } } }
+  paymentLinkUrl paymentLinkStatus paymentLinkAmountPence pdf { fileId label url } ${RECIPIENT}`;
+
+const loadDocument = async (kind: DocumentKind, id: string): Promise<LoadedDocument | null> => {
   if (kind === 'invoice') {
     const data = await gql<{ invoices: { edges: { node: InvoiceNode }[] } }>(
-      `query($id: UUID!) { invoices(filter: { id: { eq: $id } }) { edges { node { id invoiceNumber kind status total { amountMicros } issueDate dueDate paymentLinkUrl paymentLinkStatus pdf { fileId label url } ${RECIPIENT} } } } }`,
+      `query($id: UUID!) { invoices(filter: { id: { eq: $id } }) { edges { node { ${INVOICE_DOCUMENT_FIELDS} } } } }`,
       { id },
     );
     const invoice = nodes(data.invoices)[0];
     if (!invoice) return null;
+    const type = invoice.kind === 'CREDIT_NOTE' ? 'CREDIT_NOTE' : 'INVOICE';
+    const totalPence = microsToPence(invoice.total?.amountMicros);
+    const amountDuePence = type === 'INVOICE' ? outstandingPence(invoice) : totalPence;
+    const openLink = type === 'INVOICE' && invoice.paymentLinkStatus === 'OPEN';
+    const linkMatchesAmount = invoice.paymentLinkAmountPence === amountDuePence;
     return {
       kind,
       id,
-      type: invoice.kind === 'CREDIT_NOTE' ? 'CREDIT_NOTE' : 'INVOICE',
+      type,
       number: invoice.invoiceNumber,
       status: invoice.status,
-      totalPence: microsToPence(invoice.total?.amountMicros),
+      totalPence,
+      amountDuePence,
       issueDate: invoice.issueDate,
       dueDate: invoice.dueDate,
       validUntil: null,
       pdf: invoice.pdf?.[0] ?? null,
       recipient: invoice.person,
-      paymentUrl: invoice.paymentLinkStatus === 'OPEN' && invoice.paymentLinkUrl?.startsWith('https://') ? invoice.paymentLinkUrl : null,
+      paymentUrl: openLink && linkMatchesAmount && isPaymentPageUrl(invoice.paymentLinkUrl) ? invoice.paymentLinkUrl : null,
+      hasStaleLink: openLink && !linkMatchesAmount && amountDuePence > 0,
     };
   }
   const data = await gql<{ quotes: { edges: { node: QuoteNode }[] } }>(
@@ -78,19 +103,22 @@ const loadDocument = async (kind: DocumentKind, id: string): Promise<SendableDoc
   );
   const quote = nodes(data.quotes)[0];
   if (!quote) return null;
+  const totalPence = microsToPence(quote.total?.amountMicros);
   return {
     kind,
     id,
     type: 'QUOTE',
     number: quote.quoteNumber,
     status: quote.status,
-    totalPence: microsToPence(quote.total?.amountMicros),
+    totalPence,
+    amountDuePence: totalPence,
     issueDate: quote.issueDate,
     dueDate: null,
     validUntil: quote.validUntil,
     pdf: quote.pdf?.[0] ?? null,
     recipient: quote.person,
     paymentUrl: null,
+    hasStaleLink: false,
   };
 };
 
@@ -109,9 +137,14 @@ export const toE164 = (phones: Recipient['phones']): string | null => {
   return `${callingCode.startsWith('+') ? callingCode : `+${callingCode}`}${number.replace(/^0+/, '')}`;
 };
 
+export const escapeHtml = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 export const buildEmail = (document: SendableDocument, profile: BusinessProfile, { reminder, paymentLink = false }: { reminder: boolean; paymentLink?: boolean }) => {
   const label = DOCUMENT_LABEL[document.type];
   const amount = formatGbp(document.totalPence);
+  const amountDue = formatGbp(document.amountDuePence);
+  const partOf = document.amountDuePence < document.totalPence ? `${amountDue} of ` : '';
   const subject = paymentLink
     ? `Pay invoice ${document.number} from ${businessName(profile)} online`
     : reminder
@@ -121,29 +154,28 @@ export const buildEmail = (document: SendableDocument, profile: BusinessProfile,
     `Hello ${firstName(document.recipient)},`,
     '',
     reminder
-      ? `Our records show that invoice ${document.number} for ${amount}, due on ${formatUkDate(document.dueDate)}, has not been paid yet. If you have already paid, thank you, and please ignore this reminder.`
+      ? `Our records show that ${partOf}invoice ${document.number} for ${amount}, due on ${formatUkDate(document.dueDate)}, has not been paid yet. If you have already paid, thank you, and please ignore this reminder.`
       : document.type === 'QUOTE'
         ? `Please find attached quote ${document.number} for ${amount}${document.validUntil ? `, valid until ${formatUkDate(document.validUntil)}` : ''}. Reply to this email to accept it or ask any questions.`
         : document.type === 'CREDIT_NOTE'
           ? `Please find attached credit note ${document.number} for ${amount}.`
           : `Please find attached invoice ${document.number} for ${amount}${document.dueDate ? `, due on ${formatUkDate(document.dueDate)}` : ''}.`,
-    ...(paymentLink ? ['', `You can pay invoice ${document.number} (${amount}) securely online:`] : document.paymentUrl ? ['', 'Pay online:'] : []),
+    ...(paymentLink ? ['', `You can pay invoice ${document.number} (${amountDue}) securely online:`] : document.paymentUrl ? ['', 'Pay online:'] : []),
     ...(document.paymentUrl ? [document.paymentUrl] : []),
     ...(profile.emailMessage ? ['', profile.emailMessage] : []),
     '',
     'Kind regards,',
     businessName(profile),
   ];
-  const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return {
     subject,
     text: lines.join('\n'),
     html: lines
       .map((line) =>
         line === document.paymentUrl && line
-          ? `<p><a href="${escape(line)}" style="display:inline-block;padding:10px 18px;border-radius:4px;background:#3e63dd;color:#ffffff;text-decoration:none;font-weight:600">Pay ${escape(amount)} now</a></p>`
+          ? `<p><a href="${escapeHtml(line)}" style="display:inline-block;padding:10px 18px;border-radius:4px;background:#3e63dd;color:#ffffff;text-decoration:none;font-weight:600">Pay ${escapeHtml(amountDue)} now</a></p>`
           : line
-            ? `<p>${escape(line)}</p>`
+            ? `<p>${escapeHtml(line)}</p>`
             : '',
       )
       .join(''),
@@ -164,6 +196,16 @@ const SENDABLE_STATUSES: Record<DocumentKind, string[]> = { invoice: ['ISSUED', 
 const MAX_SENDS_PER_DOCUMENT_PER_DAY = 5;
 const MAX_SENDS_PER_WORKSPACE_PER_DAY = 300;
 
+const DELIVERY_CHANNEL_VALUES = Object.keys(DELIVERY_CHANNELS) as DeliveryChannel[];
+
+// undefined means the contact's preferred channels; null means the list holds something other than EMAIL or WHATSAPP.
+// Each channel is used once, so repeating it in the list cannot multiply sends.
+export const requestedChannels = (value: unknown): DeliveryChannel[] | undefined | null => {
+  if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) return undefined;
+  if (!Array.isArray(value) || !value.every((channel) => DELIVERY_CHANNEL_VALUES.some((known) => known === channel))) return null;
+  return DELIVERY_CHANNEL_VALUES.filter((channel) => value.includes(channel));
+};
+
 const deliveriesSince = async (since: string, document?: SendableDocument) => {
   const filter = { createdAt: { gte: since }, ...(document ? { [`${document.kind}Id`]: { eq: document.id } } : {}) };
   const data = await gql<{ documentDeliveries: { totalCount: number } }>(
@@ -174,11 +216,12 @@ const deliveriesSince = async (since: string, document?: SendableDocument) => {
 };
 
 // Limits stop a script or a stolen API key from spamming a client's customers or burning our sending reputation.
-const assertWithinSendingLimits = async (document: SendableDocument) => {
+const assertWithinSendingLimits = async (document: SendableDocument, sends: number) => {
   const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  if ((await deliveriesSince(dayAgo, document)) >= MAX_SENDS_PER_DOCUMENT_PER_DAY)
-    throw new Error(`This document has already been sent ${MAX_SENDS_PER_DOCUMENT_PER_DAY} times in the last 24 hours.`);
-  if ((await deliveriesSince(dayAgo)) >= MAX_SENDS_PER_WORKSPACE_PER_DAY)
+  const documentSends = await deliveriesSince(dayAgo, document);
+  if (documentSends + sends > MAX_SENDS_PER_DOCUMENT_PER_DAY)
+    throw new Error(`This document has been sent ${documentSends} times in the last 24 hours; the limit is ${MAX_SENDS_PER_DOCUMENT_PER_DAY}.`);
+  if ((await deliveriesSince(dayAgo)) + sends > MAX_SENDS_PER_WORKSPACE_PER_DAY)
     throw new Error(`The daily sending limit of ${MAX_SENDS_PER_WORKSPACE_PER_DAY} documents for this workspace has been reached. Contact support to raise it.`);
 };
 
@@ -207,6 +250,9 @@ const sendFromOurServer = async (document: SendableDocument, profile: BusinessPr
     requireTLS: SMTP_SECURITY === 'STARTTLS',
     ignoreTLS: SMTP_SECURITY === 'NONE',
     auth: SMTP_USERNAME ? { user: SMTP_USERNAME, pass: SMTP_PASSWORD } : undefined,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
   const info = await transport.sendMail({
     // Our domain signs this mail, so the sender always shows it comes through us, whatever name the client chose.
@@ -281,6 +327,7 @@ const handOffToWhatsApp = async (document: SendableDocument, profile: BusinessPr
       type: document.type,
       number: document.number,
       total: { amountPence: document.totalPence, currency: 'GBP', formatted: formatGbp(document.totalPence) },
+      amountDue: { amountPence: document.amountDuePence, currency: 'GBP', formatted: formatGbp(document.amountDuePence) },
       issueDate: document.issueDate,
       dueDate: document.dueDate,
       validUntil: document.validUntil,
@@ -340,16 +387,26 @@ export const deliverDocument = async ({
   reminder?: boolean;
   paymentLink?: boolean;
 }): Promise<DeliveryResult[]> => {
-  const document = await loadDocument(kind, id);
+  let document = await loadDocument(kind, id);
   if (!document || !document.number || !SENDABLE_STATUSES[kind].includes(document.status ?? '')) return [];
   // A payment reminder only goes out for an invoice that is actually unpaid and past its due date.
-  if (reminder && !(kind === 'invoice' && ['OVERDUE', 'PART_PAID'].includes(document.status ?? '') && document.dueDate && document.dueDate < todayInLondon())) return [];
-  await assertWithinSendingLimits(document);
-  const results: DeliveryResult[] = [];
+  if (reminder && !(kind === 'invoice' && ['OVERDUE', 'PART_PAID'].includes(document.status ?? '') && document.dueDate && document.dueDate < todayInLondon() && document.amountDuePence > 0))
+    return [];
+  // A part payment or credit note since the link was made: the client is never asked for the old amount.
+  const provider = profile.onlinePayments;
+  if (document.hasStaleLink && (provider === 'STRIPE' || provider === 'REVOLUT')) {
+    await ensurePaymentLink(id, provider, profile.tradingName || profile.legalName || '').catch((error: Error) =>
+      console.error(`Could not replace the pay-now link of invoice ${id}: ${error.message}`),
+    );
+    document = (await loadDocument(kind, id)) ?? document;
+  }
   if (paymentLink && !document.paymentUrl) return [];
+  const sendChannels = [...new Set(channels ?? channelsFor(document.recipient))];
+  await assertWithinSendingLimits(document, sendChannels.length);
+  const results: DeliveryResult[] = [];
   const label = `${paymentLink ? 'Payment link for ' : reminder ? 'Reminder for ' : ''}${DOCUMENT_LABEL[document.type]} ${document.number}`;
 
-  for (const channel of channels ?? channelsFor(document.recipient)) {
+  for (const channel of sendChannels) {
     const recipient =
       channel === 'EMAIL'
         ? document.recipient?.emails?.primaryEmail || null

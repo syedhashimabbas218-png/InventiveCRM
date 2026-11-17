@@ -27,7 +27,7 @@ export default defineLogicFunction({
   universalIdentifier: IDS.logicFunctions.onQuoteStatusChange,
   name: 'on-quote-status-change',
   description: 'Sending a quote numbers it and files the PDF on the client card. Accepting it creates a draft invoice with the same lines.',
-  timeoutSeconds: 60,
+  timeoutSeconds: 180,
   databaseEventTriggerSettings: { eventName: 'quote.updated', updatedFields: ['status'] },
   handler: runAsApplication(handler),
 });

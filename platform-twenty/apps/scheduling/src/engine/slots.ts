@@ -71,3 +71,11 @@ export const reservationKeys = (advisorId: string, held: Interval) => {
 };
 
 export const seatKey = (sessionKey: string, seat: number) => `${sessionKey}|seat-${seat}`;
+
+// Every seat is tried, those after the booked count first, so a seat freed by a cancellation can be taken again.
+export const seatOrder = (capacity: number, booked: number) => {
+  const taken = Math.min(Math.max(booked, 0), capacity);
+  return [...Array.from({ length: capacity - taken }, (_, index) => taken + index + 1), ...Array.from({ length: taken }, (_, index) => index + 1)];
+};
+
+export const isSeatKey = (key: string) => key.includes('|seat-');

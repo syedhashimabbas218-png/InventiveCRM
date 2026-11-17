@@ -239,7 +239,8 @@ assert('the report lists the failed and bounced addresses', report?.problems.som
 // 7. A second campaign skips everyone who left, survives a rate limit, and re-checks consent before each batch.
 const second = (await admin({ action: 'duplicate', id: draft.id })).body;
 // Domain checks: scheduling, the job's start check, then the one right before sending, which is made to fail.
-await mock('/admin/fail-next', { path: '/domains', skip: 2 });
+// A long wait is not waited out in the run, so the campaign pauses; a short one is retried at once.
+await mock('/admin/fail-next', { path: '/domains', skip: 2, retryAfter: 60 });
 await admin({ action: 'schedule', id: second.id });
 await runJob();
 const paused = await getCampaign(second.id);
@@ -278,7 +279,7 @@ const thirdDone = await waitFor('third campaign', async () => {
 const thirdMails = (await mock('/admin/emails')).filter((email) => email.tags?.some((tag) => tag.name === 'campaign' && tag.value === third.id)).map((email) => email.to[0]);
 
 const thirdBatchKeys = (await mock('/admin/log')).filter((entry) => entry.path === '/emails/batch' && entry.idempotencyKey?.startsWith(`${third.id}:`)).map((entry) => entry.idempotencyKey);
-assert('a batch cut off by a rate limit is retried with the same idempotency key', thirdBatchKeys.length >= 2 && new Set(thirdBatchKeys).size === 1 && ['SENDING', 'SENT'].includes(midway.status), `${midway.status} ${JSON.stringify(thirdBatchKeys)}`);
+assert('a batch refused by a rate limit is put back and sent once under a new key', thirdBatchKeys.length === 2 && new Set(thirdBatchKeys).size === 2 && ['SENDING', 'SENT'].includes(midway.status), `${midway.status} ${JSON.stringify(thirdBatchKeys)}`);
 assert('parallel job runs never send an email twice', thirdDone.status === 'SENT' && thirdMails.length === 3 && new Set(thirdMails).size === 3 && thirdDone.recipientCount === 3, `${JSON.stringify(thirdDone)} ${thirdMails.join(',')}`);
 
 // 7c. Unscheduling returns a campaign to draft; a draft cannot be scheduled twice at once.

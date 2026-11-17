@@ -1,5 +1,5 @@
 import styled from '@emotion/styled';
-import { useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { SegmentedControl } from 'twenty-ui/components/input';
 import { IconArrowDown, IconArrowUp, IconCopy, IconTrash } from 'twenty-ui/icon';
 import { Card } from 'twenty-ui/primitives/surfaces';
@@ -207,7 +207,13 @@ const SAMPLE = { firstName: 'Alex', lastName: 'Morgan', email: 'alex@example.com
 export const Designer = ({ design, brand, subject, previewText, onChange }: { design: Design; brand: Brand; subject: string; previewText: string; onChange: (design: Design) => void }) => {
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [open, setOpen] = useState<string | null>(design.blocks[0]?.id ?? null);
-  const html = renderEmail(design, brand, { subject, previewText, unsubscribeUrl: '#unsubscribe', contact: SAMPLE, placeholders: true }).html;
+  // The preview reloads its frame on every change; deferring it keeps typing in the fields responsive.
+  const previewDesign = useDeferredValue(design);
+  const previewSubject = useDeferredValue(subject);
+  const html = useMemo(
+    () => renderEmail(previewDesign, brand, { subject: previewSubject, previewText, unsubscribeUrl: '#unsubscribe', contact: SAMPLE, placeholders: true }).html,
+    [previewDesign, brand, previewSubject, previewText],
+  );
 
   const update = (blocks: Block[]) => onChange({ ...design, blocks });
   const replace = (index: number, block: Block) => update(design.blocks.map((existing, position) => (position === index ? block : existing)));

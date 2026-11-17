@@ -1,8 +1,24 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { type RecipientStatus } from 'src/constants/enums';
-import { addSuppression, getCampaign, getRecipient, loadBrand, recipientByMessageId, type Recipient, updateRecipient, withdrawConsent } from 'src/lib/store';
+import { addSuppression, getCampaign, getRecipient, loadBrand, recipientByMessageId, type Recipient, updateRecipient, updateRecipientsIf, withdrawConsent } from 'src/lib/store';
 import { parseRecipientToken, verifyRecipientToken } from 'src/lib/tokens';
+
+// The statuses each event may move a recipient from: a bounce, complaint, unsubscribe or failure is never undone, and
+// a failure report never overrides a delivery. The event's timestamp is recorded either way.
+export const MOVES_FROM: Record<'DELIVERED' | 'BOUNCED' | 'COMPLAINED' | 'UNSUBSCRIBED' | 'FAILED', RecipientStatus[]> = {
+  DELIVERED: ['SENDING', 'SENT'],
+  BOUNCED: ['SENDING', 'SENT', 'DELIVERED'],
+  COMPLAINED: ['SENDING', 'SENT', 'DELIVERED'],
+  UNSUBSCRIBED: ['SENDING', 'SENT', 'DELIVERED'],
+  FAILED: ['SENDING', 'SENT'],
+};
+
+// One filtered update rather than read-then-write, so events arriving together cannot overwrite each other's status.
+const moveStatus = async (recipientId: string, status: keyof typeof MOVES_FROM, timestamps: Record<string, string>, details: Record<string, unknown> = {}) => {
+  const moved = await updateRecipientsIf({ ids: [recipientId], status: MOVES_FROM[status] }, { status, ...timestamps, ...details });
+  if (moved === 0 && Object.keys(timestamps).length > 0) await updateRecipient(recipientId, timestamps);
+};
 
 const recipientFromToken = async (token: string) => {
   const parsed = parseRecipientToken(token);
@@ -26,7 +42,7 @@ export const unsubscribe = async (token: string) => {
   const channel = campaign?.channel ?? 'EMAIL';
   await addSuppression(recipient.address, channel, 'UNSUBSCRIBED', recipient.campaignId);
   if (recipient.personId) await withdrawConsent(recipient.personId, channel);
-  if (recipient.status !== 'UNSUBSCRIBED') await updateRecipient(recipient.id, { status: 'UNSUBSCRIBED', unsubscribedAt: new Date().toISOString() });
+  if (recipient.status !== 'UNSUBSCRIBED') await moveStatus(recipient.id, 'UNSUBSCRIBED', { unsubscribedAt: new Date().toISOString() });
   return true;
 };
 
@@ -46,10 +62,6 @@ const tagValue = (tags: NonNullable<ResendEvent['data']>['tags'], name: string) 
   return tags?.[name];
 };
 
-// Later events never move a recipient back: a delivered email that is later opened stays delivered, and a bounce
-// or complaint is final.
-const FINAL: RecipientStatus[] = ['BOUNCED', 'COMPLAINED', 'UNSUBSCRIBED', 'FAILED'];
-
 export const handleResendEvent = async (event: ResendEvent) => {
   const messageId = event.data?.email_id;
   if (!event.type || !messageId) return { ignored: 'not an email event' };
@@ -60,10 +72,9 @@ export const handleResendEvent = async (event: ResendEvent) => {
   if (!recipient) return { ignored: 'not a campaign email' };
 
   const at = event.created_at && !Number.isNaN(Date.parse(event.created_at)) ? new Date(event.created_at).toISOString() : new Date().toISOString();
-  const final = FINAL.includes(recipient.status);
   switch (event.type) {
     case 'email.delivered':
-      await updateRecipient(recipient.id, { deliveredAt: at, ...(final ? {} : { status: 'DELIVERED' }) });
+      await moveStatus(recipient.id, 'DELIVERED', { deliveredAt: at });
       break;
     case 'email.opened':
       await updateRecipient(recipient.id, { openedAt: at });
@@ -73,18 +84,18 @@ export const handleResendEvent = async (event: ResendEvent) => {
       break;
     case 'email.bounced': {
       const permanent = event.data?.bounce?.type === 'Permanent';
-      await updateRecipient(recipient.id, { bouncedAt: at, status: 'BOUNCED', error: (event.data?.bounce?.message ?? 'The email bounced.').slice(0, 300) });
+      await moveStatus(recipient.id, 'BOUNCED', { bouncedAt: at }, { error: (event.data?.bounce?.message ?? 'The email bounced.').slice(0, 300) });
       if (permanent) await addSuppression(recipient.address, 'EMAIL', 'BOUNCED', recipient.campaignId, event.data?.bounce?.subType ?? '');
       break;
     }
     case 'email.complained':
-      await updateRecipient(recipient.id, { complainedAt: at, status: 'COMPLAINED' });
+      await moveStatus(recipient.id, 'COMPLAINED', { complainedAt: at });
       await addSuppression(recipient.address, 'EMAIL', 'COMPLAINED', recipient.campaignId);
       if (recipient.personId) await withdrawConsent(recipient.personId, 'EMAIL');
       break;
     case 'email.failed':
     case 'email.suppressed':
-      if (!final) await updateRecipient(recipient.id, { status: 'FAILED', error: event.type === 'email.suppressed' ? 'Resend did not send it: the address is on your Resend suppression list.' : (event.data?.failed?.reason ?? 'Resend could not send it.').slice(0, 300) });
+      await moveStatus(recipient.id, 'FAILED', {}, { error: event.type === 'email.suppressed' ? 'Resend did not send it: the address is on your Resend suppression list.' : (event.data?.failed?.reason ?? 'Resend could not send it.').slice(0, 300) });
       break;
     default:
       return { ignored: event.type };
@@ -108,13 +119,13 @@ export const handleWhatsAppStatus = async (body: { recipientId?: string; status?
   const recipient = await getRecipient(body.recipientId);
   if (!recipient) return false;
   const now = new Date().toISOString();
-  if (kind === 'deliveredAt') await updateRecipient(recipient.id, { deliveredAt: now, ...(FINAL.includes(recipient.status) ? {} : { status: 'DELIVERED' }) });
+  if (kind === 'deliveredAt') await moveStatus(recipient.id, 'DELIVERED', { deliveredAt: now });
   else if (kind === 'openedAt') await updateRecipient(recipient.id, { openedAt: now });
-  else if (kind === 'failed') await updateRecipient(recipient.id, { status: 'FAILED', error: (body.error || 'WhatsApp could not deliver it.').slice(0, 300) });
+  else if (kind === 'failed') await moveStatus(recipient.id, 'FAILED', {}, { error: (body.error || 'WhatsApp could not deliver it.').slice(0, 300) });
   else {
     await addSuppression(recipient.address, 'WHATSAPP', 'UNSUBSCRIBED', recipient.campaignId);
     if (recipient.personId) await withdrawConsent(recipient.personId, 'WHATSAPP');
-    await updateRecipient(recipient.id, { status: 'UNSUBSCRIBED', unsubscribedAt: now });
+    await moveStatus(recipient.id, 'UNSUBSCRIBED', { unsubscribedAt: now });
   }
   return true;
 };

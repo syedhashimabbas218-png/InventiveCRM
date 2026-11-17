@@ -13,7 +13,10 @@ export class AdminError extends Error {
   }
 }
 
-const DAY = 24 * 3600_000;
+const HOUR = 3600_000;
+const DAY = 24 * HOUR;
+// A safety net against a script or a stuck button, far above what staff ask by hand.
+const ASK_NOW_PER_HOUR = 30;
 
 type Answered = { id: string; name: string; score: number; comment: string; answeredAt: string; personId: string | null };
 
@@ -49,7 +52,7 @@ const overview = async () => {
   };
 };
 
-// Staff can ask one customer straight away, for example after a phone call.
+// Staff can ask one customer straight away, for example after a phone call, but not twice in a day.
 const askNow = async (body: Record<string, unknown>) => {
   const personId = typeof body.personId === 'string' ? body.personId : '';
   if (!/^[0-9a-f-]{36}$/.test(personId)) throw new AdminError(400, 'Choose a customer.');
@@ -59,9 +62,21 @@ const askNow = async (body: Record<string, unknown>) => {
   )[0];
   if (!person) throw new AdminError(404, 'That customer was not found.');
   return asApplication(async () => {
-    const settings = await ensureSettings();
     const now = Date.now();
-    const id = await createRequest({ source: 'MANUAL', sourceId: `manual:${person.id}:${now}`, personId: person.id, name: `${person.name.firstName} ${person.name.lastName}`.trim() }, settings, now, now);
+    const [askedRecently, askedThisHour] = await Promise.all([
+      gql<{ feedbackRequests: { totalCount: number } }>(
+        `query($person: UUID!, $since: DateTime!) { feedbackRequests(filter: { personId: { eq: $person }, or: [{ status: { in: [SCHEDULED, SENDING] } }, { sentAt: { gte: $since } }] }) { totalCount } }`,
+        { person: person.id, since: new Date(now - DAY).toISOString() },
+      ),
+      gql<{ feedbackRequests: { totalCount: number } }>(`query($since: DateTime!) { feedbackRequests(filter: { source: { eq: MANUAL }, createdAt: { gte: $since } }) { totalCount } }`, {
+        since: new Date(now - HOUR).toISOString(),
+      }),
+    ]);
+    if (askedRecently.feedbackRequests.totalCount > 0) throw new AdminError(409, 'This customer was asked in the last 24 hours or has a survey waiting to be sent.');
+    if (askedThisHour.feedbackRequests.totalCount >= ASK_NOW_PER_HOUR) throw new AdminError(429, `At most ${ASK_NOW_PER_HOUR} customers can be asked by hand per hour. Please try again later.`);
+    const settings = await ensureSettings();
+    // Created already claimed, so the job cannot pick it up and send it a second time.
+    const id = await createRequest({ source: 'MANUAL', sourceId: `manual:${person.id}:${now}`, personId: person.id, name: `${person.name.firstName} ${person.name.lastName}`.trim() }, settings, now, now, 'SENDING');
     const request = nodes(
       (await gql<{ feedbackRequests: { edges: { node: FeedbackRequest }[] } }>(`query($id: UUID!) { feedbackRequests(filter: { id: { eq: $id } }) { edges { node { ${REQUEST_FIELDS} } } } }`, { id })).feedbackRequests,
     )[0];

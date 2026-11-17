@@ -22,7 +22,7 @@ Scheduling team, Advisor, Team membership, Office, Availability schedule, Availa
 
 ### How double booking is prevented
 
-Each booking claims one **Slot reservation** row per advisor per 5-minute tick it occupies, buffers included, in a single insert. `key` is unique, so two simultaneous bookings for overlapping time cannot both succeed: the database rejects the second and the customer is told the time was just taken. Group sessions claim seat keys instead. Cancelling or moving destroys the old rows (soft-deleted rows would still hold the key). Collective meetings claim for every participant at once.
+Each booking claims one **Slot reservation** row per advisor per 5-minute tick it occupies, buffers included, in a single insert. `key` is unique, so two simultaneous bookings for overlapping time cannot both succeed: the database rejects the second and the customer is told the time was just taken. Group sessions claim seat keys instead; any free seat can be taken, including one freed by a cancellation, and the host's time stays held until the last member of the session cancels or is deleted. Cancelling, deleting or moving destroys the old rows (soft-deleted rows would still hold the key). Collective meetings claim for every participant at once. The daily housekeeping job frees time still held by a cancelled appointment, or by a booking that failed before it was linked to its record; a failed booking also removes the appointment it had created.
 
 ### Appointment types
 
@@ -45,11 +45,11 @@ Weekly hours per advisor in their own time zone, with overrides for time off and
 
 ### Location-based scheduling
 
-Advisors have a base (or an office), a service radius, an optional GeoJSON service area and optional postcode territory (`LS`, `LS6`, `YO`). Customers enter an address; it is geocoded, eligible advisors are filtered by area, radius or territory and ranked by road time from OSRM, or straight-line distance if routing is unavailable. Travel-aware scheduling checks that an advisor can get from the previous visit and on to the next one. Without a router the estimate is marked unverified, and types that require verified travel refuse it. Exact advisor bases are never sent to customers, only a label and a rounded distance.
+Advisors have a base (or an office), a service radius, an optional GeoJSON service area and optional postcode territory (`LS`, `LS6`, `YO`). Customers enter an address; it is geocoded, eligible advisors are filtered by area, radius or territory and ranked by road time from OSRM, or straight-line distance if routing is unavailable. Travel-aware scheduling checks that an advisor can get from the previous visit and on to the next one. Without a router the estimate is marked unverified, and types that require verified travel refuse it. Exact advisor bases are never sent to customers, only a label and a rounded distance, and public pages judge coverage and distance from the customer's point rounded to 0.01 degree (about 1 km), so probing nearby points cannot pin a base down further. The exact point is kept on the appointment and used for the travel check.
 
 ### Calendar sync
 
-Each provider write goes through the **Calendar sync** outbox. Retries back off after 1, 5, 15, 60 and 240 minutes, up to 8 attempts, then the advisor is emailed. Google event ids are derived from the appointment, and Microsoft writes carry a `transactionId`, so a retry after a timeout never creates a second event. Customers are not added as provider attendees (that would send a second invitation); they receive our email with an ICS file instead. Every 5 minutes the sync job also reconciles upcoming events: an event moved in the provider is moved back and logged, a deleted one is flagged on the appointment.
+Each provider write goes through the **Calendar sync** outbox. Retries back off after 1, 5, 15, 60 and 240 minutes, up to 8 attempts, then the advisor is emailed. Google event ids are derived from the appointment, and Microsoft writes carry a `transactionId`, so a retry after a timeout never creates a second event. Customers are not added as provider attendees (that would send a second invitation); they receive our email with an ICS file instead. Retries run oldest first, and rows that can never be written (appointment deleted, advisor or calendar gone) back off and then give up. Every 5 minutes the sync job also reconciles events in the next 14 days, least recently checked first, 50 per run: an event moved in the provider is moved back and logged, a deleted one is flagged on the appointment.
 
 ### Public pages and security
 
@@ -60,8 +60,8 @@ Each provider write goes through the **Calendar sync** outbox. Retries back off 
 | `POST /s/booking/api` | JSON API used by those pages |
 | `GET /s/booking/embed.js` | Inline, popup and floating-button embeds |
 | `GET /s/scheduling/map?ticket=` | Staff advisor map (10-minute signed ticket) |
-| `POST /s/scheduling/admin` | UI actions, signed-in users only |
-| `POST /s/scheduling/sync-now`, `/s/scheduling/reminders-now` | Run the jobs now, signed-in users only |
+| `POST /s/scheduling/admin` | UI actions, signed-in users only (API keys are refused) |
+| `POST /s/scheduling/sync-now`, `/s/scheduling/reminders-now` | Run the jobs now, signed-in users only (API keys are refused) |
 
 Manage links are HMAC-signed over a per-appointment nonce, so they cannot be guessed and changing the nonce revokes them. Booking forms carry a signed ticket: submissions under 3 seconds or older than a day are refused, as is a filled honeypot field. Requests are limited per client address (hashed, never stored raw): bookings per hour come from Scheduling settings (default 10), page, slot, address and manage calls per minute. Repeated submits with the same idempotency key return the same booking. Customers only ever see their own appointment.
 
@@ -75,7 +75,7 @@ A booking is matched to an existing person by email, or by phone when exactly on
 
 ### Notifications and workflows
 
-Customers get a confirmation with an ICS invitation and a manage link, plus move, cancel and reminder emails in their own time zone. Advisors are emailed about bookings and changes. Every change is written to **Scheduling audit events**. Because appointments are records, Twenty workflows can trigger on them directly (created, updated, status changes) for anything further, such as SMS or Slack.
+Customers get a confirmation with an ICS invitation and a manage link, plus move, cancel and reminder emails in their own time zone. A reminder counts as sent only once the email went out, and moving an appointment starts its reminders again. Deleting an appointment frees its time and removes its calendar events without emailing anyone. Advisors are emailed about bookings and changes; a calendar write that fails never stops these emails. Every change is written to **Scheduling audit events**. Because appointments are records, Twenty workflows can trigger on them directly (created, updated, status changes) for anything further, such as SMS or Slack.
 
 ## Settings
 
@@ -169,7 +169,7 @@ Never remove an object or field from the app: the server deletes undeclared ones
 
 ## Tests
 
-`src/__tests__/engine.test.ts` covers the engine (time zones, DST, overrides, cross-midnight, buffers, limits, strategies, geography, travel). `tests/scheduling/` at the repository root holds the end-to-end and browser suites, run against a real Twenty server with a Google and Microsoft double (`mock-calendar-providers.mjs`). See its README.
+`src/__tests__/engine.test.ts` covers the engine (time zones, DST, overrides, cross-midnight, buffers, limits, strategies, geography, travel); `rate-limit.test.ts` the rate limit under simultaneous requests; `scheduling-rules.test.ts` seats, the public location grid, reminders, sync back-off and the job routes. `tests/scheduling/` at the repository root holds the end-to-end and browser suites, run against a real Twenty server with a Google and Microsoft double (`mock-calendar-providers.mjs`). See its README.
 
 ## Not included yet
 

@@ -8,6 +8,7 @@ import { Text } from 'twenty-ui/primitives/typography';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { IDS } from 'src/constants/ids';
+import { FAST_POLL_MS, pollChanges, pollDelay, unreadPollDelay } from 'src/lib/rules';
 import {
   callChat,
   CheckboxLabel,
@@ -260,8 +261,10 @@ const initials = (name: string) =>
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('') || '?';
-const time = (iso: string) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
-const day = (iso: string) => new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(iso));
+const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+const DAY_FORMAT = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+const time = (iso: string) => TIME_FORMAT.format(new Date(iso));
+const day = (iso: string) => DAY_FORMAT.format(new Date(iso));
 
 // Highlights "@Name" for each mentioned member; everything else stays plain text.
 const renderText = (text: string, mentions: string[], members: Map<string, Member>, me: string) => {
@@ -308,7 +311,15 @@ const Chat = () => {
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [mentionable, setMentionable] = useState<Set<string> | null>(null);
   const latest = useRef<string | null>(null);
-  const lastPoll = useRef<number>(Date.now());
+  const serverClock = useRef<string | null>(null);
+  const shownMessages = useRef<Message[]>([]);
+  shownMessages.current = messages;
+  const quietSince = useRef(Date.now());
+  const wakePolling = useRef<() => void>(() => {});
+  const noteActivity = () => {
+    quietSince.current = Date.now();
+    wakePolling.current();
+  };
   const activeRef = useRef<string | null>(null);
 
   const members = new Map((boot?.members ?? []).map((member) => [member.id, member]));
@@ -338,10 +349,12 @@ const Chat = () => {
     setLinkResults([]);
     setMentionable(null);
     latest.current = null;
-    lastPoll.current = Date.now();
+    serverClock.current = null;
+    noteActivity();
     try {
-      const result = await callChat<{ messages: Message[]; hasMore: boolean; joined: boolean }>({ action: 'messages', channelId });
+      const result = await callChat<{ messages: Message[]; hasMore: boolean; joined: boolean; now?: string }>({ action: 'messages', channelId });
       if (activeRef.current !== channelId) return;
+      serverClock.current = result.now ?? null;
       setMessages(result.messages);
       setHasMore(result.hasMore);
       setJoined(result.joined);
@@ -372,41 +385,74 @@ const Chat = () => {
     load();
   }, []);
 
-  // Polling: new messages in the open channel every few seconds, unread counts less often.
+  const pollOpenChannel = async (channelId: string) => {
+    // A few seconds of overlap catch messages saved just before the last poll; rows already shown are skipped.
+    const after = latest.current ? new Date(Date.parse(latest.current) - 5000).toISOString() : undefined;
+    const changesSince = serverClock.current ? new Date(Date.parse(serverClock.current) - 10_000).toISOString() : undefined;
+    const result = await callChat<{ messages: Message[]; changed?: Message[]; removed?: string[]; cursor?: string; now?: string }>({
+      action: 'messages',
+      channelId,
+      ...(changesSince ? { changesSince } : {}),
+      ...(after ? { after } : {}),
+    });
+    if (activeRef.current !== channelId) return;
+    if (result.now) serverClock.current = result.now;
+    const { fresh, edits, gone, changedAnything } = pollChanges(shownMessages.current, result.messages, result.changed ?? [], result.removed ?? []);
+    const newest = fresh.at(-1)?.createdAt;
+    for (const candidate of [newest, result.cursor]) if (candidate && (!latest.current || candidate > latest.current)) latest.current = candidate;
+    if (!changedAnything) return;
+    quietSince.current = Date.now();
+    const edited = new Map(edits.map((message) => [message.id, message]));
+    const removed = new Set(gone);
+    setMessages((current) => {
+      const known = new Set(current.map((message) => message.id));
+      return [...current.filter((message) => !removed.has(message.id)).map((message) => edited.get(message.id) ?? message), ...fresh.filter((message) => !known.has(message.id))];
+    });
+    if (newest && latest.current) callChat({ action: 'markRead', channelId, upTo: latest.current }).catch(() => {});
+  };
+
+  // One poll at a time, each scheduled when the previous one has finished, so a slow server is never piled on.
   useEffect(() => {
-    const fast = setInterval(async () => {
+    let stopped = false;
+    let polling = false;
+    let failures = 0;
+    let nextPollAt = 0;
+    let fastTimer: ReturnType<typeof setTimeout> | undefined;
+    let slowTimer: ReturnType<typeof setTimeout> | undefined;
+    const hidden = () => typeof document !== 'undefined' && document.hidden === true;
+    const schedule = (delay: number) => {
+      clearTimeout(fastTimer);
+      nextPollAt = Date.now() + delay;
+      fastTimer = setTimeout(poll, delay);
+    };
+    const poll = async () => {
+      polling = true;
       const channelId = activeRef.current;
-      if (!channelId || (typeof document !== 'undefined' && document.hidden)) return;
-      // A few seconds of overlap catch messages saved just before the last poll; known ids are skipped.
-      const after = latest.current ? new Date(Date.parse(latest.current) - 5000).toISOString() : undefined;
-      const changesSince = new Date(lastPoll.current - 10_000).toISOString();
-      lastPoll.current = Date.now();
-      try {
-        const result = await callChat<{ messages: Message[]; changed?: Message[]; removed?: string[] }>({ action: 'messages', channelId, changesSince, ...(after ? { after } : {}) });
-        if (activeRef.current !== channelId) return;
-        const changed = new Map((result.changed ?? []).map((message) => [message.id, message]));
-        const removed = new Set(result.removed ?? []);
-        const fresh = result.messages;
-        if (fresh.length === 0 && changed.size === 0 && removed.size === 0) return;
-        setMessages((current) => {
-          const known = new Set(current.map((message) => message.id));
-          return [...current.filter((message) => !removed.has(message.id)).map((message) => changed.get(message.id) ?? message), ...fresh.filter((message) => !known.has(message.id) && !removed.has(message.id))];
-        });
-        const newest = fresh[fresh.length - 1]?.createdAt;
-        if (newest) {
-          if (!latest.current || newest > latest.current) latest.current = newest;
-          callChat({ action: 'markRead', channelId, upTo: latest.current }).catch(() => {});
+      if (channelId && !hidden()) {
+        try {
+          await pollOpenChannel(channelId);
+          failures = 0;
+        } catch {
+          failures += 1;
         }
-      } catch {
-        // The next poll tries again.
       }
-    }, 4000);
-    const slow = setInterval(() => {
-      if (!(typeof document !== 'undefined' && document.hidden)) refreshChannels();
-    }, 15000);
+      polling = false;
+      if (!stopped) schedule(pollDelay(Date.now() - quietSince.current, failures));
+    };
+    const refreshUnread = () => {
+      if (!hidden()) refreshChannels();
+      if (!stopped) slowTimer = setTimeout(refreshUnread, unreadPollDelay(Date.now() - quietSince.current));
+    };
+    wakePolling.current = () => {
+      if (!stopped && !polling && nextPollAt - Date.now() > FAST_POLL_MS) schedule(FAST_POLL_MS);
+    };
+    schedule(FAST_POLL_MS);
+    slowTimer = setTimeout(refreshUnread, unreadPollDelay(0));
     return () => {
-      clearInterval(fast);
-      clearInterval(slow);
+      stopped = true;
+      clearTimeout(fastTimer);
+      clearTimeout(slowTimer);
+      wakePolling.current = () => {};
     };
   }, []);
 
@@ -445,6 +491,7 @@ const Chat = () => {
     setSending(true);
     const mentions = draftMentions.filter((id) => draft.includes(`@${members.get(id)?.name ?? ''}`));
     try {
+      noteActivity();
       const { message } = await callChat<{ message: Message | null }>({ action: 'post', channelId, text: draft, mentions, links: draftLinks });
       // The poll cursor is left alone: moving it here would skip messages others posted since the last poll.
       if (message && activeRef.current === channelId) setMessages((current) => (current.some((existing) => existing.id === message.id) ? current : [...current, message]));
@@ -699,7 +746,10 @@ const Chat = () => {
                   value={draft}
                   maxLength={4000}
                   placeholder={`Message ${active.kind === 'CHANNEL' ? `#${active.name}` : titleOf(active)}. Type @ to mention someone.`}
-                  onChange={(event) => setDraft(event.target.value)}
+                  onChange={(event) => {
+                    setDraft(event.target.value);
+                    noteActivity();
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.shiftKey && mentionChoices.length === 0) {
                       event.preventDefault();

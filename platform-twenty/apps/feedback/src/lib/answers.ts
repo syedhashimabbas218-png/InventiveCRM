@@ -1,6 +1,6 @@
 import { gql, nodes } from 'src/lib/api';
 import { isValidScore, reviewLinkFor, shouldAlert } from 'src/lib/nps';
-import { type FeedbackRequest, REQUEST_FIELDS, updateRequest } from 'src/lib/requests';
+import { type FeedbackRequest, REQUEST_FIELDS, updateRequest, updateRequestsWhere } from 'src/lib/requests';
 import { sendAlertEmail } from 'src/lib/send';
 import { loadSettings } from 'src/lib/settings';
 import { parseSurveyToken, verifySurveyToken } from 'src/lib/tokens';
@@ -48,17 +48,28 @@ export const surveyInfo = async (token: string) => {
   };
 };
 
+// Every ASCII punctuation character escaped, so a customer's comment shows as typed: no links, images or formatting.
+export const escapeMarkdown = (value: string) => value.replace(/[!-\/:-@\[-`{-~]/g, '\\$&');
+
+export const followUpTaskMarkdown = (score: number, comment: string) =>
+  `A customer gave a score of **${score}** out of 10.\n\n${comment ? `> ${comment.split('\n').map(escapeMarkdown).join('\n> ')}` : 'No comment was left.'}\n\nGet in touch while it is fresh.`;
+
+// Error messages can quote addresses; logs keep ids only.
+export const loggableError = (error: unknown) => (error instanceof Error ? error.message : String(error)).replace(/[^\s<>"'@]+@[^\s<>"'@]+/g, '<address>').slice(0, 300);
+
 const createFollowUpTask = async (request: FeedbackRequest, score: number, comment: string) => {
   const { createTask } = await gql<{ createTask: { id: string } }>(`mutation($data: TaskCreateInput!) { createTask(data: $data) { id } }`, {
     data: {
       title: `Follow up: feedback score ${score} from ${request.name}`,
       status: 'TODO',
       dueAt: new Date(Date.now() + 24 * 3600_000).toISOString(),
-      bodyV2: { markdown: `A customer gave a score of **${score}** out of 10.\n\n${comment ? `> ${comment.replace(/\n/g, '\n> ')}` : 'No comment was left.'}\n\nGet in touch while it is fresh.` },
+      bodyV2: { markdown: followUpTaskMarkdown(score, comment) },
     },
   });
   if (request.personId)
-    await gql(`mutation($data: TaskTargetCreateInput!) { createTaskTarget(data: $data) { id } }`, { data: { taskId: createTask.id, targetPersonId: request.personId } });
+    await gql(`mutation($data: TaskTargetCreateInput!) { createTaskTarget(data: $data) { id } }`, { data: { taskId: createTask.id, targetPersonId: request.personId } }).catch((error: unknown) =>
+      console.error(`feedback: task ${createTask.id} for request ${request.id} could not be linked to the customer: ${loggableError(error)}`),
+    );
   return createTask.id;
 };
 
@@ -69,15 +80,24 @@ export const submitAnswer = async (body: Record<string, unknown>, now = Date.now
   if (!isValidScore(score)) throw new PublicError(400, 'INVALID', 'Choose a score from 0 to 10.');
   const comment = text(body.comment, 2000).trim();
   const settings = await loadSettings();
-  const firstAnswer = request.status !== 'ANSWERED';
   const reviewUrl = reviewLinkFor(score, settings?.promoterScore, settings?.googleReviewUrl);
+  const answer = { status: 'ANSWERED', score, comment, answeredAt: new Date(now).toISOString(), ...(reviewUrl ? { reviewLinkShown: true } : {}) };
 
-  await updateRequest(request.id, { status: 'ANSWERED', score, comment, answeredAt: new Date(now).toISOString(), ...(reviewUrl ? { reviewLinkShown: true } : {}) });
+  // Only the call whose update moves the request from SENT to ANSWERED is the first answer, even when two arrive at once.
+  const firstAnswer = (await updateRequestsWhere({ id: { eq: request.id }, status: { eq: 'SENT' } }, answer)).length > 0;
+  if (!firstAnswer && (await updateRequestsWhere({ id: { eq: request.id }, status: { eq: 'ANSWERED' } }, answer)).length === 0)
+    throw new PublicError(400, 'CLOSED', 'This survey is closed. Thank you for your time.');
 
   // Alerts go out once, on the first unhappy answer; changing the answer later does not repeat them.
   if (firstAnswer && shouldAlert(score, settings?.alertBelowScore) && !request.followUpTaskId) {
-    const taskId = await createFollowUpTask(request, score, comment).catch(() => '');
-    if (taskId) await updateRequest(request.id, { followUpTaskId: taskId });
+    const taskId = await createFollowUpTask(request, score, comment).catch((error: unknown) => {
+      console.error(`feedback: follow-up task for request ${request.id} could not be created: ${loggableError(error)}`);
+      return '';
+    });
+    if (taskId)
+      await updateRequest(request.id, { followUpTaskId: taskId }).catch((error: unknown) =>
+        console.error(`feedback: task ${taskId} could not be saved on request ${request.id}: ${loggableError(error)}`),
+      );
     const to = (settings?.alertEmails ?? '')
       .split(',')
       .map((address) => address.trim())
@@ -86,8 +106,14 @@ export const submitAnswer = async (body: Record<string, unknown>, now = Date.now
     await sendAlertEmail({
       to,
       subject: `Unhappy customer: score ${score} from ${request.name}`,
-      text: [`${request.name} gave a score of ${score} out of 10.`, '', comment ? `Comment: ${comment}` : 'No comment was left.', '', 'A follow-up task has been created in the CRM.'].join('\n'),
-    }).catch(() => undefined);
+      text: [
+        `${request.name} gave a score of ${score} out of 10.`,
+        '',
+        comment ? `Comment: ${comment}` : 'No comment was left.',
+        '',
+        taskId ? 'A follow-up task has been created in the CRM.' : 'The follow-up task could not be created in the CRM, so please follow up directly.',
+      ].join('\n'),
+    }).catch((error: unknown) => console.error(`feedback: alert email for request ${request.id} failed: ${loggableError(error)}`));
   }
   return { thanks: true, reviewUrl };
 };

@@ -13,7 +13,7 @@ This repository holds only our patches, scripts and brand config. It does not co
 
 ## Modification notice (AGPLv3 section 5a)
 
-This is a modified version of Twenty. Modified from 2 November 2026 onwards by InventiveWeb.studio. Each release tag `X.Y.Z-pN` in this repository names the upstream tag `twenty/vX.Y.Z` it was built from; the changes are exactly what `branding/apply.mjs` and `branding/overrides/*.patch` produce, and the `rebrand-report.json` attached to each workflow run lists every changed file and line.
+This is a modified version of Twenty. Modified from 2 November 2026 onwards by InventiveWeb.studio. Each release tag `X.Y.Z-pN` in this repository names the upstream tag `twenty/vX.Y.Z` it was built from; the changes are exactly what `branding/apply.mjs` and `branding/overrides/*.patch` produce, and the `rebrand-report.json` of each build (attached to the workflow run, or kept next to the server's update logs) lists every changed file and line.
 
 What we change: the product name in user-visible strings and AI prompts; the Twenty logo, PWA icons and social card (replaced by our assets); the login and email footers (our terms, privacy and company details, plus the About text); a Settings > General About section; documentation links (to our `documentationUrl`); neutral example values in settings; and removal of content that describes Twenty itself rather than our service: the card linking to Twenty's ChatGPT app, Twenty's SOC2/GDPR badges in onboarding, and the Twenty community, partner and changelog links in Settings > Community.
 
@@ -50,9 +50,11 @@ deploy/
   docker-compose.yml  server, worker, Postgres, Redis, our outgoing mail server (Postfix with DKIM), the Word-to-PDF
                       converter (Gotenberg) and, with --profile maps, road routing (OSRM) and geocoding (Nominatim)
   .env.example        multi-workspace settings; copy to .env and fill in secrets
-  ops/                backup, verify-backup (restore drill), upgrade (auto-rollback), restore, smoke-test
-  ops.env.example     backup location, retention, offsite copy and smoke-test keys for ops/
+  ops/                backup, verify-backup (restore drill), upgrade (auto-rollback), restore, smoke-test, and the weekly
+                      auto-update: build-image, rehearse-data, rehearse-apps (it prepares an upgrade, never applies it)
+  ops.env.example     backup location, retention, offsite copy, smoke-test keys and the test stack for ops/
 UPDATES.md            update rules: how upgrades, backups and rollback work, and the release checklists
+docs/                 architecture-audit.md: how the apps fit together, measured limits, open recommendations
 ../.github/workflows/platform-twenty-*.yml   build workflow (manual) and weekly upstream watch, at the repository root where GitHub runs them
 ```
 
@@ -87,7 +89,7 @@ One instance hosts every client. Each client gets its own workspace at `<subdoma
 3. Run `docker compose up -d` in `deploy/`. Migrations run when the server starts.
 4. Sign up first: the first account on a fresh instance becomes server admin. With `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS=true`, only server admins can create workspaces; clients join by invitation.
 5. Keep `LOGIC_FUNCTION_TYPE=LOCAL` (already in `.env.example`) so app functions such as invoice PDFs run.
-6. Copy `deploy/ops.env.example` to `deploy/ops.env`, install the cron lines in `deploy/ops/crontab.example` (nightly backup, monthly restore drill) and set `BACKUP_OFFSITE_COMMAND`. Keep `.env` in the password manager: backups cannot be restored without its `ENCRYPTION_KEY`.
+6. Copy `deploy/ops.env.example` to `deploy/ops.env`, install the cron lines in `deploy/ops/crontab.example` (nightly backup, monthly restore drill, weekly update check) and set `BACKUP_OFFSITE_COMMAND`. Keep `.env` in the password manager: backups cannot be restored without its `ENCRYPTION_KEY`.
 7. Mail: the `mail` service sends system emails and documents sent "from our server". Before going live, publish SPF, DKIM (printed in the mail container's log on first start), DMARC and a PTR record for each sender domain, or set `MAIL_RELAYHOST` if the host blocks port 25.
 8. Scheduling maps (optional): prepare the map data and start the `maps` profile as described in `apps/scheduling/README.md`.
 
@@ -103,7 +105,7 @@ Until the domain points at the server, run it on `localhost` and reach it throug
 4. The worker borrows the server container's network: if the server restarts on its own, run `docker compose restart worker`.
 5. To go live, set `SERVER_URL` back to `https://crm.inventiveweb.studio`, delete the `COMPOSE_FILE` line and run `docker compose up -d`.
 
-Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restore.sh`; read [UPDATES.md](UPDATES.md) first.
+Upgrades and rollbacks go through `deploy/ops/upgrade.sh` and `deploy/ops/restore.sh`; read [UPDATES.md](UPDATES.md) first. `deploy/ops/auto-update.sh --status` says whether a new Twenty release has been built and rehearsed and is waiting to be applied.
 
 ## Tests
 

@@ -98,9 +98,8 @@ const updateMemberships = (rows: Membership[], data: Record<string, unknown>) =>
 // Members read and write; anyone may look into a public channel before joining it.
 const requireAccess = async (channelId: unknown, memberId: string, mode: 'read' | 'write') => {
   if (!isUuid(channelId)) throw new ChatError('Choose a channel.');
-  const channel = await getChannel(channelId);
+  const [channel, own] = await Promise.all([getChannel(channelId), ownRowsIn(channelId, memberId)]);
   if (!channel) throw new ChatError('This channel no longer exists.', 404);
-  const own = await ownRowsIn(channelId, memberId);
   if (own.length === 0 && !(mode === 'read' && channel.kind === 'CHANNEL' && channel.visibility === 'PUBLIC')) throw new ChatError('You are not in this channel.', 403);
   if (mode === 'write' && channel.archived) throw new ChatError('This channel is archived.');
   return { channel, own };
@@ -122,17 +121,44 @@ const ensureGeneral = async (memberId: string) => {
   await addMembership(general.id, memberId);
 };
 
-// Counting is skipped for channels with nothing new, which is most of them on most polls.
-const unreadCount = async (row: Membership, channel: RawChannel, memberId: string) => {
-  const since = row.lastReadAt ?? '1970-01-01T00:00:00.000Z';
-  if (!channel.lastMessageAt || channel.lastMessageAt <= since) return 0;
-  return (
+const NEVER_READ = '1970-01-01T00:00:00.000Z';
+const UNREAD_SCAN = 1000;
+
+const countUnreadIn = async (row: Membership, memberId: string) =>
+  (
     await gql<{ chatMessages: { totalCount: number } }>(`query($channel: UUID, $since: DateTime, $me: String) { chatMessages(filter: { channelId: { eq: $channel }, createdAt: { gt: $since }, authorMemberId: { neq: $me } }) { totalCount } }`, {
       channel: row.channelId,
-      since,
+      since: row.lastReadAt ?? NEVER_READ,
       me: memberKey(memberId),
     })
   ).chatMessages.totalCount;
+
+// Channels with nothing new are skipped; the rest are counted from one scan of the newest messages. Only when that
+// scan is full can it miss older unread messages, and then the channels it did not reach are counted one by one.
+const unreadCounts = async (channels: RawChannel[], rows: Map<string, Membership>, memberId: string) => {
+  const counts = new Map<string, number>();
+  const pending = channels.flatMap((channel) => {
+    const row = rows.get(channel.id);
+    return row && channel.lastMessageAt && channel.lastMessageAt > (row.lastReadAt ?? NEVER_READ) ? [row] : [];
+  });
+  if (pending.length === 0) return counts;
+  const oldest = pending.reduce((earliest, row) => ((row.lastReadAt ?? NEVER_READ) < earliest ? (row.lastReadAt ?? NEVER_READ) : earliest), new Date().toISOString());
+  const scanned = nodes(
+    (
+      await gql<{ chatMessages: { edges: { node: { channelId: string; createdAt: string } }[] } }>(
+        `query($channels: [UUID], $since: DateTime, $me: String) { chatMessages(filter: { channelId: { in: $channels }, createdAt: { gt: $since }, authorMemberId: { neq: $me } }, orderBy: [{ createdAt: DescNullsLast }], first: ${UNREAD_SCAN}) { edges { node { channelId createdAt } } } }`,
+        { channels: pending.map((row) => row.channelId), since: oldest, me: memberKey(memberId) },
+      )
+    ).chatMessages,
+  );
+  for (const message of scanned)
+    if (message.createdAt > (rows.get(message.channelId)?.lastReadAt ?? NEVER_READ)) counts.set(message.channelId, (counts.get(message.channelId) ?? 0) + 1);
+  if (scanned.length === UNREAD_SCAN) {
+    const missed = pending.filter((row) => !counts.has(row.channelId));
+    const exact = await Promise.all(missed.map((row) => countUnreadIn(row, memberId)));
+    missed.forEach((row, index) => counts.set(row.channelId, exact[index] ?? 0));
+  }
+  return counts;
 };
 
 const channelsFor = async (memberId: string, members: Member[]) => {
@@ -148,8 +174,8 @@ const channelsFor = async (memberId: string, members: Member[]) => {
       const id = keys.get(row.workspaceMemberId);
       if (id && id !== memberId && isOwnMembership(row, id)) partners.set(row.channelId, id);
     }
-  const unread = await Promise.all(channels.map((channel) => unreadCount(rows.get(channel.id) as Membership, channel, memberId)));
-  return channels.map((channel, index) => {
+  const unread = await unreadCounts(channels, rows, memberId);
+  return channels.map((channel) => {
     const row = rows.get(channel.id) as Membership;
     return {
       id: channel.id,
@@ -159,7 +185,7 @@ const channelsFor = async (memberId: string, members: Member[]) => {
       visibility: channel.visibility,
       partnerId: channel.kind === 'DIRECT' ? (partners.get(channel.id) ?? memberId) : null,
       lastMessageAt: channel.lastMessageAt,
-      unread: unread[index],
+      unread: unread.get(channel.id) ?? 0,
       unreadMentions: row.unreadMentions ?? 0,
       muted: Boolean(row.muted),
     };
@@ -179,17 +205,17 @@ const openContent = (raw: RawMessage): Content | null => {
   }
 };
 
-// Messages that do not decrypt were not written by this app (or the secret changed) and are left out.
+// Messages that do not decrypt were not written by this app (or the secret changed) and are left out. One that does
+// was written for its author, so it stays when that person has left the workspace and shows as a former member.
 const toMessage = (raw: RawMessage, keys: Map<string, string>) => {
   const content = openContent(raw);
-  const authorId = keys.get(raw.authorMemberId);
-  if (!content || !authorId) return null;
-  return { id: raw.id, createdAt: raw.createdAt, authorId, text: content.text, mentions: content.mentions, links: content.links, editedAt: raw.editedAt };
+  if (!content) return null;
+  return { id: raw.id, createdAt: raw.createdAt, authorId: keys.get(raw.authorMemberId) ?? '', text: content.text, mentions: content.mentions, links: content.links, editedAt: raw.editedAt };
 };
 
 const PAGE = 50;
 
-const loadMessages = async (channelId: string, keys: Map<string, string>, { after, before }: { after?: string; before?: string }) => {
+const loadMessages = async (channelId: string, keys: Promise<Map<string, string>>, { after, before }: { after?: string; before?: string }) => {
   const filter = after ? `, createdAt: { gt: $at }` : before ? `, createdAt: { lt: $at }` : '';
   const at = after ?? before ?? null;
   const raw = nodes(
@@ -201,18 +227,20 @@ const loadMessages = async (channelId: string, keys: Map<string, string>, { afte
     ).chatMessages,
   );
   const ordered = after ? raw : raw.reverse();
-  return { messages: ordered.map((message) => toMessage(message, keys)).filter((message) => message !== null), hasMore: !after && raw.length === PAGE };
+  const known = await keys;
+  // The client moves on from the newest row read, shown or not, so rows that cannot be shown never stall its polling.
+  const cursor = after ? raw.at(-1)?.createdAt : undefined;
+  return { messages: ordered.map((message) => toMessage(message, known)).filter((message) => message !== null), hasMore: !after && raw.length === PAGE, ...(cursor ? { cursor } : {}) };
 };
 
 // Edits and deletions since the client's last poll, so every open screen catches up.
-const changesSince = async (channelId: string, keys: Map<string, string>, since: string) => {
-  const edited = nodes(
-    (await gql<{ chatMessages: { edges: { node: RawMessage }[] } }>(`query($channel: UUID, $since: DateTime) { chatMessages(filter: { channelId: { eq: $channel }, editedAt: { gt: $since } }, first: 100) { edges { node { ${MESSAGE_FIELDS} } } } }`, { channel: channelId, since })).chatMessages,
-  );
-  const removed = nodes(
-    (await gql<{ chatMessages: { edges: { node: { id: string } }[] } }>(`query($channel: UUID, $since: DateTime) { chatMessages(filter: { channelId: { eq: $channel }, deletedAt: { gt: $since } }, first: 100) { edges { node { id } } } }`, { channel: channelId, since })).chatMessages,
-  );
-  return { changed: edited.map((message) => toMessage(message, keys)).filter((message) => message !== null), removed: removed.map((message) => message.id) };
+const changesSince = async (channelId: string, keys: Promise<Map<string, string>>, since: string) => {
+  const [edited, removed] = await Promise.all([
+    gql<{ chatMessages: { edges: { node: RawMessage }[] } }>(`query($channel: UUID, $since: DateTime) { chatMessages(filter: { channelId: { eq: $channel }, editedAt: { gt: $since } }, first: 100) { edges { node { ${MESSAGE_FIELDS} } } } }`, { channel: channelId, since }),
+    gql<{ chatMessages: { edges: { node: { id: string } }[] } }>(`query($channel: UUID, $since: DateTime) { chatMessages(filter: { channelId: { eq: $channel }, deletedAt: { gt: $since } }, first: 100) { edges { node { id } } } }`, { channel: channelId, since }),
+  ]);
+  const known = await keys;
+  return { changed: nodes(edited.chatMessages).map((message) => toMessage(message, known)).filter((message) => message !== null), removed: nodes(removed.chatMessages).map((message) => message.id) };
 };
 
 const isoOrUndefined = (value: unknown) => (typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? new Date(value).toISOString() : undefined);
@@ -227,13 +255,18 @@ const bootstrap: Handler = async (_body, memberId) => {
 
 const channels: Handler = async (_body, memberId) => ({ channels: await channelsFor(memberId, await listMembers()) });
 
+// The server's clock is returned so the next poll asks for changes since then, whatever the browser's clock says.
 const messages: Handler = async (body, memberId) => {
+  const now = new Date().toISOString();
+  const keys = listMembers().then(memberIdsByKey);
+  keys.catch(() => undefined);
   const { channel, own } = await requireAccess(body.channelId, memberId, 'read');
-  const keys = memberIdsByKey(await listMembers());
-  const after = isoOrUndefined(body.after);
-  const result = await loadMessages(channel.id, keys, { after, before: isoOrUndefined(body.before) });
   const since = isoOrUndefined(body.changesSince);
-  return { ...result, ...(since ? await changesSince(channel.id, keys, since) : {}), joined: own.length > 0 };
+  const [result, changes] = await Promise.all([
+    loadMessages(channel.id, keys, { after: isoOrUndefined(body.after), before: isoOrUndefined(body.before) }),
+    since ? changesSince(channel.id, keys, since) : Promise.resolve({}),
+  ]);
+  return { ...result, ...changes, joined: own.length > 0, now };
 };
 
 const recentPostCount = async (memberId: string) => {
@@ -266,7 +299,8 @@ const post: Handler = async (body, memberId) => {
     data: { id, name: 'Message', channelId: channel.id, authorMemberId, body: encryptText(JSON.stringify({ text, mentions, links }), messageContext({ id, channelId: channel.id, authorMemberId })) },
   });
   const now = created.createChatMessage.createdAt;
-  await gql(`mutation($id: UUID!, $data: ChatChannelUpdateInput!) { updateChatChannel(id: $id, data: $data) { id } }`, { id: channel.id, data: { lastMessageAt: now } });
+  // Two posts at once must not move it backwards, or the later message would not count as unread.
+  await gql(`mutation($id: UUID, $now: DateTime) { updateChatChannels(filter: { id: { eq: $id }, or: [{ lastMessageAt: { is: NULL } }, { lastMessageAt: { lt: $now } }] }, data: { lastMessageAt: $now }) { id } }`, { id: channel.id, now });
   for (const mentioned of mentions) {
     const existing = rows.find((row) => row.workspaceMemberId === memberKey(mentioned) && isOwnMembership(row, mentioned));
     if (existing) await updateMemberships([existing], { unreadMentions: (existing.unreadMentions ?? 0) + 1 });

@@ -170,3 +170,7 @@ export const checkQuote = ({
   });
   return issues;
 };
+
+// Issues to fix holds one problem per line; this swaps the line starting with `prefix` for `line`, or drops it when null.
+export const replaceIssueLine = (issues: string | null, prefix: string, line: string | null) =>
+  [...(issues ?? '').split('\n').filter((existing) => existing && !existing.startsWith(prefix)), ...(line ? [line] : [])].join('\n');

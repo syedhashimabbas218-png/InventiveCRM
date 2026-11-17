@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type BusinessProfile } from 'src/lib/compliance';
-import { buildEmail, channelsFor, type SendableDocument, toE164, verifyWhatsAppSignature } from 'src/lib/delivery';
+import { buildEmail, channelsFor, escapeHtml, requestedChannels, type SendableDocument, toE164, verifyWhatsAppSignature } from 'src/lib/delivery';
 
 const profile = { id: 'p', tradingName: 'Bright Electrical', legalName: 'Bright Electrical Ltd', emailMessage: '' } as BusinessProfile;
 
@@ -14,6 +14,7 @@ const invoice: SendableDocument = {
   number: 'INV-0007',
   status: 'ISSUED',
   totalPence: 123456,
+  amountDuePence: 123456,
   issueDate: '2026-11-03',
   dueDate: '2026-12-03',
   validUntil: null,
@@ -44,6 +45,19 @@ describe('document emails', () => {
     expect(email.html).toContain('Pay by BACS &lt;thanks&gt;');
   });
 
+  it('asks only for what is still owed after a part payment or credit note', () => {
+    const partPaid = { ...invoice, status: 'PART_PAID', amountDuePence: 23456, paymentUrl: 'https://buy.stripe.com/test_1' };
+    const reminder = buildEmail(partPaid, profile, { reminder: true });
+    expect(reminder.text).toContain('£234.56 of invoice INV-0007 for £1,234.56');
+    expect(reminder.html).toContain('Pay £234.56 now');
+    expect(buildEmail(partPaid, profile, { reminder: false, paymentLink: true }).text).toContain('pay invoice INV-0007 (£234.56) securely online');
+    expect(buildEmail(invoice, profile, { reminder: true }).text).toContain('that invoice INV-0007 for £1,234.56');
+  });
+
+  it('escapes quotes so a value cannot leave an HTML attribute', () => {
+    expect(escapeHtml(`"><img src=x onerror='alert(1)'>`)).toBe('&quot;&gt;&lt;img src=x onerror=&#39;alert(1)&#39;&gt;');
+  });
+
   it('gives a quote its validity date', () => {
     const email = buildEmail({ ...invoice, type: 'QUOTE', number: 'QUO-0002', dueDate: null, validUntil: '2026-12-01' }, profile, { reminder: false });
     expect(email.subject).toBe('Quote QUO-0002 from Bright Electrical');
@@ -63,6 +77,27 @@ describe('WhatsApp numbers', () => {
     expect(channelsFor(invoice.recipient)).toEqual(['EMAIL']);
     expect(channelsFor({ ...invoice.recipient!, preferredChannel: 'EMAIL_AND_WHATSAPP' })).toEqual(['EMAIL', 'WHATSAPP']);
     expect(channelsFor(null)).toEqual(['EMAIL']);
+  });
+});
+
+describe('requested channels', () => {
+  it("uses the contact's preferred channels when none are given", () => {
+    expect(requestedChannels(undefined)).toBeUndefined();
+    expect(requestedChannels(null)).toBeUndefined();
+    expect(requestedChannels([])).toBeUndefined();
+    expect(requestedChannels('')).toBeUndefined();
+  });
+
+  it('sends on each channel at most once', () => {
+    expect(requestedChannels(Array.from({ length: 500 }, () => 'EMAIL'))).toEqual(['EMAIL']);
+    expect(requestedChannels(['WHATSAPP', 'EMAIL', 'WHATSAPP'])).toEqual(['EMAIL', 'WHATSAPP']);
+  });
+
+  it('refuses anything other than EMAIL and WHATSAPP', () => {
+    expect(requestedChannels(['EMAIL', 'SMS'])).toBeNull();
+    expect(requestedChannels(['email'])).toBeNull();
+    expect(requestedChannels('EMAIL')).toBeNull();
+    expect(requestedChannels([{ channel: 'EMAIL' }])).toBeNull();
   });
 });
 

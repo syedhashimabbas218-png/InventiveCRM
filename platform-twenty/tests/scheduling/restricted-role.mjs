@@ -3,7 +3,7 @@
 // Usage: node restricted-role.mjs <state file from setup.mjs> <api key file>
 import { readFileSync } from 'node:fs';
 
-import { admin, apiClient, assert, keyClient, summary, userToken, waitFor } from './lib.mjs';
+import { admin, apiClient, assert, booking, keyClient, summary, userToken, waitFor } from './lib.mjs';
 
 const [stateFile, keyFile] = process.argv.slice(2);
 const state = JSON.parse(readFileSync(stateFile, 'utf8'));
@@ -13,6 +13,9 @@ const bobToken = await userToken(W, 'bob@inventiveweb.test', 'Bob-Pass-1234!');
 const asBob = apiClient(bobToken, W);
 const asAdmin = apiClient(await userToken(W, 'admin@inventiveweb.test', 'Admin-Pass-1234!'), W);
 const startedAt = new Date().toISOString();
+// Bob's first free time at least a week ahead: a fixed time collides with the main suite's bookings or the notice period.
+const from = new Date(Date.now() + 7 * 86_400_000).toISOString();
+const bookingStart = (await booking(W, { action: 'slots', slug: state.types.bobConsult, from }, { 'x-forwarded-for': '10.99.0.1' })).body?.slots?.find((slot) => slot.start >= from)?.start;
 const ROLE = 'Edit without permanent delete (test)';
 
 const { getRoles } = await asAdmin.metadata(`{ getRoles { id label workspaceMembers { id name { firstName } } } }`);
@@ -32,7 +35,7 @@ const reservations = async (appointmentId) =>
 await setBobRole(restricted.id);
 try {
   const type = (await api.gql(`query($slug: String!) { appointmentTypes(filter: { slug: { eq: $slug } }) { edges { node { id } } } }`, { slug: state.types.bobConsult })).appointmentTypes.edges[0].node;
-  const booked = await admin(W, bobToken, { action: 'manualBook', appointmentTypeId: type.id, start: '2026-11-20T14:00:00.000Z', customer: { name: 'Role Customer', email: `role.${state.run}@customers.test` } });
+  const booked = await admin(W, bobToken, { action: 'manualBook', appointmentTypeId: type.id, start: bookingStart, customer: { name: 'Role Customer', email: `role.${state.run}@customers.test` } });
   const appointmentId = booked.body?.appointmentId;
   assert('a member with the restricted role can book in Twenty', booked.status === 200 && Boolean(appointmentId), JSON.stringify(booked.body));
   const held = appointmentId ? await reservations(appointmentId) : 0;

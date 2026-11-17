@@ -20,6 +20,25 @@ export class ResendError extends Error {
   }
 }
 
+const QUOTA_CODES = ['daily_quota_exceeded', 'monthly_quota_exceeded'];
+
+export const isQuotaReached = (error: unknown) => error instanceof ResendError && QUOTA_CODES.includes(error.code);
+
+// Resend turned the whole request away before taking any of it: a rate or plan limit, or a key it no longer accepts.
+export const refusedOutright = (error: unknown) => error instanceof ResendError && (error.status === 429 || error.status === 401 || error.status === 403);
+
+// The key was used within the last 24 hours with a different body: Resend sent the first request, our record of it was lost.
+export const acceptedEarlier = (error: unknown) => error instanceof ResendError && error.status === 409 && error.code === 'invalid_idempotent_request';
+
+// The single message is wrong (bad address, missing field); the rest of the batch can still go.
+export const isInvalidMessage = (error: unknown) => error instanceof ResendError && (error.status === 400 || error.status === 422);
+
+const MAX_RETRY_WAIT_SECONDS = 10;
+
+// A short "retry after" is worth waiting for within the run; a plan quota or a long wait pauses the campaign instead.
+export const retryDelayMs = (error: unknown) =>
+  error instanceof ResendError && error.status === 429 && !isQuotaReached(error) && error.retryAfterSeconds !== null && error.retryAfterSeconds <= MAX_RETRY_WAIT_SECONDS ? error.retryAfterSeconds * 1000 : null;
+
 export const keyFingerprint = (key: string) => createHash('sha256').update(key).digest('hex').slice(0, 16);
 
 const call = async <TResult>(key: string, method: 'GET' | 'POST' | 'PATCH', path: string, body?: unknown, idempotencyKey?: string): Promise<TResult> => {
@@ -66,15 +85,12 @@ const workingConnections = async () => (await listConnections({ providerName: RE
 
 export const isKeyConnected = async (fingerprint: string) => (await workingConnections()).some((connection) => connection.externalAccountId === `resend-${fingerprint}`);
 
-export const resendKey = async () => {
-  const connections = await workingConnections();
-  return connections[connections.length - 1]?.accessToken ?? null;
-};
+// Twenty lists connections in no set order; sorting keeps every run, and every retried batch, on the same account.
+const currentConnection = async () => (await workingConnections()).sort((left, right) => left.id.localeCompare(right.id))[0] ?? null;
 
-export const connectionLabel = async () => {
-  const connections = await workingConnections();
-  return connections[connections.length - 1]?.handle ?? null;
-};
+export const resendKey = async () => (await currentConnection())?.accessToken ?? null;
+
+export const connectionLabel = async () => (await currentConnection())?.handle ?? null;
 
 export type OutgoingEmail = {
   from: string;
