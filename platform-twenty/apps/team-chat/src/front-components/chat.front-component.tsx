@@ -8,7 +8,7 @@ import { Text } from 'twenty-ui/primitives/typography';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { IDS } from 'src/constants/ids';
-import { FAST_POLL_MS, pollChanges, pollDelay, unreadPollDelay } from 'src/lib/rules';
+import { changesToApply } from 'src/lib/rules';
 import {
   callChat,
   CheckboxLabel,
@@ -314,12 +314,7 @@ const Chat = () => {
   const serverClock = useRef<string | null>(null);
   const shownMessages = useRef<Message[]>([]);
   shownMessages.current = messages;
-  const quietSince = useRef(Date.now());
-  const wakePolling = useRef<() => void>(() => {});
-  const noteActivity = () => {
-    quietSince.current = Date.now();
-    wakePolling.current();
-  };
+  const [live, setLive] = useState<'connecting' | 'on' | 'reconnecting' | 'off'>('connecting');
   const activeRef = useRef<string | null>(null);
 
   const members = new Map((boot?.members ?? []).map((member) => [member.id, member]));
@@ -350,7 +345,6 @@ const Chat = () => {
     setMentionable(null);
     latest.current = null;
     serverClock.current = null;
-    noteActivity();
     try {
       const result = await callChat<{ messages: Message[]; hasMore: boolean; joined: boolean; now?: string }>({ action: 'messages', channelId });
       if (activeRef.current !== channelId) return;
@@ -385,8 +379,8 @@ const Chat = () => {
     load();
   }, []);
 
-  const pollOpenChannel = async (channelId: string) => {
-    // A few seconds of overlap catch messages saved just before the last poll; rows already shown are skipped.
+  const refreshOpenChannel = async (channelId: string) => {
+    // A few seconds of overlap catch messages saved just before the last fetch; rows already shown are skipped.
     const after = latest.current ? new Date(Date.parse(latest.current) - 5000).toISOString() : undefined;
     const changesSince = serverClock.current ? new Date(Date.parse(serverClock.current) - 10_000).toISOString() : undefined;
     const result = await callChat<{ messages: Message[]; changed?: Message[]; removed?: string[]; cursor?: string; now?: string }>({
@@ -397,11 +391,10 @@ const Chat = () => {
     });
     if (activeRef.current !== channelId) return;
     if (result.now) serverClock.current = result.now;
-    const { fresh, edits, gone, changedAnything } = pollChanges(shownMessages.current, result.messages, result.changed ?? [], result.removed ?? []);
+    const { fresh, edits, gone, changedAnything } = changesToApply(shownMessages.current, result.messages, result.changed ?? [], result.removed ?? []);
     const newest = fresh.at(-1)?.createdAt;
     for (const candidate of [newest, result.cursor]) if (candidate && (!latest.current || candidate > latest.current)) latest.current = candidate;
     if (!changedAnything) return;
-    quietSince.current = Date.now();
     const edited = new Map(edits.map((message) => [message.id, message]));
     const removed = new Set(gone);
     setMessages((current) => {
@@ -411,48 +404,94 @@ const Chat = () => {
     if (newest && latest.current) callChat({ action: 'markRead', channelId, upTo: latest.current }).catch(() => {});
   };
 
-  // One poll at a time, each scheduled when the previous one has finished, so a slow server is never piled on.
+  // Live updates: the realtime service says which channels changed, and only a screen showing one fetches it. A
+  // dropped connection reconnects with a fresh pass and catches up; nothing asks for news on a timer.
   useEffect(() => {
     let stopped = false;
-    let polling = false;
-    let failures = 0;
-    let nextPollAt = 0;
-    let fastTimer: ReturnType<typeof setTimeout> | undefined;
-    let slowTimer: ReturnType<typeof setTimeout> | undefined;
-    const hidden = () => typeof document !== 'undefined' && document.hidden === true;
-    const schedule = (delay: number) => {
-      clearTimeout(fastTimer);
-      nextPollAt = Date.now() + delay;
-      fastTimer = setTimeout(poll, delay);
-    };
-    const poll = async () => {
-      polling = true;
+    let source: EventSource | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let unreadTimer: ReturnType<typeof setTimeout> | undefined;
+    let attempt = 0;
+    let lastEventId = '';
+    let refreshing = false;
+    let refreshAgain = false;
+    const refreshOpen = async () => {
       const channelId = activeRef.current;
-      if (channelId && !hidden()) {
-        try {
-          await pollOpenChannel(channelId);
-          failures = 0;
-        } catch {
-          failures += 1;
-        }
+      if (!channelId) return;
+      if (refreshing) {
+        refreshAgain = true;
+        return;
       }
-      polling = false;
-      if (!stopped) schedule(pollDelay(Date.now() - quietSince.current, failures));
+      refreshing = true;
+      try {
+        await refreshOpenChannel(channelId);
+      } catch {
+        // The next notice, or the catch-up after a reconnect, brings it.
+      }
+      refreshing = false;
+      if (refreshAgain) {
+        refreshAgain = false;
+        void refreshOpen();
+      }
     };
-    const refreshUnread = () => {
-      if (!hidden()) refreshChannels();
-      if (!stopped) slowTimer = setTimeout(refreshUnread, unreadPollDelay(Date.now() - quietSince.current));
+    const refreshUnreadSoon = () => {
+      if (unreadTimer) return;
+      unreadTimer = setTimeout(() => {
+        unreadTimer = undefined;
+        refreshChannels();
+      }, 800);
     };
-    wakePolling.current = () => {
-      if (!stopped && !polling && nextPollAt - Date.now() > FAST_POLL_MS) schedule(FAST_POLL_MS);
+    const reconnect = (delay?: number) => {
+      source?.close();
+      source = null;
+      if (stopped) return;
+      setLive('reconnecting');
+      attempt += 1;
+      const wait = delay ?? Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5)) * (0.5 + Math.random() / 2);
+      retry = setTimeout(() => void connect(true), wait);
     };
-    schedule(FAST_POLL_MS);
-    slowTimer = setTimeout(refreshUnread, unreadPollDelay(0));
+    const connect = async (catchUp: boolean) => {
+      const pass = await callChat<{ live: { url: string; token: string } | null }>({ action: 'livePass' })
+        .then((result) => result.live)
+        .catch(() => undefined);
+      if (stopped) return;
+      if (pass === undefined) return reconnect();
+      if (pass === null || typeof EventSource === 'undefined') return setLive('off');
+      source = new EventSource(`${pass.url}?token=${encodeURIComponent(pass.token)}&topics=chat${lastEventId ? `&lastEventId=${lastEventId}` : ''}`);
+      source.onopen = () => {
+        attempt = 0;
+        setLive('on');
+      };
+      source.addEventListener('change', (event) => {
+        const notice = event as MessageEvent<string>;
+        lastEventId = notice.lastEventId || lastEventId;
+        const data = JSON.parse(notice.data) as { kind: string; ids: string[] };
+        const aboutOpenChannel = data.kind === 'messages' && activeRef.current !== null && data.ids.includes(activeRef.current);
+        if (aboutOpenChannel) void refreshOpen();
+        // The open channel is read as it arrives, so only news about other channels changes the unread counts.
+        if (!aboutOpenChannel || data.ids.length > 1) refreshUnreadSoon();
+      });
+      source.addEventListener('resync', () => {
+        void refreshOpen();
+        refreshChannels();
+      });
+      source.addEventListener('expired', () => reconnect(0));
+      // The browser retries a dropped stream itself; a refused one (an expired pass) needs a new pass.
+      source.onerror = () => {
+        if (source?.readyState === EventSource.CLOSED) reconnect();
+        else setLive('reconnecting');
+      };
+      if (catchUp) {
+        void refreshOpen();
+        refreshChannels();
+      }
+    };
+    void connect(false);
     return () => {
       stopped = true;
-      clearTimeout(fastTimer);
-      clearTimeout(slowTimer);
-      wakePolling.current = () => {};
+      source?.close();
+      clearTimeout(retry);
+      clearTimeout(unreadTimer);
     };
   }, []);
 
@@ -491,7 +530,6 @@ const Chat = () => {
     setSending(true);
     const mentions = draftMentions.filter((id) => draft.includes(`@${members.get(id)?.name ?? ''}`));
     try {
-      noteActivity();
       const { message } = await callChat<{ message: Message | null }>({ action: 'post', channelId, text: draft, mentions, links: draftLinks });
       // The poll cursor is left alone: moving it here would skip messages others posted since the last poll.
       if (message && activeRef.current === channelId) setMessages((current) => (current.some((existing) => existing.id === message.id) ? current : [...current, message]));
@@ -685,6 +723,14 @@ const Chat = () => {
                 <Callout status="info" title={notice} onDismiss={() => setNotice('')} closeLabel="Dismiss" />
               </div>
             )}
+            {(live === 'off' || live === 'reconnecting') && (
+              <div style={{ padding: '8px 16px' }}>
+                <Callout
+                  status={live === 'off' ? 'warning' : 'info'}
+                  title={live === 'off' ? 'Live updates are not set up here, so new messages appear when you reopen the channel.' : 'Reconnecting to live updates…'}
+                />
+              </div>
+            )}
             <Timeline aria-live="polite">
               {timeline}
               {hasMore && (
@@ -746,10 +792,7 @@ const Chat = () => {
                   value={draft}
                   maxLength={4000}
                   placeholder={`Message ${active.kind === 'CHANNEL' ? `#${active.name}` : titleOf(active)}. Type @ to mention someone.`}
-                  onChange={(event) => {
-                    setDraft(event.target.value);
-                    noteActivity();
-                  }}
+                  onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.shiftKey && mentionChoices.length === 0) {
                       event.preventDefault();

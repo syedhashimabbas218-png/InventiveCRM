@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { asApplication, gql, metadata, nodes } from 'src/lib/api';
 import { channelNameKey, channelSeal, decryptText, directConversationKey, encryptText, memberKey, membershipSeal, sealMatches } from 'src/lib/crypto';
+import { type ChatChange, livePassFor, publishChatChanges } from 'src/lib/realtime';
 import { CHANNELS_PER_HOUR, channelName, cleanBody, cleanLinks, cleanMentions, isUuid, LINKABLE_OBJECTS, MESSAGES_PER_MINUTE, type RecordLink } from 'src/lib/rules';
 
 export class ChatError extends Error {
@@ -280,15 +281,19 @@ const recentPostCount = async (memberId: string) => {
 };
 
 const post: Handler = async (body, memberId) => {
-  const { channel } = await requireAccess(body.channelId, memberId, 'write');
   const text = cleanBody(body.text);
   const links = (body.verifiedLinks ?? []) as RecordLink[];
   if (!text && links.length === 0) throw new ChatError('Write a message first.');
-  if ((await recentPostCount(memberId)) >= MESSAGES_PER_MINUTE) throw new ChatError('You are sending messages very fast. Wait a moment and try again.', 429);
-
-  const members = await listMembers();
-  const keys = memberIdsByKey(members);
-  const { ids: inChannel, rows } = await channelMemberIds(channel.id, keys);
+  if (!isUuid(body.channelId)) throw new ChatError('Choose a channel.');
+  const channelId = body.channelId;
+  // Every check reads at once: each call costs a round trip, and a post should reach the others quickly.
+  const [{ channel }, recent, roster] = await Promise.all([
+    requireAccess(channelId, memberId, 'write'),
+    recentPostCount(memberId),
+    listMembers().then(async (members) => ({ members, keys: memberIdsByKey(members), ...(await channelMemberIds(channelId, memberIdsByKey(members))) })),
+  ]);
+  if (recent >= MESSAGES_PER_MINUTE) throw new ChatError('You are sending messages very fast. Wait a moment and try again.', 429);
+  const { members, keys, ids: inChannel, rows } = roster;
   // In a public channel anyone in the workspace can be mentioned; they are added so they see it.
   const mentionable = channel.kind === 'CHANNEL' && channel.visibility === 'PUBLIC' ? new Set(members.map((member) => member.id)) : inChannel;
   const mentions = cleanMentions(body.mentions, mentionable).filter((id) => id !== memberId);
@@ -299,17 +304,22 @@ const post: Handler = async (body, memberId) => {
     data: { id, name: 'Message', channelId: channel.id, authorMemberId, body: encryptText(JSON.stringify({ text, mentions, links }), messageContext({ id, channelId: channel.id, authorMemberId })) },
   });
   const now = created.createChatMessage.createdAt;
-  // Two posts at once must not move it backwards, or the later message would not count as unread.
-  await gql(`mutation($id: UUID, $now: DateTime) { updateChatChannels(filter: { id: { eq: $id }, or: [{ lastMessageAt: { is: NULL } }, { lastMessageAt: { lt: $now } }] }, data: { lastMessageAt: $now }) { id } }`, { id: channel.id, now });
-  for (const mentioned of mentions) {
-    const existing = rows.find((row) => row.workspaceMemberId === memberKey(mentioned) && isOwnMembership(row, mentioned));
-    if (existing) await updateMemberships([existing], { unreadMentions: (existing.unreadMentions ?? 0) + 1 });
-    else await addMembership(channel.id, mentioned, { unreadMentions: 1, lastReadAt: new Date(Date.parse(now) - 1).toISOString() });
-  }
-  await updateMemberships(
-    rows.filter((row) => row.workspaceMemberId === authorMemberId && isOwnMembership(row, memberId)),
-    { lastReadAt: now },
-  );
+  // The others are told as soon as the message exists; read markers and mention counts follow in parallel.
+  await Promise.all([
+    publishChatChanges([{ kind: 'messages', ids: [channel.id] }]),
+    // Two posts at once must not move it backwards, or the later message would not count as unread.
+    gql(`mutation($id: UUID, $now: DateTime) { updateChatChannels(filter: { id: { eq: $id }, or: [{ lastMessageAt: { is: NULL } }, { lastMessageAt: { lt: $now } }] }, data: { lastMessageAt: $now }) { id } }`, { id: channel.id, now }),
+    ...mentions.map((mentioned) => {
+      const existing = rows.find((row) => row.workspaceMemberId === memberKey(mentioned) && isOwnMembership(row, mentioned));
+      return existing
+        ? updateMemberships([existing], { unreadMentions: (existing.unreadMentions ?? 0) + 1 })
+        : addMembership(channel.id, mentioned, { unreadMentions: 1, lastReadAt: new Date(Date.parse(now) - 1).toISOString() });
+    }),
+    updateMemberships(
+      rows.filter((row) => row.workspaceMemberId === authorMemberId && isOwnMembership(row, memberId)),
+      { lastReadAt: now },
+    ),
+  ]);
   return { message: toMessage(created.createChatMessage, keys) };
 };
 
@@ -331,13 +341,13 @@ const edit: Handler = async (body, memberId) => {
     id: message.id,
     data: { body: encryptText(JSON.stringify({ ...content, text }), messageContext(message)), editedAt: new Date().toISOString() },
   });
-  return { message: toMessage(updated.updateChatMessage, memberIdsByKey(await listMembers())) };
+  return { message: toMessage(updated.updateChatMessage, memberIdsByKey(await listMembers())), channelId: message.channelId };
 };
 
 const remove: Handler = async (body, memberId) => {
   const { message } = await ownMessage(body.messageId, memberId);
   await gql(`mutation($id: UUID!) { deleteChatMessage(id: $id) { id } }`, { id: message.id });
-  return { removed: true };
+  return { removed: true, channelId: message.channelId };
 };
 
 // Read up to the newest message the client actually showed, never past the present.
@@ -444,7 +454,22 @@ const openDirect: Handler = async (body, memberId) => {
   return { id: channelId };
 };
 
-const HANDLERS: Record<string, Handler> = { bootstrap, channels, messages, post, edit, remove, markRead, createChannel, browse, join, leave, invite, channelMembers, updateChannel, openDirect };
+const livePass: Handler = async (_body, memberId) => ({ live: livePassFor(memberId) });
+
+const HANDLERS: Record<string, Handler> = { bootstrap, channels, messages, post, edit, remove, markRead, createChannel, browse, join, leave, invite, channelMembers, updateChannel, openDirect, livePass };
+
+// What an action changed, so every open screen of the workspace hears of it. Notices carry channel ids only;
+// posting announces itself earlier, as soon as the message exists.
+const changesOf = (action: string, body: Record<string, unknown>, result: unknown): ChatChange[] => {
+  const channelId = typeof body.channelId === 'string' ? body.channelId : null;
+  const returned = result as { channelId?: unknown; id?: unknown } | null;
+  const returnedChannel = typeof returned?.channelId === 'string' ? returned.channelId : null;
+  const createdChannel = typeof returned?.id === 'string' ? returned.id : null;
+  if ((action === 'edit' || action === 'remove') && returnedChannel) return [{ kind: 'messages', ids: [returnedChannel] }];
+  if (['join', 'leave', 'invite', 'updateChannel'].includes(action) && channelId) return [{ kind: 'channel', ids: [channelId] }];
+  if ((action === 'createChannel' || action === 'openDirect') && createdChannel) return [{ kind: 'channel', ids: [createdChannel] }];
+  return [];
+};
 
 const likeLiteral = (value: string) => `%${value.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 
@@ -505,5 +530,7 @@ export const handleChat = async (body: Record<string, unknown>) => {
   if (!handler) throw new ChatError('Unknown action.');
   const memberId = await currentMember();
   const prepared = action === 'post' ? { ...body, verifiedLinks: await verifyLinks(body.links) } : body;
-  return asApplication(() => handler(prepared, memberId));
+  const result = await asApplication(() => handler(prepared, memberId));
+  await publishChatChanges(changesOf(action, body, result));
+  return result;
 };

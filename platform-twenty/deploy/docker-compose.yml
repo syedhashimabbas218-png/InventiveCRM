@@ -25,7 +25,7 @@ x-app: &app
       condition: service_healthy
     mail:
       condition: service_healthy
-  networks: [default, mail, docs]
+  networks: [default, mail, docs, realtime]
   logging: *logging
   restart: always
 
@@ -103,6 +103,32 @@ services:
     logging: *logging
     restart: always
 
+  # Live change notices for the app screens (../realtime/README.md). Opt in with COMPOSE_PROFILES=realtime and a
+  # REALTIME_SECRET in .env. It holds no data; browsers connect through Caddy.
+  realtime:
+    profiles: [realtime]
+    image: node:26.12.1-alpine3.23@sha256:bc2b334006f15c7167bbeb2f08f28c2df883f7594a0470e04454ebe7560cfe68
+    command: ["node", "/srv/realtime/server.mjs"]
+    environment:
+      REALTIME_SECRET: ${REALTIME_SECRET:-}
+    volumes:
+      - ../realtime/server.mjs:/srv/realtime/server.mjs:ro
+    ports:
+      - "127.0.0.1:3200:3200"
+    user: node
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    networks: [realtime]
+    healthcheck:
+      test: wget -qO- http://127.0.0.1:3200/healthz
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *logging
+    restart: always
+
   # Our outgoing mail server: system emails and invoices sent "from our server". Not published outside the stack.
   mail:
     image: boky/postfix:v5.1.0-alpine@sha256:6e761312e833947f77af755072c0e77b67d298d127595470a79e9454008dd594
@@ -163,6 +189,8 @@ networks:
   mail:
   docs:
     internal: true
+  # Not internal: Caddy on the host reaches the service through its published port.
+  realtime:
 
 volumes:
   db-data:

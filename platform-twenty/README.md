@@ -55,6 +55,7 @@ deploy/
   ops.env.example     backup location, retention, offsite copy, smoke-test keys and the test stack for ops/
 UPDATES.md            update rules: how upgrades, backups and rollback work, and the release checklists
 docs/                 architecture-audit.md: how the apps fit together, measured limits, open recommendations
+realtime/             live change notices for the app screens (Server-Sent Events); replaces polling
 ../.github/workflows/platform-twenty-*.yml   build workflow (manual) and weekly upstream watch, at the repository root where GitHub runs them
 ```
 

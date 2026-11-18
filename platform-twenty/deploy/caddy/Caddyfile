@@ -12,6 +12,31 @@
 	}
 }
 
+# Live change notices for the app screens (realtime/README.md). A more specific name wins over the wildcard below,
+# so no workspace may use the subdomain "realtime". Publishing is internal only.
+realtime.crm.inventiveweb.studio {
+	tls {
+		dns cloudflare {file.{$CREDENTIALS_DIRECTORY}/cloudflare-dns-token}
+		resolvers 1.1.1.1 1.0.0.1
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+	@publish path /v1/publish
+	respond @publish 404
+	reverse_proxy 127.0.0.1:3200 {
+		flush_interval -1
+	}
+	# Stream passes travel in the query string, so they never reach the log.
+	log {
+		format filter {
+			request>uri regexp "token=[^&]+" "token=REDACTED"
+		}
+	}
+}
+
 crm.inventiveweb.studio, *.crm.inventiveweb.studio {
 	tls {
 		dns cloudflare {file.{$CREDENTIALS_DIRECTORY}/cloudflare-dns-token}

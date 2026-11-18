@@ -44,19 +44,10 @@ export const channelName = (value: unknown) =>
         .slice(0, 40)
     : '';
 
-// Polling slows down while nothing happens and after failures; any activity brings it back to the fast pace.
-export const FAST_POLL_MS = 4_000;
-export const pollDelay = (quietForMs: number, failures: number) => {
-  if (failures > 0) return Math.min(60_000, FAST_POLL_MS * 2 ** failures);
-  if (quietForMs < 60_000) return FAST_POLL_MS;
-  return quietForMs < 5 * 60_000 ? 10_000 : 30_000;
-};
-export const unreadPollDelay = (quietForMs: number) => (quietForMs < 5 * 60_000 ? 15_000 : 60_000);
+type Shown = { id: string; editedAt: string | null };
 
-type Polled = { id: string; editedAt: string | null };
-
-// What a poll changes on screen. The server repeats a few seconds of overlap, so rows already shown come back.
-export const pollChanges = <TMessage extends Polled>(shown: TMessage[], incoming: TMessage[], changed: TMessage[], removed: string[]) => {
+// What a fetch changes on screen. The server repeats a few seconds of overlap, so rows already shown come back.
+export const changesToApply = <TMessage extends Shown>(shown: TMessage[], incoming: TMessage[], changed: TMessage[], removed: string[]) => {
   const byId = new Map(shown.map((message) => [message.id, message]));
   const fresh = incoming.filter((message) => !byId.has(message.id) && !removed.includes(message.id));
   const edits = changed.filter((message) => byId.has(message.id) && byId.get(message.id)?.editedAt !== message.editedAt);

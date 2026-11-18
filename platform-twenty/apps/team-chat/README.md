@@ -12,7 +12,7 @@ contacts, companies and deals, and unread counts. Built on the Twenty apps SDK a
 | Mentions | Type @ to pick someone. In a public channel the person is added so they see it; in a private channel or direct message only members can be mentioned. Unread mentions show as a red @ count |
 | Record links | "Link a record" searches people, companies and deals with the user's own permissions. When a message is sent each link is looked up again with the sender's permissions and its label is taken from the record, so a link can neither point at something the sender cannot see nor claim to be something else |
 | Unread | Per channel, from each person's read position; opening a channel marks it read |
-| Updates | Polling, one request at a time: the open channel every 4 seconds while something is happening, slowing to 10 and then 30 seconds when the conversation is quiet, and back to 4 seconds as soon as someone types, sends or opens a channel; unread counts every 15 seconds (every minute when quiet). An idle poll changes nothing on the server. There is no push or email notification yet |
+| Updates | Live, without polling: when anyone posts, edits, deletes or changes a channel, the app tells the realtime service (`../../realtime`), every open chat screen in the workspace hears it within a moment, and only screens showing that channel fetch it. Unread counts refresh the same way. A dropped connection reconnects and catches up. Without the realtime service, new messages appear when a channel is reopened. There is no push or email notification yet |
 | Privacy | Message text, mentions and links are encrypted (AES-256-GCM) with a key derived per workspace from `CHAT_SECRET`, bound to the channel, author and message. Channel names and topics are encrypted too, and member ids are stored as keyed hashes. Every membership and channel carries a seal only the app can make, so records written straight through Twenty's API (or copied between records) are ignored: nobody gets into a channel, posts as someone else or sees a forged message that way. Every read and write goes through the app's route, which checks the sealed membership |
 | Limits | 4,000 characters and 5 links per message, 30 messages a minute and 60 new channels or direct conversations an hour per person. Authors can edit and delete their own messages |
 
@@ -29,6 +29,9 @@ Roles); the app keeps working because it uses its own role.
 | Variable | Meaning |
 |---|---|
 | `CHAT_SECRET` | 32+ random characters (`openssl rand -hex 32`). Encrypts messages. Back it up with the other secrets: changing or losing it makes every existing message unreadable |
+| `REALTIME_SECRET` | The realtime service's secret (`../../realtime/README.md`), which signs live update notices and passes |
+| `REALTIME_INTERNAL_URL` | Where the app publishes, for example `http://realtime:3200` |
+| `REALTIME_PUBLIC_URL` | Where browsers listen, for example `https://realtime.crm.inventiveweb.studio` |
 
 ## Install
 
