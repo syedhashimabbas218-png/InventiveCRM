@@ -97,6 +97,16 @@ export const createConversation = async (data: Partial<ConversationRow> & { inve
 export const updateConversation = (id: string, data: Record<string, unknown>) =>
   gql<{ updateWhatsappConversation: ConversationRow }>(`mutation($id: UUID!, $data: WhatsappConversationUpdateInput!) { updateWhatsappConversation(id: $id, data: $data) { ${CONVERSATION_FIELDS} } }`, { id, data }).then((result) => result.updateWhatsappConversation);
 
+// Applied only if InventiveChat reported it no earlier than the state already shown, so a late retry of an older event
+// cannot undo a newer one. Equal times apply, since InventiveChat's clock is in milliseconds, not commit order.
+export const updateConversationState = async (id: string, occurredAt: string, data: Record<string, unknown>) =>
+  (
+    await gql<{ updateWhatsappConversations: { id: string }[] }>(
+      `mutation($id: UUID, $at: DateTime, $data: WhatsappConversationUpdateInput!) { updateWhatsappConversations(filter: { id: { eq: $id }, or: [{ stateEventAt: { is: NULL } }, { stateEventAt: { lte: $at } }] }, data: $data) { id } }`,
+      { id, at: occurredAt, data: { ...data, stateEventAt: occurredAt } },
+    )
+  ).updateWhatsappConversations.length > 0;
+
 // Only moves forward, so an older message arriving late never replaces the newest preview.
 export const touchLastMessage = (id: string, at: string, preview: string) =>
   gql(`mutation($id: UUID, $at: DateTime, $data: WhatsappConversationUpdateInput!) { updateWhatsappConversations(filter: { id: { eq: $id }, or: [{ lastMessageAt: { is: NULL } }, { lastMessageAt: { lte: $at } }] }, data: $data) { id } }`, {

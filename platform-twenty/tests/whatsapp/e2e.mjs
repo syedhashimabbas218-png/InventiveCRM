@@ -299,6 +299,20 @@ const approval = await mock('/admin/approve', { conversationId: unknown.conversa
 const stateConversation = await conversationByIcId(unknown.conversationId);
 assert('conversation.updated shows the AI replying and that the customer is waiting', approval.results?.[0]?.status === 200 && stateConversation.handling === 'AI' && stateConversation.customerWaiting === true, JSON.stringify(stateConversation));
 
+// A retry of an older state event arriving late does not undo a newer one; an event at the same millisecond applies.
+const orderInbound = await mock('/admin/inbound', { phone: phoneOf('12'), profileName: `Olive Order${run}`, text: `Ordering ${run}` });
+await mock('/admin/approve', { conversationId: orderInbound.conversationId });
+const handlingOf = async () => (await conversationByIcId(orderInbound.conversationId))?.handling;
+const minuteAgo = new Date(Date.now() - 60_000).toISOString();
+const lateTakeover = await mock('/admin/emit', { type: 'conversation.human_takeover', data: { conversation_id: orderInbound.conversationId }, occurredAt: minuteAgo });
+const lateSnapshot = await mock('/admin/emit', { type: 'conversation.updated', data: { conversation_id: orderInbound.conversationId, customer: phoneOf('12').slice(1), state: 'HUMAN_ACTIVE', automation_replying: false, ai_paused_until: null }, occurredAt: minuteAgo });
+assert('a late takeover and a late snapshot, both older than the state shown, are accepted and ignored', lateTakeover.results?.[0]?.status === 200 && /older than the state shown/.test(lateTakeover.results[0].body) && lateSnapshot.results?.[0]?.status === 200 && /older than the state shown/.test(lateSnapshot.results[0].body) && (await handlingOf()) === 'AI', JSON.stringify({ lateTakeover: lateTakeover.results?.[0]?.body, lateSnapshot: lateSnapshot.results?.[0]?.body, handling: await handlingOf() }));
+const sameMoment = new Date().toISOString();
+await mock('/admin/emit', { type: 'conversation.human_takeover', data: { conversation_id: orderInbound.conversationId }, occurredAt: sameMoment });
+const afterTakeover = await handlingOf();
+await mock('/admin/emit', { type: 'conversation.ai_resumed', data: { conversation_id: orderInbound.conversationId }, occurredAt: sameMoment });
+assert('newer events apply, and an event at the same millisecond as the last one applies too', afterTakeover === 'PERSON' && (await handlingOf()) === 'AI', JSON.stringify({ afterTakeover, after: await handlingOf() }));
+
 // 10. Live updates: the app announces its writes to the hub and hands the browser a signed token.
 const publishes = await mock('/admin/publishes');
 if (vars.REALTIME_SECRET && publishes.length > 0) {

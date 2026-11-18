@@ -21,6 +21,7 @@ import {
   setPersonFlag,
   touchLastMessage,
   updateConversation,
+  updateConversationState,
   updateMessage,
 } from 'src/lib/records';
 import { previewOf } from 'src/lib/rules';
@@ -122,7 +123,7 @@ const handleMessage = async (message: WebhookMessage, settings: Settings, change
 
 // InventiveChat's state drives "AI replying", "A person is replying" and "Automation awaiting approval"; a hand-off
 // request stays shown until a state replaces it. A person handing back releases notifications held for them.
-const applyConversationState = async (state: ConversationState, settings: Settings, changes: ChangeSet) => {
+const applyConversationState = async (state: ConversationState, occurredAt: string, settings: Settings, changes: ChangeSet) => {
   const conversation = await ensureConversation(state, settings, changes, false);
   const handling = state.handling ?? (conversation.handling === 'HANDOFF_REQUESTED' && !state.closed ? 'HANDOFF_REQUESTED' : null);
   const update = {
@@ -131,10 +132,8 @@ const applyConversationState = async (state: ConversationState, settings: Settin
     ...(state.aiPausedUntil !== conversation.aiPausedUntil ? { aiPausedUntil: state.aiPausedUntil } : {}),
     ...(state.closed && conversation.status !== 'CLOSED' ? { status: 'CLOSED' } : {}),
   };
-  if (Object.keys(update).length) {
-    await updateConversation(conversation.id, update);
-    changes.conversation(conversation.id);
-  }
+  if (!(await updateConversationState(conversation.id, occurredAt, update))) return { ignored: 'older than the state shown', conversation: conversation.id };
+  if (Object.keys(update).length) changes.conversation(conversation.id);
   if (!state.personActive) for (const id of await releaseWaitingMessages(conversation)) changes.message(id);
   return { conversation: conversation.id };
 };
@@ -158,7 +157,7 @@ const peopleFor = async (conversations: ConversationRow[], phone: string | null)
   return [...ids];
 };
 
-export const handleWebhook = async ({ event }: ParsedWebhook, settings: Settings, changes: ChangeSet) => {
+export const handleWebhook = async ({ event, occurredAt }: ParsedWebhook, settings: Settings, changes: ChangeSet) => {
   let cachedOrigins: Promise<string[]> | null = null;
   const origins = () => (cachedOrigins ??= ownOrigins());
   switch (event.kind) {
@@ -175,11 +174,11 @@ export const handleWebhook = async ({ event }: ParsedWebhook, settings: Settings
       return { message: record.id };
     }
     case 'conversation_state':
-      return applyConversationState(event.state, settings, changes);
+      return applyConversationState(event.state, occurredAt, settings, changes);
     case 'handling': {
       const conversation = await conversationByInventiveChatId(event.conversationId);
       if (!conversation) return { ignored: 'unknown conversation' };
-      if (conversation.handling !== event.handling) await updateConversation(conversation.id, { handling: event.handling });
+      if (!(await updateConversationState(conversation.id, occurredAt, conversation.handling !== event.handling ? { handling: event.handling } : {}))) return { ignored: 'older than the state shown', conversation: conversation.id };
       changes.conversation(conversation.id);
       if (event.handling !== 'PERSON') for (const id of await releaseWaitingMessages(conversation)) changes.message(id);
       return { conversation: conversation.id };

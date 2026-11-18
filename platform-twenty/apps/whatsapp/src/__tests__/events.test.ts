@@ -31,6 +31,7 @@ describe('webhook events to records', () => {
   it('maps a received message onto a conversation and message', () => {
     const parsed = parseWebhook(envelope('message.received', { message: inbound }), undefined, NOW);
     expect(parsed?.tenantId).toBe('ten_1');
+    expect(parsed?.occurredAt).toBe('2026-11-18T09:59:00.000Z');
     if (parsed?.event.kind !== 'message') throw new Error('expected a message');
     const message = parsed.event.message;
     expect(message).toMatchObject({ conversationId: 'conv_1', messageId: 'msg_1', phone: '+447700900123', waId: '447700900123', profileName: 'Sam Patel', direction: 'INBOUND', messageType: 'TEXT', occurredAt: '2026-11-18T09:58:00.000Z' });

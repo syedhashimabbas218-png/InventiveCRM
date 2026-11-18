@@ -129,8 +129,8 @@ const conversationObject = (conversation) => ({
 const sign = (secret, timestamp, raw) => `sha256=${createHmac('sha256', secret).update(`${timestamp}.${raw}`).digest('hex')}`;
 
 // Sends one signed webhook to every active subscription. Options let a test forge, age or alter it.
-const emit = async (type, data, { secret, timestamp = Math.floor(Date.now() / 1000), tamper = false, eventId = `evt_${randomUUID()}`, actor = { type: 'system', id: 'inventivechat' }, correlationId = `cor_${randomBytes(8).toString('hex')}` } = {}) => {
-  const raw = JSON.stringify({ tenant_id: TENANT.id, actor, correlation_id: correlationId, idempotency_key: eventId, occurred_at: new Date().toISOString(), payload: { type, data } });
+const emit = async (type, data, { secret, timestamp = Math.floor(Date.now() / 1000), tamper = false, eventId = `evt_${randomUUID()}`, actor = { type: 'system', id: 'inventivechat' }, correlationId = `cor_${randomBytes(8).toString('hex')}`, occurredAt = new Date().toISOString() } = {}) => {
+  const raw = JSON.stringify({ tenant_id: TENANT.id, actor, correlation_id: correlationId, idempotency_key: eventId, occurred_at: occurredAt, payload: { type, data } });
   const results = [];
   for (const subscription of subscriptions.filter((entry) => entry.status === 'active' && entry.event_types.includes(type))) {
     const headers = { 'Content-Type': 'application/json', 'X-Event-Id': eventId, 'X-Event-Type': type, 'X-Signature-Timestamp': String(timestamp), 'X-Signature-256': sign(secret ?? subscription.secret, timestamp, raw) };
@@ -392,7 +392,7 @@ createServer(async (request, response) => {
       const errors = body.status === 'failed' ? [{ code: 131026, title: 'Message undeliverable', message: body.error ?? 'Receiver is not on WhatsApp', error_data: { details: 'Test failure' } }] : undefined;
       return send(response, 200, { results: await emit('message.status_updated', { message: messageObject(message), status: body.status, ...(errors ? { errors } : {}) }) });
     }
-    if (path === '/admin/emit') return send(response, 200, { results: await emit(body.type, body.data, body.sign ?? {}) });
+    if (path === '/admin/emit') return send(response, 200, { results: await emit(body.type, body.data, { ...body.sign, ...(body.occurredAt ? { occurredAt: body.occurredAt } : {}) }) });
   }
 
   // The realtime hub's publish endpoint, so the suite can see what the app announced.

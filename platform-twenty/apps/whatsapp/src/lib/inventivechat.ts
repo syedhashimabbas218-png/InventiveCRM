@@ -309,7 +309,7 @@ export const sendStaffText = (context: InventiveChatContext, input: Send & { con
 // latest_message_id is the customer's latest message only; outbound messages and business-phone echoes do not count.
 export const latestInboundMessageId = async (context: InventiveChatContext, conversationId: string) => {
   const body = await call<Record<string, unknown>>(context.key, 'GET', `/conversations/${encodeURIComponent(conversationId)}`);
-  return asString(body.latest_message_id) || asString(asRecord(body.conversation).latest_message_id) || null;
+  return asString(body.latest_message_id) || null;
 };
 
 const releaseClaim = (context: InventiveChatContext, conversationId: string, claimId: string, correlation?: string) =>
@@ -415,7 +415,7 @@ export type WebhookEvent =
   | { kind: 'consent'; phone: string | null; consent: boolean; optedOut: boolean | null }
   | { kind: 'ignored'; eventType: string };
 
-export type ParsedWebhook = { tenantId: string; correlationId: string | null; event: WebhookEvent };
+export type ParsedWebhook = { tenantId: string; correlationId: string | null; occurredAt: string; event: WebhookEvent };
 
 const STATUS_MAP: Record<string, MessageStatus> = { queued: 'QUEUED', accepted: 'QUEUED', pending: 'QUEUED', sent: 'SENT', delivered: 'DELIVERED', read: 'READ', failed: 'FAILED', undeliverable: 'FAILED' };
 const TYPE_MAP: Record<string, MessageType> = { text: 'TEXT', template: 'TEMPLATE', media: 'MEDIA', image: 'MEDIA', video: 'MEDIA', audio: 'MEDIA', voice: 'MEDIA', document: 'MEDIA', sticker: 'MEDIA', buttons: 'BUTTONS', button: 'BUTTONS', interactive: 'BUTTONS' };
@@ -508,7 +508,7 @@ export const parseWebhook = (body: unknown, headerEventType?: string, now = Date
   const tenantId = asString(envelopeBody.tenant_id);
   if (!tenantId || !eventType) return null;
   const occurredAt = isoOr(envelopeBody.occurred_at, new Date(now).toISOString());
-  const result = (event: WebhookEvent): ParsedWebhook => ({ tenantId, correlationId: asString(envelopeBody.correlation_id) || null, event });
+  const result = (event: WebhookEvent): ParsedWebhook => ({ tenantId, correlationId: asString(envelopeBody.correlation_id) || null, occurredAt, event });
   switch (eventType) {
     case 'message.received':
     case 'message.sent':
