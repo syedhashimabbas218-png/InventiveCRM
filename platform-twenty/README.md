@@ -55,7 +55,7 @@ deploy/
                       auto-update: build-image, rehearse-data, rehearse-apps (it prepares an upgrade, never applies it)
   ops.env.example     backup location, retention, offsite copy, smoke-test keys and the test stack for ops/
 UPDATES.md            update rules: how upgrades, backups and rollback work, and the release checklists
-docs/                 architecture-audit.md: how the apps fit together, measured limits, open recommendations
+docs/                 architecture-audit.md (how the apps fit together, measured limits) and launch-readiness.md (pre-launch QA)
 realtime/             live change notices for the app screens (Server-Sent Events); replaces polling
 ../.github/workflows/platform-twenty-*.yml   build workflow (manual) and weekly upstream watch, at the repository root where GitHub runs them
 ```
