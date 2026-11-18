@@ -20,9 +20,12 @@ export type Settings = {
   autoCreatePeople: boolean | null;
   gatewayTemplates: unknown;
   defaultLanguageCode: string | null;
+  eventCursor: string | null;
+  eventsCheckedAt: string | null;
+  eventsProblem: string | null;
 };
 
-const SETTINGS_FIELDS = 'id tenantId whatsappAccountId phoneNumber displayName subscriptionId webhookSecret webhookUrl webhookProblem keyFingerprint autoCreatePeople gatewayTemplates defaultLanguageCode';
+const SETTINGS_FIELDS = 'id tenantId whatsappAccountId phoneNumber displayName subscriptionId webhookSecret webhookUrl webhookProblem keyFingerprint autoCreatePeople gatewayTemplates defaultLanguageCode eventCursor eventsCheckedAt eventsProblem';
 
 // Extra rows created by hand are ignored: the oldest one is the workspace's settings.
 export const loadSettings = async () =>
@@ -34,6 +37,18 @@ export const saveSettings = async (data: Record<string, unknown>) => {
   return gql(`mutation($data: WhatsappSettingsCreateInput!) { createWhatsappSettings(data: $data) { id } }`, { data: { name: 'WhatsApp settings', ...data } });
 };
 
+export const updateSettings = (id: string, data: Record<string, unknown>) =>
+  gql(`mutation($id: UUID!, $data: WhatsappSettingsUpdateInput!) { updateWhatsappSettings(id: $id, data: $data) { id } }`, { id, data });
+
+// Atomic, so a scheduled run and a manual one never read the event feed for the same workspace at once.
+export const leaseCatchUp = async (id: string, now: string, until: string) =>
+  (
+    await gql<{ updateWhatsappSettingsRecords: { id: string }[] }>(
+      `mutation($id: UUID, $now: DateTime, $data: WhatsappSettingsUpdateInput!) { updateWhatsappSettingsRecords(filter: { id: { eq: $id }, or: [{ catchUpLeaseUntil: { is: NULL } }, { catchUpLeaseUntil: { lt: $now } }] }, data: $data) { id } }`,
+      { id, now, data: { catchUpLeaseUntil: until } },
+    )
+  ).updateWhatsappSettingsRecords.length > 0;
+
 export const webhookSecretContext = (settings: Pick<Settings, 'tenantId' | 'subscriptionId'>) => `inventivechat-webhook:${settings.tenantId ?? ''}:${settings.subscriptionId ?? ''}`;
 
 export const webhookSecretOf = (settings: Settings) => openText(settings.webhookSecret, webhookSecretContext(settings));
@@ -42,13 +57,17 @@ export const workingConnections = async () => (await listConnections({ providerN
 
 export const isKeyConnected = async (fingerprint: string) => (await workingConnections()).some((connection) => connection.externalAccountId === `inventivechat-${fingerprint}`);
 
-// Twenty lists connections in no set order; sorting keeps every run on the same account.
-export const connectedKey = async () => (await workingConnections()).sort((left, right) => left.id.localeCompare(right.id))[0]?.accessToken ?? null;
+// Connecting another key leaves the earlier connection in place, so the key the settings were saved for wins. Twenty
+// lists connections in no set order; sorting keeps every run on the same one otherwise.
+export const connectedKey = async (fingerprint?: string | null) => {
+  const connections = (await workingConnections()).sort((left, right) => left.id.localeCompare(right.id));
+  return (connections.find((connection) => fingerprint && connection.externalAccountId === `inventivechat-${fingerprint}`) ?? connections[0])?.accessToken ?? null;
+};
 
 export const NOT_CONNECTED = 'WhatsApp is not connected yet. An admin can connect InventiveChat under Settings, Accounts.';
 
 export const contextFor = async (settings: Settings | null): Promise<InventiveChatContext> => {
-  const key = await connectedKey();
+  const key = await connectedKey(settings?.keyFingerprint);
   if (!key || !settings?.tenantId) throw new InventiveChatError(NOT_CONNECTED, 0, 'not_connected');
   return { key, tenantId: settings.tenantId };
 };

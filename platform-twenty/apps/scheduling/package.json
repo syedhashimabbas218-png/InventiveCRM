@@ -1,6 +1,6 @@
 {
   "name": "inventivecrm-scheduling",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "private": true,
   "license": "UNLICENSED",
   "description": "InventiveCRM Scheduling: appointment types, availability, team and location-based booking, public booking pages and Google/Microsoft calendar sync for Twenty",

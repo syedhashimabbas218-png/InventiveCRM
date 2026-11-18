@@ -14,9 +14,9 @@ const handler = async (event: RoutePayload | CronPayload) => {
 export default defineLogicFunction({
   universalIdentifier: IDS.logicFunctions.retryJob,
   name: 'whatsapp-retry-job',
-  description: 'Sends WhatsApp notifications that had to wait (a teammate chatting with the customer, Meta’s limit, pacing).',
-  timeoutSeconds: 60,
-  cronTriggerSettings: { pattern: '*/5 * * * *' },
+  description: 'Catches up on WhatsApp events missed while the CRM was unreachable, and sends notifications that had to wait (a teammate chatting with the customer, Meta’s limit, pacing).',
+  timeoutSeconds: 240,
+  cronTriggerSettings: { pattern: '9-59/15 * * * *' },
   httpRouteTriggerSettings: { path: '/whatsapp/retry', httpMethod: 'POST', isAuthRequired: true },
   handler,
 });

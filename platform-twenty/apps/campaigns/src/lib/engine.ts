@@ -432,8 +432,8 @@ const pauseMessage = (error: unknown) =>
     : error instanceof ResendError && error.status === 429
       ? 'Resend asked us to slow down. Sending continues shortly.'
       : isTwentyHiccup(error)
-        ? 'The CRM was busy or restarting. Sending is retried every two minutes.'
-        : 'The sending service could not be reached. Sending is retried every two minutes.';
+        ? 'The CRM was busy or restarting. Sending is retried every five minutes.'
+        : 'The sending service could not be reached. Sending is retried every five minutes.';
 
 export const runCampaigns = async (now = Date.now()) => {
   const started = Date.now();

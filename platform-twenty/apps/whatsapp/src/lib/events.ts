@@ -21,6 +21,7 @@ import {
   setPersonFlag,
   touchLastMessage,
   updateConversation,
+  updateConversationConsent,
   updateConversationState,
   updateMessage,
 } from 'src/lib/records';
@@ -157,6 +158,18 @@ const peopleFor = async (conversations: ConversationRow[], phone: string | null)
   return [...ids];
 };
 
+// A STOP and a later START (or the reverse) must not swap places when one is retried late. Without a conversation
+// there is nothing to compare with, so the report applies.
+const applyConsent = async (conversations: ConversationRow[], occurredAt: string, changesFor: (conversation: ConversationRow) => Record<string, unknown>, changes: ChangeSet) => {
+  let applied = conversations.length === 0;
+  for (const conversation of conversations)
+    if (await updateConversationConsent(conversation.id, occurredAt, changesFor(conversation))) {
+      applied = true;
+      changes.conversation(conversation.id);
+    }
+  return applied;
+};
+
 export const handleWebhook = async ({ event, occurredAt }: ParsedWebhook, settings: Settings, changes: ChangeSet) => {
   let cachedOrigins: Promise<string[]> | null = null;
   const origins = () => (cachedOrigins ??= ownOrigins());
@@ -185,10 +198,7 @@ export const handleWebhook = async ({ event, occurredAt }: ParsedWebhook, settin
     }
     case 'opted_out': {
       const conversations = await conversationsFor(event.conversationId, event.phone);
-      for (const conversation of conversations) {
-        if (!conversation.optedOut) await updateConversation(conversation.id, { optedOut: true });
-        changes.conversation(conversation.id);
-      }
+      if (!(await applyConsent(conversations, occurredAt, (conversation) => (conversation.optedOut ? {} : { optedOut: true }), changes))) return { ignored: 'older than the consent shown' };
       for (const personId of await peopleFor(conversations, event.phone)) {
         await setPersonFlag(personId, 'whatsappOptIn', false);
         await setPersonFlag(personId, 'whatsappMarketingConsent', false);
@@ -200,12 +210,9 @@ export const handleWebhook = async ({ event, occurredAt }: ParsedWebhook, settin
     }
     case 'consent': {
       const conversations = await conversationsFor(null, event.phone);
+      const optedOut = event.optedOut;
+      if (!(await applyConsent(conversations, occurredAt, (conversation) => (optedOut !== null && Boolean(conversation.optedOut) !== optedOut ? { optedOut } : {}), changes))) return { ignored: 'older than the consent shown' };
       for (const personId of await peopleFor(conversations, event.phone)) await setPersonFlag(personId, 'whatsappMarketingConsent', event.consent && event.optedOut !== true);
-      if (event.optedOut !== null)
-        for (const conversation of conversations) {
-          if (Boolean(conversation.optedOut) !== event.optedOut) await updateConversation(conversation.id, { optedOut: event.optedOut });
-          changes.conversation(conversation.id);
-        }
       return { conversations: conversations.length };
     }
     case 'ignored':

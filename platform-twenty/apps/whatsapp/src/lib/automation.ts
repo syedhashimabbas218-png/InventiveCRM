@@ -1,7 +1,7 @@
 import { describeError, findTemplate, InventiveChatError, listTemplates, namedParameters, withRetry } from 'src/lib/inventivechat';
 import { primaryPhoneOf } from 'src/lib/phones';
 import { createChangeSet } from 'src/lib/realtime';
-import { conversationsByPhone, getPerson } from 'src/lib/records';
+import { conversationsByPhone, getPerson, recentAutomatedSends } from 'src/lib/records';
 import { cleanText, isLanguageCode, isTemplateName, isUuid, isWindowOpen } from 'src/lib/rules';
 import { AUTOMATION_NEEDS_TOPIC, SendDeferred, SendRefused, sendTemplateToPerson, sendToConversation } from 'src/lib/sending';
 import { contextFor, loadSettings } from 'src/lib/settings';
@@ -12,6 +12,9 @@ export type AutomationResult = { success: boolean; message: string; messageId?: 
 
 const AUTOMATION_BUDGET_MS = 40_000;
 const TOPIC = /^[A-Za-z0-9_.-]{1,64}$/;
+// A workflow or AI loop must not flood one customer, or the account with Meta.
+export const AUTOMATED_PER_CONTACT = 5;
+export const AUTOMATED_PER_MINUTE = 60;
 
 // Templates by default. Free text only goes out with a topic InventiveChat allows, while the customer's 24-hour window
 // is open, and after InventiveChat lets automation claim the conversation; its refusals are passed on as they are.
@@ -29,6 +32,9 @@ export const sendFromAutomation = async (input: AutomationInput, label = 'Automa
   if (!person) return { success: false, message: 'No contact has this id.' };
   const phone = primaryPhoneOf(person.phones);
   if (!phone) return { success: false, message: 'This contact has no phone number with a country code.' };
+  const recent = await recentAutomatedSends(label, person.id);
+  if (recent.toContact >= AUTOMATED_PER_CONTACT) return { success: false, message: `Not sent: automations already sent this contact ${AUTOMATED_PER_CONTACT} WhatsApp messages in the last 10 minutes. Check the workflow for a loop.` };
+  if (recent.inLastMinute >= AUTOMATED_PER_MINUTE) return { success: false, message: `Not sent: automations sent ${AUTOMATED_PER_MINUTE} WhatsApp messages in the last minute. Try again in a minute.` };
   const changes = createChangeSet();
   const deadline = Date.now() + AUTOMATION_BUDGET_MS;
   const sender = { kind: 'automation' as const, label };

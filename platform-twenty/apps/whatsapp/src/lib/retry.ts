@@ -1,4 +1,5 @@
 import { forwardStatus } from 'src/lib/callbacks';
+import { catchUp } from 'src/lib/catch-up';
 import { sendTemplateToConversation, sendTemplateToPhone, type TemplateMessage } from 'src/lib/inventivechat';
 import { isE164 } from 'src/lib/phones';
 import { createChangeSet } from 'src/lib/realtime';
@@ -8,6 +9,8 @@ import { attemptSend, conversationForSend, finishSend, SendDeferred, SendRefused
 import { contextFor, loadSettings, ownOrigins } from 'src/lib/settings';
 
 const RUN_BUDGET_MS = 40_000;
+// An idle catch-up takes a second; after an outage the server's write speed sets the pace, so a run may take minutes.
+const CATCH_UP_BUDGET_MS = 150_000;
 const BATCH = 60;
 const CONCURRENT_SENDS = 3;
 
@@ -23,14 +26,19 @@ export const readStoredSend = (value: unknown): StoredSend | null => {
   return null;
 };
 
-// Sends the notifications InventiveChat asked us to hold back, and gives up on any that waited a whole day.
+// Catches up on events missed while the CRM was unreachable, then sends the notifications InventiveChat asked us to
+// hold back, and gives up on any that waited a whole day.
 export const runRetries = async () => {
-  const deadline = Date.now() + RUN_BUDGET_MS;
   const settings = await loadSettings();
   const context = await contextFor(settings).catch(() => null);
   if (!settings || !context) return { skipped: 'WhatsApp is not connected.' };
-  const queue = await messagesDueForRetry(new Date().toISOString(), BATCH);
   const changes = createChangeSet();
+  const caughtUp = await catchUp(settings, context, Date.now() + CATCH_UP_BUDGET_MS, changes).catch((error: Error) => {
+    console.error(`whatsapp catch-up: ${error.stack ?? error.message}`);
+    return { failed: error.message };
+  });
+  const deadline = Date.now() + RUN_BUDGET_MS;
+  const queue = await messagesDueForRetry(new Date().toISOString(), BATCH);
   let cachedOrigins: Promise<string[]> | null = null;
   const origins = () => (cachedOrigins ??= ownOrigins());
   const outcome = { sent: 0, waiting: 0, failed: 0 };
@@ -79,5 +87,5 @@ export const runRetries = async () => {
   } finally {
     await changes.publish();
   }
-  return outcome;
+  return { ...outcome, catchUp: caughtUp };
 };

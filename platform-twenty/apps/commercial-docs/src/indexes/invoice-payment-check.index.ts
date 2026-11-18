@@ -4,7 +4,7 @@ import { IDS } from 'src/constants/ids';
 
 const index = IDS.indexes.invoicePaymentCheck;
 
-// Every 10 minutes the reconcile run reads open pay-now links, least recently checked first.
+// Every 30 minutes the reconcile run reads open pay-now links, least recently checked first.
 export default defineIndex({
   universalIdentifier: index.index,
   objectUniversalIdentifier: IDS.invoice.object,

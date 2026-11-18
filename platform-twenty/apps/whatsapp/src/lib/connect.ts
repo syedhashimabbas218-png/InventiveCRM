@@ -1,7 +1,7 @@
 import { getConnection } from 'twenty-sdk/logic-function';
 
 import { keyFingerprint, sealText } from 'src/lib/crypto';
-import { chooseNumber, createSubscription, describeError, disableOurSubscriptions, getAccount } from 'src/lib/inventivechat';
+import { chooseNumber, createSubscription, describeError, disableOurSubscriptions, getAccount, latestEventCursor } from 'src/lib/inventivechat';
 import { functionsBaseUrl, loadSettings, saveSettings, webhookSecretContext, workingConnections } from 'src/lib/settings';
 
 export const KEY_PATTERN = /^wa_[A-Za-z0-9_-]{10,200}$/;
@@ -47,6 +47,9 @@ export const connectKey = async (key: string) => {
     ...(number ? { whatsappAccountId: number.id, phoneNumber: number.phone || null } : {}),
     ...webhook,
     webhookProblem: problems.length ? problems.join(' ') : null,
+    // Another account's feed position means nothing here; this account's feed is read from now on. If the feed does not
+    // answer, the first scheduled run starts it instead.
+    ...(settings?.tenantId !== account.tenantId ? { eventCursor: await latestEventCursor(context).catch(() => null), eventsProblem: null } : {}),
   });
   const label = [number?.verifiedName || account.name || 'InventiveChat', number?.phone].filter(Boolean).join(', ');
   return { externalAccountId: `inventivechat-${keyFingerprint(key)}`, handle: `${label} (key ending ${key.slice(-4)})`.slice(0, 200), accessToken: key };

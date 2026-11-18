@@ -32,6 +32,7 @@ export default defineObject({
     booleanField({ universalIdentifier: field.customerWaiting, name: 'customerWaiting', label: 'Waiting for us', icon: 'IconHourglassHigh' }, false),
     dateTimeField({ universalIdentifier: field.aiPausedUntil, name: 'aiPausedUntil', label: 'AI paused until', icon: 'IconPlayerPause' }),
     dateTimeField({ universalIdentifier: field.stateEventAt, name: 'stateEventAt', label: 'Handling as of', icon: 'IconClockCheck', description: 'When InventiveChat reported who is handling this conversation; older reports that arrive late are ignored.' }),
+    dateTimeField({ universalIdentifier: field.consentEventAt, name: 'consentEventAt', label: 'Consent as of', icon: 'IconClockCheck', description: 'When InventiveChat last reported an opt-out or consent change for this customer; older reports that arrive late are ignored.' }),
     textField({ universalIdentifier: field.inventiveChatConversationId, name: 'inventiveChatConversationId', label: 'InventiveChat id', icon: 'IconHash', isUnique: true }),
   ],
 });

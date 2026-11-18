@@ -37,7 +37,7 @@ export default defineLogicFunction({
   name: 'feedback-job',
   description: 'Finds completed appointments and paid invoices, schedules feedback requests, sends those that are due and closes old ones.',
   timeoutSeconds: 300,
-  cronTriggerSettings: { pattern: '*/15 * * * *' },
+  cronTriggerSettings: { pattern: '13-59/30 * * * *' },
   httpRouteTriggerSettings: { path: '/feedback/run', httpMethod: 'POST', isAuthRequired: true },
   handler,
 });

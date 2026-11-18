@@ -1,12 +1,18 @@
 // Strict test double for the InventiveChat API (as InventiveChat confirmed it) and for the realtime hub's publish
 // endpoint, for the throwaway test server only. Any request that does not match the contract is refused the way
 // InventiveChat refuses it, so drift in the app fails the suite. It records every request and sends signed webhooks.
+// Every genuine event also goes to the outbox read through the event feed; an outage switch withholds webhooks as if
+// every retry had failed, and late retries can be delivered afterwards. Keys wa_test_loadNN_... are account ten_loadNN,
+// with their own webhooks, conversations and feed, so many workspaces can share one double; other keys are ten_acme.
 // Usage: [REALTIME_SECRET=...] node mock-inventivechat.mjs [port]
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 8098);
-const TENANT = { id: 'ten_acme', name: 'Acme Plumbing', ai_sending_enabled: true };
+const DEFAULT_TENANT = 'ten_acme';
+const tenantOf = (key) => (/^wa_test_load(\d+)_/.exec(key ?? '') ? `ten_load${/^wa_test_load(\d+)_/.exec(key)[1]}` : DEFAULT_TENANT);
+const tenantInfo = (id) => ({ id, name: id === DEFAULT_TENANT ? 'Acme Plumbing' : `Load test ${id}`, ai_sending_enabled: true });
+const FEED_LIMIT = 500;
 const EVENT_TYPES = ['message.received', 'message.sent', 'message.status_updated', 'message.send_outcome_unknown', 'conversation.ready_for_reply', 'conversation.human_takeover', 'conversation.handoff_requested', 'conversation.ai_resumed', 'conversation.ai_approved', 'conversation.updated', 'customer.opted_out', 'consent.updated', 'template.status_updated'];
 const PAUSE_AFTER_HUMAN_MS = 4 * 3600 * 1000;
 const number = (id, phone) => ({ id, display_phone_number: phone, phone_number_id: `pn_${id}`, verified_name: 'Acme Plumbing', connection_route: 'A', status: 'active', status_reason: null, has_access_token: true, quality_rating: 'GREEN', team_id: null, team_name: null });
@@ -23,6 +29,11 @@ let subscriptions = [];
 let failNext = [];
 let unknownNext = [];
 let emitted = [];
+let outbox = [];
+let outage = false;
+let expiredThrough = 0;
+// Cursors from an earlier run of the double are unknown here, as an expired one would be.
+let feedEpoch = randomBytes(4).toString('hex');
 let numbers = [number('wac_1', '+44 7700 900000')];
 const replies = new Map();
 const unknownKeys = new Set();
@@ -38,10 +49,15 @@ const send = (response, status, body) => {
 
 const reset = () => {
   log = [];
+  subscriptions = [];
   publishes = [];
   failNext = [];
   unknownNext = [];
   emitted = [];
+  outbox = [];
+  outage = false;
+  expiredThrough = 0;
+  feedEpoch = randomBytes(4).toString('hex');
   numbers = [number('wac_1', '+44 7700 900000')];
   replies.clear();
   unknownKeys.clear();
@@ -57,7 +73,7 @@ const E164 = /^\+[1-9]\d{6,14}$/;
 const ISO_WITH_ZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
 // Envelope problems are 400 { error: "invalid_envelope", details }; a foreign tenant or actor type is 403.
-const envelopeRefusal = (body) => {
+const envelopeRefusal = (body, tenant) => {
   if (!isObject(body)) return [400, { error: 'invalid_envelope', details: ['body must be an object'] }];
   const details = [];
   const allowed = ['tenant_id', 'actor', 'correlation_id', 'idempotency_key', 'occurred_at', 'payload'];
@@ -69,7 +85,7 @@ const envelopeRefusal = (body) => {
   if (typeof body.occurred_at !== 'string' || !ISO_WITH_ZONE.test(body.occurred_at) || Number.isNaN(Date.parse(body.occurred_at))) details.push('occurred_at must be an ISO date with a time zone');
   if (!isObject(body.payload)) details.push('payload must be an object');
   if (details.length) return [400, { error: 'invalid_envelope', details }];
-  if (body.tenant_id !== TENANT.id) return [403, { error: 'tenant_mismatch' }];
+  if (body.tenant_id !== tenant) return [403, { error: 'tenant_mismatch' }];
   if (body.actor.type !== 'system') return [403, { error: 'actor_not_allowed' }];
   return null;
 };
@@ -80,9 +96,9 @@ const onlyKeys = (payload, allowed, errors, prefix = '') => {
   for (const key of Object.keys(payload)) if (!allowed.includes(key)) errors.push(`${prefix}${key} is not allowed`);
 };
 
-const conversationFor = (phone, profileName = null) => {
-  for (const conversation of conversations.values()) if (conversation.phone === phone) return conversation;
-  const conversation = { id: `conv_${randomBytes(6).toString('hex')}`, phone, waId: phone.slice(1), profileName, lastInboundAt: null, latestInboundId: null, state: 'AWAITING_APPROVAL', automationApproved: false, aiPausedUntil: null, claims: new Map() };
+const conversationFor = (phone, profileName = null, tenant = DEFAULT_TENANT) => {
+  for (const conversation of conversations.values()) if (conversation.phone === phone && conversation.tenant === tenant) return conversation;
+  const conversation = { id: `conv_${randomBytes(6).toString('hex')}`, tenant, phone, waId: phone.slice(1), profileName, lastInboundAt: null, latestInboundId: null, state: 'AWAITING_APPROVAL', automationApproved: false, aiPausedUntil: null, claims: new Map() };
   conversations.set(conversation.id, conversation);
   return conversation;
 };
@@ -128,18 +144,54 @@ const conversationObject = (conversation) => ({
 
 const sign = (secret, timestamp, raw) => `sha256=${createHmac('sha256', secret).update(`${timestamp}.${raw}`).digest('hex')}`;
 
-// Sends one signed webhook to every active subscription. Options let a test forge, age or alter it.
-const emit = async (type, data, { secret, timestamp = Math.floor(Date.now() / 1000), tamper = false, eventId = `evt_${randomUUID()}`, actor = { type: 'system', id: 'inventivechat' }, correlationId = `cor_${randomBytes(8).toString('hex')}`, occurredAt = new Date().toISOString() } = {}) => {
-  const raw = JSON.stringify({ tenant_id: TENANT.id, actor, correlation_id: correlationId, idempotency_key: eventId, occurred_at: occurredAt, payload: { type, data } });
+// Each attempt signs the same stored body afresh, as InventiveChat's retries do.
+const deliver = async ({ tenant, type, eventId, raw }, { secret, timestamp = Math.floor(Date.now() / 1000), tamper = false } = {}) => {
   const results = [];
-  for (const subscription of subscriptions.filter((entry) => entry.status === 'active' && entry.event_types.includes(type))) {
+  for (const subscription of subscriptions.filter((entry) => entry.tenant === tenant && entry.status === 'active' && entry.event_types.includes(type))) {
     const headers = { 'Content-Type': 'application/json', 'X-Event-Id': eventId, 'X-Event-Type': type, 'X-Signature-Timestamp': String(timestamp), 'X-Signature-256': sign(secret ?? subscription.secret, timestamp, raw) };
     const body = tamper ? raw.replace('"payload"', '"payload" ') : raw;
     const response = await fetch(subscription.url, { method: 'POST', headers, body }).catch((error) => ({ status: 0, text: async () => error.message }));
     results.push({ url: subscription.url, status: response.status, body: await response.text(), sent: { headers, body } });
   }
-  emitted.push({ type, data, actor, results: results.map(({ url, status, body }) => ({ url, status, body })) });
   return results;
+};
+
+// Sends one signed webhook to every active subscription. Options let a test forge, age or alter it; only genuine
+// events go to the outbox.
+const emit = async (type, data, { tenant = DEFAULT_TENANT, secret, timestamp, tamper = false, eventId = `evt_${randomUUID()}`, actor = { type: 'system', id: 'inventivechat' }, correlationId = `cor_${randomBytes(8).toString('hex')}`, occurredAt = new Date().toISOString() } = {}) => {
+  const raw = JSON.stringify({ tenant_id: tenant, actor, correlation_id: correlationId, idempotency_key: eventId, occurred_at: occurredAt, payload: { type, data } });
+  const event = { seq: (outbox.at(-1)?.seq ?? expiredThrough) + 1, tenant, type, eventId, raw, delivered: false };
+  const genuine = secret === undefined && timestamp === undefined && !tamper;
+  if (genuine) outbox.push(event);
+  const results = genuine && outage ? [] : await deliver(event, { secret, timestamp, tamper });
+  event.delivered = results.length > 0;
+  emitted.push({ tenant, type, data, actor, withheld: genuine && outage, results: results.map(({ url, status, body }) => ({ url, status, body })) });
+  return results;
+};
+
+const cursorOf = (seq) => `evc_${feedEpoch}_${seq}`;
+const seqOf = (cursor) => {
+  const match = /^evc_([0-9a-f]+)_(\d+)$/.exec(cursor);
+  return match && match[1] === feedEpoch ? Number(match[2]) : null;
+};
+
+// GET /v1/events/feed: the tenant's events in commit order as { cursor, event }. Without after it starts at the oldest
+// kept; after=latest answers the newest position; next_cursor is the last event's cursor, the given after on an empty
+// page, or null.
+const handleFeed = (query, tenant) => {
+  const limit = query.has('limit') ? Number(query.get('limit')) : 100;
+  if (!Number.isInteger(limit) || limit < 1 || limit > FEED_LIMIT) return invalid([`limit must be 1 to ${FEED_LIMIT}`]);
+  if (query.get('after') === 'latest') return [200, { events: [], next_cursor: cursorOf(outbox.at(-1)?.seq ?? expiredThrough), has_more: false }];
+  let after = expiredThrough;
+  if (query.has('after')) {
+    if (!/^evc_[0-9a-f]+_\d+$/.test(query.get('after'))) return invalid(['after is not a cursor']);
+    after = seqOf(query.get('after'));
+    if (after === null || after < expiredThrough || after > (outbox.at(-1)?.seq ?? expiredThrough)) return [410, { reason: 'cursor_expired', detail: 'Events after this cursor were pruned.' }];
+  }
+  const own = outbox.filter((event) => event.tenant === tenant && event.seq > after);
+  const page = own.slice(0, limit);
+  const nextCursor = page.length ? cursorOf(page.at(-1).seq) : query.get('after');
+  return [200, { events: page.map((event) => ({ cursor: cursorOf(event.seq), event: JSON.parse(event.raw) })), next_cursor: nextCursor, has_more: own.length > page.length }];
 };
 
 const takeFailure = (path) => {
@@ -188,7 +240,7 @@ const humanActiveRefusal = (conversation) => {
   return [423, { reason: 'human_active', paused_until: conversation.aiPausedUntil, retry_after_seconds: retry }];
 };
 
-const handleSend = (envelopeBody, toPhone) => {
+const handleSend = (envelopeBody, toPhone, tenant) => {
   const payload = envelopeBody.payload;
   const replay = replies.get(envelopeBody.idempotency_key);
   if (replay) return [200, { ...replay, replayed: true }];
@@ -220,10 +272,10 @@ const handleSend = (envelopeBody, toPhone) => {
     if (payload.type === 'text') return [422, { reason: 'outside_window' }];
     const active = numbers.filter((entry) => entry.status === 'active');
     if (active.length > 1 && !payload.whatsapp_account_id) return [422, { reason: 'whatsapp_account_id_required' }];
-    conversation = conversationFor(payload.to);
+    conversation = conversationFor(payload.to, null, tenant);
   } else {
     conversation = conversations.get(payload.conversation_id);
-    if (!conversation) return [404, { reason: 'conversation_not_found' }];
+    if (!conversation || conversation.tenant !== tenant) return [404, { reason: 'conversation_not_found' }];
   }
   if (optedOut.has(conversation.phone)) return [409, { reason: 'opted_out' }];
   if (payload.type === 'text' && !windowOpen(conversation)) return [422, { reason: 'outside_window' }];
@@ -242,7 +294,7 @@ const handleSend = (envelopeBody, toPhone) => {
     const data = { conversation_id: conversation.id, idempotency_key: envelopeBody.idempotency_key, detail: unknown.crash ? 'The sending process stopped mid-send.' : 'Meta did not answer in time.' };
     // A crash is reported by InventiveChat itself a little later; a Meta timeout carries the caller's actor and correlation.
     const options = unknown.crash ? { eventId: `message.send_outcome_unknown:${envelopeBody.idempotency_key}`, actor: { type: 'system', id: 'messaging-service' } } : { eventId: `message.send_outcome_unknown:${envelopeBody.idempotency_key}`, actor: envelopeBody.actor, correlationId: envelopeBody.correlation_id };
-    setTimeout(() => void emit('message.send_outcome_unknown', data, options), unknown.crash ? 1500 : 300);
+    setTimeout(() => void emit('message.send_outcome_unknown', data, { ...options, tenant: conversation.tenant }), unknown.crash ? 1500 : 300);
     return unknown.crash ? ['crash'] : [502, { reason: 'outcome_unknown' }];
   }
   const message = outbound(conversation, payload, envelopeBody);
@@ -291,7 +343,7 @@ const handleConsent = (envelopeBody) => {
   return [200, { phone: payload.phone, consent: payload.consent, marketing_allowed: payload.consent && !optedOut.has(payload.phone) }];
 };
 
-const handleSubscription = (envelopeBody) => {
+const handleSubscription = (envelopeBody, tenant) => {
   const payload = envelopeBody.payload;
   const errors = [];
   onlyKeys(payload, ['url', 'event_types'], errors);
@@ -299,8 +351,8 @@ const handleSubscription = (envelopeBody) => {
   if (!Array.isArray(payload.event_types) || payload.event_types.length === 0) errors.push('event_types must be a non-empty list');
   else for (const type of payload.event_types) if (!EVENT_TYPES.includes(type)) errors.push(`event type ${type} is unknown`);
   if (errors.length) return invalid(errors);
-  if (subscriptions.filter((entry) => entry.status === 'active').length >= 10) return [422, { reason: 'too_many_subscriptions' }];
-  const subscription = { id: `sub_${randomBytes(4).toString('hex')}`, url: payload.url, event_types: payload.event_types, status: 'active', created_at: new Date().toISOString(), secret: `whsec_${randomBytes(24).toString('hex')}` };
+  if (subscriptions.filter((entry) => entry.tenant === tenant && entry.status === 'active').length >= 10) return [422, { reason: 'too_many_subscriptions' }];
+  const subscription = { id: `sub_${randomBytes(4).toString('hex')}`, tenant, url: payload.url, event_types: payload.event_types, status: 'active', created_at: new Date().toISOString(), secret: `whsec_${randomBytes(24).toString('hex')}` };
   subscriptions.push(subscription);
   return [201, { id: subscription.id, secret: subscription.secret, note: 'Store the secret now; it is not shown again.' }];
 };
@@ -308,7 +360,7 @@ const handleSubscription = (envelopeBody) => {
 const setState = async (conversation, changes) => {
   Object.assign(conversation, changes);
   if (conversation.state === 'HUMAN_ACTIVE' || conversation.aiPausedUntil) conversation.claims.clear();
-  return emit('conversation.updated', conversationObject(conversation));
+  return emit('conversation.updated', conversationObject(conversation), { tenant: conversation.tenant });
 };
 
 createServer(async (request, response) => {
@@ -322,7 +374,7 @@ createServer(async (request, response) => {
   }
   const url = new URL(request.url, 'http://mock');
   const path = url.pathname;
-  log.push({ method: request.method, path, body, at: new Date().toISOString() });
+  log.push({ method: request.method, path, body, tenant: keyOf(request) ? tenantOf(keyOf(request)) : null, at: new Date().toISOString() });
 
   if (path.startsWith('/admin/')) {
     if (path === '/admin/reset') {
@@ -332,6 +384,32 @@ createServer(async (request, response) => {
     if (path === '/admin/log') return send(response, 200, log);
     if (path === '/admin/publishes') return send(response, 200, publishes);
     if (path === '/admin/emitted') return send(response, 200, emitted);
+    // The CRM is unreachable: webhooks are withheld as if every retry failed, and still go to the outbox.
+    if (path === '/admin/outage') {
+      outage = body?.on === true;
+      return send(response, 200, { outage });
+    }
+    // InventiveChat's longer retries arriving after the CRM caught up, optionally newest first.
+    if (path === '/admin/late-retries') {
+      const pending = outbox.filter((event) => !event.delivered);
+      const results = [];
+      for (const event of body?.newestFirst ? [...pending].reverse() : pending) {
+        const delivered = await deliver(event);
+        event.delivered = delivered.length > 0;
+        results.push({ type: event.type, eventId: event.eventId, results: delivered.map(({ status, body: answer }) => ({ status, body: answer })) });
+      }
+      return send(response, 200, { results });
+    }
+    // Events older than the retention window drop out of the feed.
+    if (path === '/admin/expire') {
+      expiredThrough = outbox.at(-1)?.seq ?? expiredThrough;
+      outbox = [];
+      return send(response, 200, { expiredThrough });
+    }
+    if (path === '/admin/feed') {
+      const own = outbox.filter((event) => !body?.tenant || event.tenant === body.tenant);
+      return send(response, 200, { count: own.length, withheld: own.filter((event) => !event.delivered).length });
+    }
     // The next send that would go out ends with its outcome unknown: a Meta timeout (502) or a crash mid-send.
     if (path === '/admin/unknown-next') {
       unknownNext.push({ crash: body?.crash === true });
@@ -365,16 +443,16 @@ createServer(async (request, response) => {
     }
     // A teammate takes the customer over, with no time limit unless one is given, and later hands back.
     if (path === '/admin/takeover') {
-      const conversation = conversationFor(body.phone);
+      const conversation = conversationFor(body.phone, null, body.tenant ?? DEFAULT_TENANT);
       return send(response, 200, { conversationId: conversation.id, results: await setState(conversation, { state: 'HUMAN_ACTIVE', aiPausedUntil: body.pausedUntil ?? null }) });
     }
     if (path === '/admin/hand-back') {
-      const conversation = conversationFor(body.phone);
+      const conversation = conversationFor(body.phone, null, body.tenant ?? DEFAULT_TENANT);
       return send(response, 200, { results: await setState(conversation, { state: 'AI_ACTIVE', aiPausedUntil: null }) });
     }
     // A customer writes: the conversation is created or reused and message.received goes to the app.
     if (path === '/admin/inbound') {
-      const conversation = conversationFor(body.phone, body.profileName ?? null);
+      const conversation = conversationFor(body.phone, body.profileName ?? null, body.tenant ?? DEFAULT_TENANT);
       conversation.profileName = body.profileName ?? conversation.profileName;
       const at = body.at ?? new Date().toISOString();
       if (!conversation.lastInboundAt || at > conversation.lastInboundAt) conversation.lastInboundAt = at;
@@ -382,7 +460,7 @@ createServer(async (request, response) => {
       messages.set(message.id, message);
       conversation.latestInboundId = message.id;
       conversation.claims.clear();
-      const results = await emit('message.received', { message: messageObject(message) }, body.sign ?? {});
+      const results = await emit('message.received', { message: messageObject(message) }, { ...body.sign, tenant: conversation.tenant });
       return send(response, 200, { conversationId: conversation.id, messageId: message.id, results });
     }
     if (path === '/admin/status') {
@@ -390,9 +468,9 @@ createServer(async (request, response) => {
       if (!message) return send(response, 404, { error: 'unknown message' });
       message.status = body.status;
       const errors = body.status === 'failed' ? [{ code: 131026, title: 'Message undeliverable', message: body.error ?? 'Receiver is not on WhatsApp', error_data: { details: 'Test failure' } }] : undefined;
-      return send(response, 200, { results: await emit('message.status_updated', { message: messageObject(message), status: body.status, ...(errors ? { errors } : {}) }) });
+      return send(response, 200, { results: await emit('message.status_updated', { message: messageObject(message), status: body.status, ...(errors ? { errors } : {}) }, { tenant: conversations.get(message.conversationId)?.tenant }) });
     }
-    if (path === '/admin/emit') return send(response, 200, { results: await emit(body.type, body.data, { ...body.sign, ...(body.occurredAt ? { occurredAt: body.occurredAt } : {}) }) });
+    if (path === '/admin/emit') return send(response, 200, { results: await emit(body.type, body.data, { ...body.sign, tenant: body.tenant ?? DEFAULT_TENANT, ...(body.occurredAt ? { occurredAt: body.occurredAt } : {}) }) });
   }
 
   // The realtime hub's publish endpoint, so the suite can see what the app announced.
@@ -405,28 +483,30 @@ createServer(async (request, response) => {
 
   const key = keyOf(request);
   if (!key || !key.startsWith('wa_test_')) return send(response, 401, { error: 'unauthenticated' });
+  const tenant = tenantOf(key);
   const failure = takeFailure(path);
   if (failure) return send(response, failure.status, failure.body);
   if (request.method === 'POST') {
-    const refusal = envelopeRefusal(body);
+    const refusal = envelopeRefusal(body, tenant);
     if (refusal) return send(response, ...refusal);
   }
 
   if (request.method === 'GET' && path === '/v1/account')
-    return send(response, 200, { tenant: TENANT, platform_ai_sending_enabled: true, settings: { ai_requires_approval: true, ai_allowed_topics: [...allowedTopics], ai_scope_instructions: '' }, numbers, permissions: { business_owner: false, owned_team_ids: [] } });
+    return send(response, 200, { tenant: tenantInfo(tenant), platform_ai_sending_enabled: true, settings: { ai_requires_approval: true, ai_allowed_topics: [...allowedTopics], ai_scope_instructions: '' }, numbers, permissions: { business_owner: false, owned_team_ids: [] } });
   if (request.method === 'GET' && path === '/v1/templates') return send(response, 200, { templates: TEMPLATES });
-  if (request.method === 'GET' && path === '/v1/subscriptions') return send(response, 200, { subscriptions: subscriptions.map(({ id, url: endpoint, event_types, status, created_at }) => ({ id, url: endpoint, event_types, status, created_at })) });
-  if (request.method === 'POST' && path === '/v1/subscriptions') return send(response, ...handleSubscription(body));
+  if (request.method === 'GET' && path === '/v1/events/feed') return send(response, ...handleFeed(url.searchParams, tenant));
+  if (request.method === 'GET' && path === '/v1/subscriptions') return send(response, 200, { subscriptions: subscriptions.filter((entry) => entry.tenant === tenant).map(({ id, url: endpoint, event_types, status, created_at }) => ({ id, url: endpoint, event_types, status, created_at })) });
+  if (request.method === 'POST' && path === '/v1/subscriptions') return send(response, ...handleSubscription(body, tenant));
   const disable = /^\/v1\/subscriptions\/([^/]+)\/disable$/.exec(path);
   if (request.method === 'POST' && disable) {
     if (Object.keys(body.payload).length) return send(response, ...invalid(['payload must be empty']));
-    const subscription = subscriptions.find((entry) => entry.id === disable[1]);
+    const subscription = subscriptions.find((entry) => entry.id === disable[1] && entry.tenant === tenant);
     if (!subscription) return send(response, 404, { reason: 'subscription_not_found' });
     subscription.status = 'disabled';
     return send(response, 200, { id: subscription.id, status: 'disabled' });
   }
   if (request.method === 'POST' && (path === '/v1/messages/send' || path === '/v1/messages/send-to-phone')) {
-    const answer = handleSend(body, path.endsWith('send-to-phone'));
+    const answer = handleSend(body, path.endsWith('send-to-phone'), tenant);
     if (answer[0] === 'crash') return request.socket.destroy();
     return send(response, ...answer);
   }

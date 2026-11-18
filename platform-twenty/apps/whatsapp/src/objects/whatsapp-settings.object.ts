@@ -1,7 +1,7 @@
 import { defineObject } from 'twenty-sdk/define';
 
 import { IDS } from 'src/constants/ids';
-import { booleanField, jsonField, textField } from 'src/objects/field-builders';
+import { booleanField, dateTimeField, jsonField, textField } from 'src/objects/field-builders';
 
 const field = IDS.settings.fields;
 
@@ -28,5 +28,9 @@ export default defineObject({
     booleanField({ universalIdentifier: field.autoCreatePeople, name: 'autoCreatePeople', label: 'Add unknown numbers as people', icon: 'IconUserPlus' }, true),
     jsonField({ universalIdentifier: field.gatewayTemplates, name: 'gatewayTemplates', label: 'Templates for app notifications', icon: 'IconTemplate', description: 'Overrides the default template and parameter mapping for a notification from the other apps. See the WhatsApp app README.' }),
     textField({ universalIdentifier: field.defaultLanguageCode, name: 'defaultLanguageCode', label: 'Template language', icon: 'IconLanguage' }, 'en_GB'),
+    textField({ universalIdentifier: field.eventCursor, name: 'eventCursor', label: 'Event feed position', icon: 'IconBookmark', description: "Where the CRM has read InventiveChat's event feed up to, so events missed while it was unreachable are caught up." }),
+    dateTimeField({ universalIdentifier: field.eventsCheckedAt, name: 'eventsCheckedAt', label: 'Events caught up at', icon: 'IconRefresh' }),
+    textField({ universalIdentifier: field.eventsProblem, name: 'eventsProblem', label: 'Missed events', icon: 'IconAlertTriangle' }),
+    dateTimeField({ universalIdentifier: field.catchUpLeaseUntil, name: 'catchUpLeaseUntil', label: 'Catch-up running until', icon: 'IconLock' }),
   ],
 });

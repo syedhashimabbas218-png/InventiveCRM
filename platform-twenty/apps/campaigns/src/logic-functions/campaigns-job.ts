@@ -17,7 +17,7 @@ export default defineLogicFunction({
   name: 'campaigns-job',
   description: 'Starts campaigns that are due, sends the next batches and refreshes campaign results.',
   timeoutSeconds: 110,
-  cronTriggerSettings: { pattern: '*/2 * * * *' },
+  cronTriggerSettings: { pattern: '1-59/5 * * * *' },
   httpRouteTriggerSettings: { path: '/campaigns/run', httpMethod: 'POST', isAuthRequired: true },
   handler,
 });

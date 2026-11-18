@@ -64,6 +64,6 @@ export default defineLogicFunction({
   description: 'Retries failed calendar writes and reconciles upcoming events with Google and Microsoft.',
   timeoutSeconds: 300,
   httpRouteTriggerSettings: { path: '/scheduling/sync-now', httpMethod: 'POST', isAuthRequired: true },
-  cronTriggerSettings: { pattern: '*/5 * * * *' },
+  cronTriggerSettings: { pattern: '2-59/10 * * * *' },
   handler,
 });

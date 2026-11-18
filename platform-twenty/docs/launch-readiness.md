@@ -141,7 +141,7 @@ If InventiveChat is down:
 - inbox sends show the failure;
 - held notifications retry on their own;
 - documents fail visibly and can be sent again;
-- webhooks are retried by InventiveChat for about 18 minutes.
+- webhooks are retried by InventiveChat for about a day, and anything older is read back from its event feed (7 days) by the WhatsApp catch-up.
 
 **The realtime service** is a small, stateless fan-out:
 - signed one-hour passes bound to a workspace and person;

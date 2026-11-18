@@ -87,6 +87,8 @@ const connect = async (secretKey) => {
   const status = await (await fetch(`${W}/s/whatsapp/connect-status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fingerprint }) })).json();
   return { pageStatus: page.status, connected: status.connected };
 };
+// The double was reset, so a position stored by an earlier run means nothing; start this run's feed from now.
+const latestFeedPosition = async () => (await (await fetch(`${MOCK}/v1/events/feed?after=latest`, { headers: { Authorization: `Bearer wa_test_${run}abcdefghij` } })).json()).next_cursor;
 const loadSettings = async () => first((await gql(`{ whatsappSettingsRecords(orderBy: [{ createdAt: AscNullsLast }], first: 1) { edges { node { id tenantId whatsappAccountId phoneNumber displayName subscriptionId webhookSecret webhookProblem } } } }`)).whatsappSettingsRecords);
 const foreign = await fetch(`${W}/s/whatsapp/connect?callback=${encodeURIComponent('https://evil.example/auth/apps/custom/callback?state=x')}`);
 assert('the connect page refuses a callback that is not Twenty’s own', foreign.status === 400, String(foreign.status));
@@ -103,7 +105,7 @@ await connect(`wa_test_${run}abcdefghij`);
 const afterReconnect = (await mock('/admin/subscriptions')).filter((entry) => entry.url === eventsUrl);
 const settings = await loadSettings();
 assert('connecting again disables our old webhook and registers a new one', afterReconnect.find((entry) => entry.id === firstSubscription?.id)?.status === 'disabled' && afterReconnect.filter((entry) => entry.status === 'active').length === 1 && settings.subscriptionId !== firstSubscription?.id && afterReconnect.some((entry) => entry.id === settings.subscriptionId && entry.status === 'active'), JSON.stringify(afterReconnect));
-await gql(`mutation($id: UUID!, $data: WhatsappSettingsUpdateInput!) { updateWhatsappSettings(id: $id, data: $data) { id } }`, { id: settings.id, data: { autoCreatePeople: true, defaultLanguageCode: 'en_GB', gatewayTemplates: null } });
+await gql(`mutation($id: UUID!, $data: WhatsappSettingsUpdateInput!) { updateWhatsappSettings(id: $id, data: $data) { id } }`, { id: settings.id, data: { autoCreatePeople: true, defaultLanguageCode: 'en_GB', gatewayTemplates: null, eventCursor: await latestFeedPosition(), eventsProblem: null } });
 
 // 2. A message from an unknown number: conversation, message and a new person.
 const unknownPhone = phoneOf('01');
@@ -357,6 +359,10 @@ if (noTopic) {
   assert('the claim is released after a refused send and after a sent reply', releases.includes(refusedSend?.body.payload.claim_id) && releases.includes(automatedSend?.body.payload.claim_id) && (await mock('/admin/claims', { conversationId: unknown.conversationId })).length === 0, JSON.stringify({ releases, refused: refusedSend?.body.payload.claim_id, sent: automatedSend?.body.payload.claim_id }));
   const followUp = await callTool({ personId: createdPerson?.id, text: `Automated follow-up ${run}`, topic: 'bookings' });
   assert('so a second automated reply straight after is not blocked by the first claim', /Sent as a reply/.test(followUp ?? ''), followUp);
+  // The refused off-topic reply, the hello and the follow-up already count towards the 5 in 10 minutes.
+  const burst = [];
+  for (let index = 1; index <= 3; index += 1) burst.push(await callTool({ personId: createdPerson?.id, text: `Burst ${index} ${run}`, topic: 'bookings' }));
+  assert('automations stop at 5 messages to one contact in 10 minutes, so a looping workflow cannot flood a customer', /Sent as a reply/.test(burst[0] ?? '') && /Sent as a reply/.test(burst[1] ?? '') && /Check the workflow for a loop/.test(burst[2] ?? '') && !(await mockLog('/v1/messages/send')).some((entry) => entry.body?.payload?.body === `Burst 3 ${run}`), JSON.stringify(burst));
   const fresh = (await gql(`mutation($data: PersonCreateInput!) { createPerson(data: $data) { id } }`, { data: { name: { firstName: 'Tia', lastName: `Tool${run}` }, phones: { primaryPhoneNumber: phoneOf('10').slice(3), primaryPhoneCallingCode: '+44', primaryPhoneCountryCode: 'GB' } } })).createPerson;
   const templated = await callTool({ personId: fresh.id, templateName: 'appointment_reminder', parameters: { customer_name: 'Tia', day: 'Monday' } });
   assert('the AI tool sends a template by default', /Template appointment_reminder sent/.test(templated ?? ''), templated);
@@ -364,6 +370,78 @@ if (noTopic) {
   const queued = await callTool({ personId: prospect.id, templateName: 'appointment_reminder', parameters: { customer_name: 'Pat', day: 'Monday' } });
   assert('an automated template to a customer a teammate is handling is queued, not failed', /Queued/.test(queued ?? '') && /teammate/.test(queued ?? ''), queued);
 } else skip('workflow action and AI tool', 'the tool could not be reached over MCP on this server');
+
+// 12. An outage longer than InventiveChat's webhook retries: the event feed fills the gap, and retries that arrive
+// afterwards change nothing. The double withholds the webhooks as if every attempt had failed.
+const feedSettings = async () => first((await gql(`{ whatsappSettingsRecords(orderBy: [{ createdAt: AscNullsLast }], first: 1) { edges { node { eventCursor eventsCheckedAt eventsProblem } } } }`)).whatsappSettingsRecords);
+// The scheduled run may hold the catch-up lease; a manual run then waits for it.
+const catchUpRun = async () => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const result = await route('/whatsapp/retry', {});
+    if (result.body?.catchUp && !result.body.catchUp.skipped) return result.body.catchUp;
+    await sleep(3000);
+  }
+  return null;
+};
+// Every event of this run so far also reached the CRM by webhook, so reading the feed must change nothing.
+const countsOf = async () => Promise.all([unknown.conversationId, knownInbound.conversationId, orderInbound.conversationId].map(async (id) => (await messagesIn((await conversationByIcId(id)).id)).length));
+const countsBefore = await countsOf();
+const startRun = await catchUpRun();
+const started = await feedSettings();
+const countsAfter = await countsOf();
+assert('reading the whole feed after the webhooks already delivered it records nothing twice', startRun?.caughtUp === true && Boolean(started?.eventCursor) && JSON.stringify(countsAfter) === JSON.stringify(countsBefore), JSON.stringify({ startRun, started, countsBefore, countsAfter }));
+console.log(`INFO first feed read: ${JSON.stringify(startRun)}`);
+
+const orderPhone = phoneOf('12');
+const outagePhone = phoneOf('13');
+const orderConversation = await conversationByIcId(orderInbound.conversationId);
+const orderMessagesBefore = (await messagesIn(orderConversation.id)).length;
+await mock('/admin/outage', { on: true });
+const missed = await mock('/admin/inbound', { phone: outagePhone, profileName: `Mona Missed${run}`, text: `Sent while the CRM was down ${run}` });
+await mock('/admin/inbound', { phone: orderPhone, text: `Still there? ${run}` });
+await mock('/admin/status', { messageId: sentRecord.inventiveChatMessageId, status: 'read' });
+await mock('/admin/takeover', { phone: orderPhone });
+await sleep(5);
+await mock('/admin/hand-back', { phone: orderPhone });
+await mock('/admin/emit', { type: 'customer.opted_out', data: { conversation_id: missed.conversationId, customer: outagePhone.slice(1) } });
+await sleep(5);
+await mock('/admin/emit', { type: 'consent.updated', data: { customer: outagePhone.slice(1), consent: true, opted_out: false } });
+const feed = await mock('/admin/feed');
+assert('during the outage every event is withheld from the CRM and kept in the feed', feed.withheld >= 7, JSON.stringify(feed));
+await mock('/admin/outage', { on: false });
+
+const caughtUp = await catchUpRun();
+const missedConversation = await conversationByIcId(missed.conversationId);
+const missedMessages = missedConversation ? await messagesIn(missedConversation.id) : [];
+const orderAfter = await conversationByIcId(orderInbound.conversationId);
+const orderMessages = await messagesIn(orderConversation.id);
+const readRecord = await messageBy('{ id: { eq: $value } }', { value: clientMessageId });
+const afterCatchUp = await feedSettings();
+const caughtUpState = { missed: missedMessages.length, optedOut: missedConversation?.optedOut, person: Boolean(missedConversation?.personId), order: orderMessages.length - orderMessagesBefore, handling: orderAfter?.handling, status: readRecord?.status, unread: orderAfter?.unreadCount };
+assert('catch-up after the outage applies everything that was missed: new customer, reply, status, hand-back, opt-out then opt-in', caughtUp?.caughtUp === true && missedMessages.length === 1 && missedConversation.personId && missedConversation.optedOut === false && orderMessages.length === orderMessagesBefore + 1 && orderAfter.handling === 'AI' && readRecord?.status === 'READ' && afterCatchUp.eventCursor !== started.eventCursor && afterCatchUp.eventsCheckedAt > started.eventsCheckedAt, JSON.stringify({ caughtUp, caughtUpState }));
+
+const lateStarted = Date.now();
+const late = await mock('/admin/late-retries', { newestFirst: true });
+const lateMs = Date.now() - lateStarted;
+const lateConversation = await conversationByIcId(missed.conversationId);
+const lateOrder = await conversationByIcId(orderInbound.conversationId);
+const lateState = { missed: (await messagesIn(missedConversation.id)).length, optedOut: lateConversation?.optedOut, order: (await messagesIn(orderConversation.id)).length - orderMessagesBefore, handling: lateOrder?.handling, status: (await messageBy('{ id: { eq: $value } }', { value: clientMessageId }))?.status, unread: lateOrder?.unreadCount };
+const lateStatuses = late.results.flatMap((entry) => entry.results.map((result) => result.status));
+assert('late retries arriving newest first after catch-up are accepted and change nothing', lateStatuses.length >= 7 && lateStatuses.every((status) => status === 200) && lateState.missed === 1 && lateState.order === 1 && lateState.handling === 'AI' && lateState.optedOut === false && lateState.status === 'READ' && lateState.unread === caughtUpState.unread, JSON.stringify({ lateState, caughtUpState, late: late.results.map((entry) => `${entry.type} ${entry.results[0]?.status} ${entry.results[0]?.body}`) }));
+console.log(`INFO catch-up applied ${caughtUp?.applied} events in ${caughtUp?.pages} page(s)`);
+console.log(`INFO ${lateStatuses.length} late retries took ${lateMs} ms in all (${Math.round(lateMs / Math.max(1, lateStatuses.length))} ms each)`);
+
+// Events older than InventiveChat keeps cannot be read back; the CRM says so and carries on from the oldest it has.
+await mock('/admin/outage', { on: true });
+await mock('/admin/inbound', { phone: phoneOf('14'), profileName: `Lou Lost${run}`, text: `Too old to recover ${run}` });
+await mock('/admin/expire', {});
+const kept = await mock('/admin/inbound', { phone: phoneOf('15'), profileName: `Kit Kept${run}`, text: `Still in the feed ${run}` });
+await mock('/admin/outage', { on: false });
+const expiredRun = await catchUpRun();
+const expiredSettings = await feedSettings();
+const keptConversation = await conversationByIcId(kept.conversationId);
+assert('a feed position older than InventiveChat keeps is reported as possibly missing events, and what is still kept is applied', /7 days/.test(expiredSettings?.eventsProblem ?? '') && expiredRun?.caughtUp === true && keptConversation && (await messagesIn(keptConversation.id)).length === 1, JSON.stringify({ expiredRun, expiredSettings, kept: Boolean(keptConversation) }));
+await gql(`mutation($id: UUID!, $data: WhatsappSettingsUpdateInput!) { updateWhatsappSettings(id: $id, data: $data) { id } }`, { id: settings.id, data: { eventsProblem: null } });
 
 console.log(`${passes} passed, ${failures} failed`);
 process.exit(failures ? 1 : 0);

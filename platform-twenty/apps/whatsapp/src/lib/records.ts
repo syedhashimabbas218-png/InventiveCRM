@@ -99,13 +99,17 @@ export const updateConversation = (id: string, data: Record<string, unknown>) =>
 
 // Applied only if InventiveChat reported it no earlier than the state already shown, so a late retry of an older event
 // cannot undo a newer one. Equal times apply, since InventiveChat's clock is in milliseconds, not commit order.
-export const updateConversationState = async (id: string, occurredAt: string, data: Record<string, unknown>) =>
+const updateIfNewer = async (asOf: 'stateEventAt' | 'consentEventAt', id: string, occurredAt: string, data: Record<string, unknown>) =>
   (
     await gql<{ updateWhatsappConversations: { id: string }[] }>(
-      `mutation($id: UUID, $at: DateTime, $data: WhatsappConversationUpdateInput!) { updateWhatsappConversations(filter: { id: { eq: $id }, or: [{ stateEventAt: { is: NULL } }, { stateEventAt: { lte: $at } }] }, data: $data) { id } }`,
-      { id, at: occurredAt, data: { ...data, stateEventAt: occurredAt } },
+      `mutation($id: UUID, $at: DateTime, $data: WhatsappConversationUpdateInput!) { updateWhatsappConversations(filter: { id: { eq: $id }, or: [{ ${asOf}: { is: NULL } }, { ${asOf}: { lte: $at } }] }, data: $data) { id } }`,
+      { id, at: occurredAt, data: { ...data, [asOf]: occurredAt } },
     )
   ).updateWhatsappConversations.length > 0;
+
+export const updateConversationState = (id: string, occurredAt: string, data: Record<string, unknown>) => updateIfNewer('stateEventAt', id, occurredAt, data);
+
+export const updateConversationConsent = (id: string, occurredAt: string, data: Record<string, unknown>) => updateIfNewer('consentEventAt', id, occurredAt, data);
 
 // Only moves forward, so an older message arriving late never replaces the newest preview.
 export const touchLastMessage = (id: string, at: string, preview: string) =>
@@ -147,6 +151,9 @@ export const messageByInventiveChatId = async (messageId: string) => (await mess
 export const messageByIdempotencyKey = async (key: string) => (await messagesWhere('{ idempotencyKey: { eq: $key } }', { key }, { key: 'String' }))[0] ?? null;
 
 export const messageByDeliveryId = async (deliveryId: string) => (await messagesWhere('{ deliveryId: { eq: $key } }', { key: deliveryId }, { key: 'String' }))[0] ?? null;
+
+export const messagesByInventiveChatIds = async (messageIds: string[]) =>
+  messageIds.length === 0 ? [] : messagesWhere('{ inventiveChatMessageId: { in: $keys } }', { keys: messageIds }, { keys: '[String]' }, Math.min(200, messageIds.length));
 
 export const messagesByDeliveryIds = async (deliveryIds: string[]) =>
   deliveryIds.length === 0 ? [] : messagesWhere('{ deliveryId: { in: $keys } }', { keys: deliveryIds }, { keys: '[String]' }, Math.min(200, deliveryIds.length));
@@ -218,6 +225,19 @@ export const recentSendCount = async (memberId: string) =>
       since: new Date(Date.now() - 60_000).toISOString(),
     })
   ).whatsappMessages.totalCount;
+
+// Automated sends are recorded under their label with no sender. Twenty refuses the same root field twice in one query.
+const countAutomated = async (filter: Record<string, unknown>) =>
+  (await gql<{ whatsappMessages: { totalCount: number } }>(`query($filter: WhatsappMessageFilterInput) { whatsappMessages(filter: $filter) { totalCount } }`, { filter })).whatsappMessages.totalCount;
+
+export const recentAutomatedSends = async (label: string, personId: string, now = Date.now()) => {
+  const automated = { sentByName: { eq: label }, sentById: { is: 'NULL' } };
+  const [toContact, inLastMinute] = await Promise.all([
+    countAutomated({ ...automated, personId: { eq: personId }, createdAt: { gt: new Date(now - 10 * 60_000).toISOString() } }),
+    countAutomated({ ...automated, createdAt: { gt: new Date(now - 60_000).toISOString() } }),
+  ]);
+  return { toContact, inLastMinute };
+};
 
 export const getPerson = async (id: string) =>
   nodes((await gql<{ people: { edges: { node: PersonRow }[] } }>(`query($id: UUID) { people(filter: { id: { eq: $id } }, first: 1) { edges { node { ${PERSON_FIELDS} } } } }`, { id })).people)[0] ?? null;

@@ -137,7 +137,7 @@ On `POST /s/payments/link` a signed-in person can only act on invoices their own
 key, AI tools and workflows are automation and act with the app's role, so they reach every invoice: give API keys only
 to systems trusted with that.
 
-Every 10 minutes (or `POST /s/payments/reconcile`) open links are checked with the provider, least recently checked
+Every 30 minutes (or `POST /s/payments/reconcile`) open links are checked with the provider, least recently checked
 first: a paid one sets the invoice to **Paid** (or **Part paid**) with the amount and date, and Stripe links are closed.
 A payment is counted only while the link is still open with the same reference, so overlapping checks never count it
 twice. Links of invoices marked paid or void by hand are closed too. A check that fails writes the reason to **Online

@@ -4,7 +4,7 @@ import { IDS } from 'src/constants/ids';
 
 const index = IDS.indexes.calendarSyncStatusNextAttemptAt;
 
-// The sync job looks for due retries every 5 minutes.
+// The sync job looks for due retries every 10 minutes.
 export default defineIndex({
   universalIdentifier: index.index,
   objectUniversalIdentifier: IDS.calendarSync.object,

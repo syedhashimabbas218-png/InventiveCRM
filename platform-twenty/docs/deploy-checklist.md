@@ -166,11 +166,11 @@ In this order. Install the versions committed on `main` at go-live; on 19 Novemb
 | # | App | Folder | Version | Application id | Note |
 |---|---|---|---|---|---|
 | 1 | Quotes & Invoices | `apps/commercial-docs` | 0.6.2 | `93ae1d55-5c54-4fac-922b-fd9fa4a69ab5` | after step 6 |
-| 2 | Scheduling | `apps/scheduling` | 0.4.1 | `54c65493-4e80-4efa-824a-456671383c86` | |
+| 2 | Scheduling | `apps/scheduling` | 0.4.2 | `54c65493-4e80-4efa-824a-456671383c86` | |
 | 3 | Feedback | `apps/feedback` | 0.2.2 | `f69757a9-c451-4ac3-8042-79a99ad8e749` | after step 6 |
 | 4 | Campaign Studio | `apps/campaigns` | 0.4.2 | `992fae47-c2c3-4731-b8aa-ebdcdb466631` | |
 | 5 | Team chat | `apps/team-chat` | 0.3.4 | `6c6eba62-6fc2-487e-a212-3b8b01bb4365` | live updates from step 11 |
-| 6 | WhatsApp | `apps/whatsapp` | 0.3.3 | `23e5cd3d-e631-461b-9e06-849c0a577688` | only once InventiveChat is live (B5) |
+| 6 | WhatsApp | `apps/whatsapp` | 0.3.4 | `23e5cd3d-e631-461b-9e06-849c0a577688` | only once InventiveChat is live (B5) |
 
 The saved `owner` remote points at `http://127.0.0.1:3000`. If it stops answering after step 4, log in again at the
 public address: `npx twenty@2.54.3 auth login --url https://crm.inventiveweb.studio --name owner`.

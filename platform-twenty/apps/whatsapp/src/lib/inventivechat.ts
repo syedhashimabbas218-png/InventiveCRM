@@ -366,6 +366,25 @@ export const recordConsent = async (context: InventiveChatContext, { phone, cons
   return { marketingAllowed: body.marketing_allowed === true };
 };
 
+export type FeedEntry = { cursor: string | null; envelope: unknown };
+export type EventPage = { events: FeedEntry[]; nextCursor: string | null; hasMore: boolean };
+
+// Every event of the business in commit order, kept for 7 days; each is the envelope a webhook body carries. Cursors are
+// opaque. Without after it starts at the oldest event kept; after=latest gives the position of the newest event; a
+// pruned cursor answers 410 cursor_expired.
+export const readEvents = async (context: InventiveChatContext, after: string | null, limit: number): Promise<EventPage> => {
+  const query = new URLSearchParams({ limit: String(limit), ...(after ? { after } : {}) });
+  const body = await call<Record<string, unknown>>(context.key, 'GET', `/events/feed?${query}`);
+  const events = (Array.isArray(body.events) ? body.events : []).map((entry) => ({ cursor: asString(asRecord(entry).cursor) || null, envelope: asRecord(entry).event }));
+  return { events, nextCursor: asString(body.next_cursor) || null, hasMore: body.has_more === true };
+};
+
+export const latestEventCursor = async (context: InventiveChatContext) => {
+  const { nextCursor } = await readEvents(context, 'latest', 1);
+  if (!nextCursor) throw new InventiveChatError('InventiveChat did not say where its event feed ends.', 502, 'bad_feed');
+  return nextCursor;
+};
+
 export const WEBHOOK_HEADERS = ['x-event-id', 'x-event-type', 'x-signature-timestamp', 'x-signature-256'];
 
 export const verifyWebhook = (secret: string | null, rawBody: string, headers: Record<string, string | undefined>, nowSeconds?: number) =>

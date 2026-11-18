@@ -73,6 +73,6 @@ export default defineLogicFunction({
   description: 'Emails customers before their appointments at the intervals set on each appointment type.',
   timeoutSeconds: 300,
   httpRouteTriggerSettings: { path: '/scheduling/reminders-now', httpMethod: 'POST', isAuthRequired: true },
-  cronTriggerSettings: { pattern: '*/10 * * * *' },
+  cronTriggerSettings: { pattern: '4-59/15 * * * *' },
   handler,
 });
