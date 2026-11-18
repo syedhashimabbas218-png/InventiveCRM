@@ -1,8 +1,10 @@
 # Install with: crontab -e (as the user that runs docker). The times assume the server clock is UTC
 # (timedatectl set-timezone Etc/UTC); cron follows the system timezone.
-# Nightly backup at 02:17, monthly restore drill on the 1st, update check on Monday after the backup.
+# Nightly backup at 02:17, monthly restore drill on the 1st, update check on Monday after the backup, health check
+# every 15 minutes (its check lines are in state/health.json; only errors and alerts reach its log).
 # The update check runs node, which cron's default PATH may not reach.
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 17 2 * * * /opt/inventivecrm/platform-twenty/deploy/ops/backup.sh nightly >>/var/log/inventivecrm-backup.log 2>&1
 43 4 1 * * /opt/inventivecrm/platform-twenty/deploy/ops/verify-backup.sh latest --full >>/var/log/inventivecrm-backup.log 2>&1
 47 2 * * 1 /opt/inventivecrm/platform-twenty/deploy/ops/auto-update.sh >>/var/log/inventivecrm-update.log 2>&1
+*/15 * * * * /opt/inventivecrm/platform-twenty/deploy/ops/health-check.sh >/dev/null 2>>/var/log/inventivecrm-health.log
