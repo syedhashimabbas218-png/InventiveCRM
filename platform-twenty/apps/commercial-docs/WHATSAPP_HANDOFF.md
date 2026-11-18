@@ -1,6 +1,6 @@
 # WhatsApp hand-off contract
 
-The Quotes & Invoices app does not send WhatsApp messages itself. It hands each document to our WhatsApp service (the WABA integration), which owns the Meta connection, phone numbers, message templates and opt-out handling, then reports back what happened. This file is the contract between the two. `tests/commercial-docs/mock-whatsapp-gateway.mjs` is a working reference implementation of the service side.
+The Quotes & Invoices app does not send WhatsApp messages itself. It hands each document to our WhatsApp service (the WABA integration), which owns the Meta connection, phone numbers, message templates and opt-out handling, then reports back what happened. This file is the contract between the two. The WhatsApp app (`apps/whatsapp`, route `/s/whatsapp/gateway`) implements the service side on top of InventiveChat: point `WHATSAPP_GATEWAY_URL` at that route. `tests/commercial-docs/mock-whatsapp-gateway.mjs` is a standalone reference implementation.
 
 ## 1. Send request (app to WhatsApp service)
 

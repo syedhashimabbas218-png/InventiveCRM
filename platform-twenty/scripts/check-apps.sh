@@ -23,7 +23,7 @@ for app in "${apps[@]}"; do
 done
 
 # These apps carry the same request helper; a fix made in one copy has to reach the others.
-shared=(campaigns feedback scheduling team-chat)
+shared=(campaigns feedback scheduling team-chat whatsapp)
 for app in "${shared[@]:1}"; do
   cmp -s "${shared[0]}/src/lib/api.ts" "$app/src/lib/api.ts" || failed+=("$app: src/lib/api.ts differs from ${shared[0]}")
 done

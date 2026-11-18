@@ -51,7 +51,7 @@ How data moves:
 - **App screens** run in Twenty's sandbox and post to their app's `/s/<app>/...` route with the viewing user's app token. The function reads and writes through Twenty's GraphQL API. With a user, it gets the intersection of the user's role and the app's role. For work that must not depend on who triggered it, it switches to the app's own token.
 - **Public pages** reach the same routes without sign-in and prove themselves with tokens. Booking manage links, survey links and unsubscribe links are HMAC signed with a key per workspace over a random nonce stored on the record. Webhooks are signed: Svix for Resend, and HMAC with a timestamp for the WhatsApp gateway.
 - **There is no direct database access from the apps.** Every read and write is a GraphQL call to the same server.
-- **Real time is polling only.** Team chat polls its route, and the other screens load on demand. Twenty can stream record events, but an app screen's network calls go through a proxy that reads whole responses, so it cannot hold a stream open.
+- **Real time is push, through our own realtime service** (`realtime/`, added 18 November). App functions publish which records changed; every open screen of that workspace hears it over Server-Sent Events and re-reads those records through Twenty. An app screen's calls to Twenty go through a proxy that reads whole responses, so it cannot use Twenty's own stream, but its calls to another origin go straight out. Team chat and the WhatsApp inbox use it; nothing polls.
 - **Background work** comes from Twenty's worker: cron triggers run per workspace, and record events are queued after commit.
 
 ## 2. Measurements
@@ -87,7 +87,7 @@ Estimates, from the code rather than measured:
 | Performance | 5/10 | Twenty itself is fast: 21 ms p50 for a GraphQL read. App routes are about 1 s, dominated by process start. Public booking reads are cached at the edge. | P1 |
 | Security | 7/10 (after fixes) | Signed links and webhooks, encrypted and sealed chat, guarded test suites. Fixed here: API keys acting with the app's full role, unlimited send loops, a forged pay-now link, a race-prone rate limiter, and a privacy leak of advisor bases. Open: Redis without a password is reachable from app code, functions are not isolated from each other, and booking pages have no CSP. | P0/P1 |
 | Efficiency | 6/10 (after fixes) | N+1 loops, idle writes and unbounded scans were removed. Process start per call and cron per workspace remain. | P1 |
-| Real-time | 4/10 | Polling only, by design, because of the sandbox. Chat now backs off and never writes on an idle poll. A push channel needs a Twenty-side capability. | P2 |
+| Real-time | 8/10 (after 18 November) | Push through the realtime service: measured in a real browser, an idle screen makes no requests, a WhatsApp message reaches an open inbox about 2 s after InventiveChat sends it, and a reply shows in 60 to 150 ms. Team chat messages reach other screens in about 3 s, because reading encrypted chat costs two app function calls. | P2 |
 | Reliability | 7/10 (after fixes) | Nightly backups with a monthly restore drill, upgrade with automatic rollback, and rehearsals of every Twenty release. Jobs are now idempotent with atomic claims, retries and timeouts. Open: backups are on the same disk, it is a single server, and Twenty can lose a record event between commit and queue. | P0/P1 |
 | Maintainability | 7/10 | Strict TypeScript and 175 unit tests (108 before). An end-to-end suite per app runs against a test server, and the four apps that share a request helper are checked to stay identical. Some files are large: `booking.ts`, `engine.ts`, `documents.ts`. | P2 |
 
@@ -178,7 +178,7 @@ Test changes that came with the fixes:
 
 **P3 (only if the need appears)**
 
-1. Push updates for chat would need a channel the sandbox allows (Twenty's record event stream, if it can be opened from an app screen). Polling with backoff is enough for team sizes in the tens.
+1. Done on 18 November: the realtime service (`realtime/README.md`). A second instance would need publishes shared between instances (for example Redis pub/sub).
 2. Microservices or Kubernetes are not justified by anything measured here. The limit is process start per call, which a second worker or a larger server addresses more cheaply.
 
 ## 8. Proposed next shape

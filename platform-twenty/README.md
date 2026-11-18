@@ -39,6 +39,7 @@ apps/scheduling/       Scheduling app (appointment types, availability, team and
 apps/feedback/         Feedback app (NPS surveys after appointments and paid invoices, low-score alerts)
 apps/campaigns/        Campaign Studio (email campaigns through the client's own Resend account, WhatsApp campaigns)
 apps/team-chat/        Team chat (channels, direct messages, mentions and record links inside the CRM)
+apps/whatsapp/         WhatsApp through InventiveChat (shared inbox, contact tabs, timeline, templates, automations)
 scripts/
   check-apps.sh            locked install, typecheck and unit tests for every app; run before any app release
   provision-workspace.mjs  create a client workspace and its admin API key

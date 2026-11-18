@@ -69,6 +69,7 @@ The same steps for every app under `apps/`:
 | Feedback | `apps/feedback` | `f69757a9-c451-4ac3-8042-79a99ad8e749` |
 | Campaign Studio | `apps/campaigns` | `992fae47-c2c3-4731-b8aa-ebdcdb466631` |
 | Team chat | `apps/team-chat` | `6c6eba62-6fc2-487e-a212-3b8b01bb4365` |
+| WhatsApp | `apps/whatsapp` | `23e5cd3d-e631-461b-9e06-849c0a577688` |
 
 1. Bump `version` in the app's `package.json`; run `scripts/check-apps.sh <app>` (`yarn install --immutable`, `yarn typecheck`, `yarn test`), then the end-to-end suites on the throwaway test server with `tests/run-all.sh`. Each app commits its `yarn.lock` (the CLI will not build without one) and pins every dependency exactly. Yarn 4.18 refuses packages published in the last few days, so a brand-new SDK release can only be used once Yarn accepts it.
 2. `npx twenty@2.54.3 app plan --remote owner --json | node ../../scripts/check-app-plan.mjs`: must report 0 to destroy.

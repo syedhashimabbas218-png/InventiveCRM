@@ -2,8 +2,8 @@
 # End-to-end suites of every app against the throwaway test server, with the test doubles they need.
 # Never point it at production: the Scheduling suite deletes every appointment in the workspace it is given.
 # Usage: SERVER_URL=http://localhost:3001 [ROAD_ROUTING=off] tests/run-all.sh <keys dir> [suite ...]
-# Suites: scheduling feedback campaigns team-chat documents. Feedback reuses Scheduling's appointments, so it runs after.
-# The keys dir holds acme.key, glow.key, state.json (scheduling/setup.mjs) and campaigns-test-vars.env.
+# Suites: scheduling feedback campaigns team-chat documents whatsapp. Feedback reuses Scheduling's appointments, so it runs after.
+# The keys dir holds acme.key, glow.key, state.json (scheduling/setup.mjs), campaigns-test-vars.env and whatsapp-test-vars.env.
 set -uo pipefail
 
 : "${SERVER_URL:?Set SERVER_URL to the throwaway test server. Never run this against production.}"
@@ -13,7 +13,7 @@ keys=$(cd "$keys" && pwd)
 cd "$(dirname "$0")"
 node guard.cjs || exit 1
 suites=("$@")
-[ ${#suites[@]} -eq 0 ] && suites=(scheduling feedback campaigns team-chat documents)
+[ ${#suites[@]} -eq 0 ] && suites=(scheduling feedback campaigns team-chat documents whatsapp)
 workspace=${SERVER_URL/\/\/localhost/\/\/acme.localhost}
 logs=$(mktemp -d)
 started=()
@@ -67,6 +67,10 @@ for suite in "${suites[@]}"; do
       step documents-quotes env --chdir=commercial-docs node inv1-quote-to-invoice.mjs "$keys/acme.key"
       step documents-rules env --chdir=commercial-docs node inv2-rules.mjs "$keys/acme.key" "${host%%:*}"
       step documents-payments env --chdir=commercial-docs node inv6-payments.mjs "$keys/acme.key" "$workspace"
+      ;;
+    whatsapp)
+      double 8098 env "REALTIME_SECRET=$(sed -n 's/^REALTIME_SECRET=//p' "$keys/whatsapp-test-vars.env")" node whatsapp/mock-inventivechat.mjs || exit 1
+      step whatsapp node whatsapp/e2e.mjs "$keys/acme.key" "$keys/whatsapp-test-vars.env"
       ;;
     *)
       echo "Unknown suite: $suite" >&2
