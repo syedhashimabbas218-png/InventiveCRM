@@ -102,8 +102,9 @@ cannot be cancelled inside Twenty's app sandbox).
   - the claim flow;
   - echo messages from the business phone;
   - several numbers per tenant.
-- **Open questions sent to InventiveChat's session, not yet answered:** the name `latest_inbound_message_id`; whether a
-  refused send releases a claim; whether disabling an already-disabled subscription answers 200.
+- **Open questions sent to InventiveChat's session, not yet answered:** whether disabling an already-disabled
+  subscription answers 200. The claim field (`latest_message_id`), claim release and the crashed-send notice were
+  answered on 18 November and the app follows them from WhatsApp 0.1.9.
 - **Real outside services:** Meta delivery and template approval, Google and Microsoft OAuth, Stripe, Revolut, Resend.
   All suites use doubles.
 - **Production data:** the duplicate check before installing (B4), and a restore at production size. The 17 November

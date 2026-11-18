@@ -21,8 +21,11 @@ let log = [];
 let publishes = [];
 let subscriptions = [];
 let failNext = [];
+let unknownNext = [];
+let emitted = [];
 let numbers = [number('wac_1', '+44 7700 900000')];
 const replies = new Map();
+const unknownKeys = new Set();
 const conversations = new Map();
 const messages = new Map();
 const optedOut = new Set();
@@ -37,8 +40,11 @@ const reset = () => {
   log = [];
   publishes = [];
   failNext = [];
+  unknownNext = [];
+  emitted = [];
   numbers = [number('wac_1', '+44 7700 900000')];
   replies.clear();
+  unknownKeys.clear();
   conversations.clear();
   messages.clear();
   optedOut.clear();
@@ -123,8 +129,8 @@ const conversationObject = (conversation) => ({
 const sign = (secret, timestamp, raw) => `sha256=${createHmac('sha256', secret).update(`${timestamp}.${raw}`).digest('hex')}`;
 
 // Sends one signed webhook to every active subscription. Options let a test forge, age or alter it.
-const emit = async (type, data, { secret, timestamp = Math.floor(Date.now() / 1000), tamper = false, eventId = `evt_${randomUUID()}` } = {}) => {
-  const raw = JSON.stringify({ tenant_id: TENANT.id, actor: { type: 'system', id: 'inventivechat' }, correlation_id: `cor_${randomBytes(8).toString('hex')}`, idempotency_key: eventId, occurred_at: new Date().toISOString(), payload: { type, data } });
+const emit = async (type, data, { secret, timestamp = Math.floor(Date.now() / 1000), tamper = false, eventId = `evt_${randomUUID()}`, actor = { type: 'system', id: 'inventivechat' }, correlationId = `cor_${randomBytes(8).toString('hex')}` } = {}) => {
+  const raw = JSON.stringify({ tenant_id: TENANT.id, actor, correlation_id: correlationId, idempotency_key: eventId, occurred_at: new Date().toISOString(), payload: { type, data } });
   const results = [];
   for (const subscription of subscriptions.filter((entry) => entry.status === 'active' && entry.event_types.includes(type))) {
     const headers = { 'Content-Type': 'application/json', 'X-Event-Id': eventId, 'X-Event-Type': type, 'X-Signature-Timestamp': String(timestamp), 'X-Signature-256': sign(secret ?? subscription.secret, timestamp, raw) };
@@ -132,6 +138,7 @@ const emit = async (type, data, { secret, timestamp = Math.floor(Date.now() / 10
     const response = await fetch(subscription.url, { method: 'POST', headers, body }).catch((error) => ({ status: 0, text: async () => error.message }));
     results.push({ url: subscription.url, status: response.status, body: await response.text(), sent: { headers, body } });
   }
+  emitted.push({ type, data, actor, results: results.map(({ url, status, body }) => ({ url, status, body })) });
   return results;
 };
 
@@ -171,6 +178,7 @@ const outbound = (conversation, payload, envelopeBody) => {
   if (human) {
     conversation.state = 'HUMAN_ACTIVE';
     conversation.aiPausedUntil = new Date(Date.now() + PAUSE_AFTER_HUMAN_MS).toISOString();
+    conversation.claims.clear();
   }
   return message;
 };
@@ -184,6 +192,8 @@ const handleSend = (envelopeBody, toPhone) => {
   const payload = envelopeBody.payload;
   const replay = replies.get(envelopeBody.idempotency_key);
   if (replay) return [200, { ...replay, replayed: true }];
+  // At most once: a key whose outcome is unknown never goes out again.
+  if (unknownKeys.has(envelopeBody.idempotency_key)) return [409, { reason: 'outcome_unknown' }];
   const errors = [];
   if (toPhone) {
     onlyKeys(payload, ['to', 'whatsapp_account_id', 'type', 'template', 'body', 'on_behalf_of'], errors);
@@ -218,13 +228,23 @@ const handleSend = (envelopeBody, toPhone) => {
   if (optedOut.has(conversation.phone)) return [409, { reason: 'opted_out' }];
   if (payload.type === 'text' && !windowOpen(conversation)) return [422, { reason: 'outside_window' }];
   if (payload.type === 'text' && !payload.on_behalf_of) {
+    if (typeof payload.claim_id !== 'string') return invalid(['claim_id is required for automation text']);
+    // A claim stays held after a send, refused or not, until it expires, is released, or a new inbound message, a
+    // takeover or a pause clears it.
     const claim = conversation.claims.get(payload.claim_id);
-    if (!claim || Date.parse(claim.expiresAt) < Date.now()) return invalid(['claim_id is missing, unknown or expired']);
-    // The send uses up the claim whether it goes out or not (to confirm with InventiveChat).
-    conversation.claims.delete(payload.claim_id);
+    if (!claim || Date.parse(claim.expiresAt) < Date.now()) return [409, { reason: 'claim_invalid' }];
     if (typeof payload.topic !== 'string' || !allowedTopics.has(payload.topic)) return [422, { reason: 'out_of_scope', allowed_topics: [...allowedTopics], action: 'handoff' }];
   }
   if (payload.type === 'template' && !payload.on_behalf_of && personActive(conversation)) return humanActiveRefusal(conversation);
+  const unknown = unknownNext.shift();
+  if (unknown) {
+    unknownKeys.add(envelopeBody.idempotency_key);
+    const data = { conversation_id: conversation.id, idempotency_key: envelopeBody.idempotency_key, detail: unknown.crash ? 'The sending process stopped mid-send.' : 'Meta did not answer in time.' };
+    // A crash is reported by InventiveChat itself a little later; a Meta timeout carries the caller's actor and correlation.
+    const options = unknown.crash ? { eventId: `message.send_outcome_unknown:${envelopeBody.idempotency_key}`, actor: { type: 'system', id: 'messaging-service' } } : { eventId: `message.send_outcome_unknown:${envelopeBody.idempotency_key}`, actor: envelopeBody.actor, correlationId: envelopeBody.correlation_id };
+    setTimeout(() => void emit('message.send_outcome_unknown', data, options), unknown.crash ? 1500 : 300);
+    return unknown.crash ? ['crash'] : [502, { reason: 'outcome_unknown' }];
+  }
   const message = outbound(conversation, payload, envelopeBody);
   return [200, recordReply(envelopeBody.idempotency_key, { conversation_id: conversation.id, message_id: message.id })];
 };
@@ -234,7 +254,7 @@ const handleClaim = (conversationId, envelopeBody) => {
   const errors = [];
   onlyKeys(payload, ['claimant', 'latest_message_id', 'ttl_seconds'], errors);
   if (payload.claimant !== 'ai') errors.push('claimant must be ai');
-  if (typeof payload.latest_message_id !== 'string') errors.push('latest_message_id is required');
+  if (typeof payload.latest_message_id !== 'string' && payload.latest_message_id !== null) errors.push('latest_message_id must be a message id or null');
   if (payload.ttl_seconds !== undefined && (!Number.isInteger(payload.ttl_seconds) || payload.ttl_seconds < 1 || payload.ttl_seconds > 300)) errors.push('ttl_seconds must be 1 to 300');
   if (errors.length) return invalid(errors);
   const conversation = conversations.get(conversationId);
@@ -243,9 +263,19 @@ const handleClaim = (conversationId, envelopeBody) => {
   if (personActive(conversation)) return [409, { reason: 'human_active', paused_until: conversation.aiPausedUntil, retry_after_seconds: null }];
   if (payload.latest_message_id !== conversation.latestInboundId) return [409, { reason: 'newer_message' }];
   if ([...conversation.claims.values()].some((claim) => Date.parse(claim.expiresAt) > Date.now())) return [409, { reason: 'already_claimed' }];
-  const claim = { id: `clm_${randomBytes(6).toString('hex')}`, expiresAt: new Date(Date.now() + (payload.ttl_seconds ?? 60) * 1000).toISOString() };
+  const claim = { id: `clm_${randomBytes(6).toString('hex')}`, expiresAt: new Date(Date.now() + (payload.ttl_seconds ?? 120) * 1000).toISOString() };
   conversation.claims.set(claim.id, claim);
   return [200, { claimed: true, claim_id: claim.id, expires_at: claim.expiresAt }];
+};
+
+// Always 200, even for a claim that already ended or is not this conversation's.
+const handleRelease = (conversationId, envelopeBody) => {
+  const errors = [];
+  onlyKeys(envelopeBody.payload, ['claim_id'], errors);
+  if (typeof envelopeBody.payload.claim_id !== 'string') errors.push('claim_id is required');
+  if (errors.length) return invalid(errors);
+  conversations.get(conversationId)?.claims.delete(envelopeBody.payload.claim_id);
+  return [200, { released: true }];
 };
 
 const handleConsent = (envelopeBody) => {
@@ -277,6 +307,7 @@ const handleSubscription = (envelopeBody) => {
 
 const setState = async (conversation, changes) => {
   Object.assign(conversation, changes);
+  if (conversation.state === 'HUMAN_ACTIVE' || conversation.aiPausedUntil) conversation.claims.clear();
   return emit('conversation.updated', conversationObject(conversation));
 };
 
@@ -300,6 +331,16 @@ createServer(async (request, response) => {
     }
     if (path === '/admin/log') return send(response, 200, log);
     if (path === '/admin/publishes') return send(response, 200, publishes);
+    if (path === '/admin/emitted') return send(response, 200, emitted);
+    // The next send that would go out ends with its outcome unknown: a Meta timeout (502) or a crash mid-send.
+    if (path === '/admin/unknown-next') {
+      unknownNext.push({ crash: body?.crash === true });
+      return send(response, 200, { ok: true });
+    }
+    if (path === '/admin/claims') {
+      const conversation = conversations.get(body?.conversationId);
+      return send(response, 200, conversation ? [...conversation.claims.values()].filter((claim) => Date.parse(claim.expiresAt) > Date.now()) : []);
+    }
     if (path === '/admin/subscriptions') return send(response, 200, subscriptions.map(({ secret: _secret, ...entry }) => entry));
     if (path === '/admin/fail-next') {
       failNext.push({ path: body.path, status: body.status, body: body.body });
@@ -340,6 +381,7 @@ createServer(async (request, response) => {
       const message = { id: `msg_${randomBytes(6).toString('hex')}`, conversationId: conversation.id, direction: 'inbound', sender: { type: 'customer', id: conversation.waId, name: conversation.profileName }, type: body.type ?? 'text', text: body.text, attachment: body.attachment, status: 'delivered', at };
       messages.set(message.id, message);
       conversation.latestInboundId = message.id;
+      conversation.claims.clear();
       const results = await emit('message.received', { message: messageObject(message) }, body.sign ?? {});
       return send(response, 200, { conversationId: conversation.id, messageId: message.id, results });
     }
@@ -383,14 +425,19 @@ createServer(async (request, response) => {
     subscription.status = 'disabled';
     return send(response, 200, { id: subscription.id, status: 'disabled' });
   }
-  if (request.method === 'POST' && path === '/v1/messages/send') return send(response, ...handleSend(body, false));
-  if (request.method === 'POST' && path === '/v1/messages/send-to-phone') return send(response, ...handleSend(body, true));
+  if (request.method === 'POST' && (path === '/v1/messages/send' || path === '/v1/messages/send-to-phone')) {
+    const answer = handleSend(body, path.endsWith('send-to-phone'));
+    if (answer[0] === 'crash') return request.socket.destroy();
+    return send(response, ...answer);
+  }
   const claim = /^\/v1\/conversations\/([^/]+)\/claim$/.exec(path);
   if (request.method === 'POST' && claim) return send(response, ...handleClaim(claim[1], body));
+  const release = /^\/v1\/conversations\/([^/]+)\/release$/.exec(path);
+  if (request.method === 'POST' && release) return send(response, ...handleRelease(release[1], body));
   const conversationPath = /^\/v1\/conversations\/([^/]+)$/.exec(path);
   if (request.method === 'GET' && conversationPath) {
     const conversation = conversations.get(conversationPath[1]);
-    return conversation ? send(response, 200, { id: conversation.id, ...conversationObject(conversation), latest_inbound_message_id: conversation.latestInboundId }) : send(response, 404, { reason: 'conversation_not_found' });
+    return conversation ? send(response, 200, { id: conversation.id, ...conversationObject(conversation), latest_message_id: conversation.latestInboundId }) : send(response, 404, { reason: 'conversation_not_found' });
   }
   if (request.method === 'POST' && path === '/v1/contacts/consent') return send(response, ...handleConsent(body));
   const contact = /^\/v1\/contacts\/([^/]+)$/.exec(path);

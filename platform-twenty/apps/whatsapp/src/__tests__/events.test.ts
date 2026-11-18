@@ -93,6 +93,12 @@ describe('webhook events to records', () => {
     expect(parseWebhook(envelope('conversation.handoff_requested', { conversation_id: 'conv_1' }), undefined, NOW)?.event).toEqual({ kind: 'handling', conversationId: 'conv_1', handling: 'HANDOFF_REQUESTED' });
   });
 
+  it('names a send whose outcome is unknown by our own idempotency key, as InventiveChat stores no message for it', () => {
+    const parsed = parseWebhook(envelope('message.send_outcome_unknown', { conversation_id: 'conv_1', idempotency_key: 'crm_abc_1', detail: 'Sending process stopped mid-send' }), undefined, NOW);
+    expect(parsed?.event).toEqual({ kind: 'outcome_unknown', idempotencyKey: 'crm_abc_1' });
+    expect(parseWebhook(envelope('message.send_outcome_unknown', { conversation_id: 'conv_1' }), undefined, NOW)).toBeNull();
+  });
+
   it('ignores what it does not know and refuses what it cannot read', () => {
     expect(parseWebhook(envelope('template.status_updated', { name: 'x' }), undefined, NOW)?.event).toEqual({ kind: 'ignored', eventType: 'template.status_updated' });
     expect(parseWebhook(envelope('message.received', { message: { id: 'no-conversation' } }), undefined, NOW)).toBeNull();

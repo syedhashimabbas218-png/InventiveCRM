@@ -1,6 +1,6 @@
 import { type MessageStatus } from 'src/constants/enums';
 import { forwardStatus } from 'src/lib/callbacks';
-import { type ConversationState, type ParsedWebhook, type WebhookMessage } from 'src/lib/inventivechat';
+import { type ConversationState, OUTCOME_UNKNOWN_MESSAGE, type ParsedWebhook, type WebhookMessage } from 'src/lib/inventivechat';
 import { type ChangeSet } from 'src/lib/realtime';
 import {
   type ConversationRow,
@@ -164,10 +164,13 @@ export const handleWebhook = async ({ event }: ParsedWebhook, settings: Settings
   switch (event.kind) {
     case 'message':
       return handleMessage(event.message, settings, changes, origins);
+    // Failed with the reason shown, so it is never retried on its own and a person can choose to send it again.
     case 'outcome_unknown': {
-      const record = await findMessage(event.message);
+      const record = await messageByIdempotencyKey(event.idempotencyKey);
       if (!record) return { ignored: 'unknown message' };
-      await updateMessage(record.id, { error: 'InventiveChat could not confirm whether WhatsApp accepted this message. Check the conversation before sending it again.' });
+      if (record.inventiveChatMessageId) return { ignored: 'already sent', message: record.id };
+      const moved = await moveMessageStatus(record.id, 'FAILED', { error: OUTCOME_UNKNOWN_MESSAGE, retryAt: null, waitingFor: null });
+      if (moved && record.deliveryId && record.statusCallbackUrl) await forwardStatus({ ...record, error: OUTCOME_UNKNOWN_MESSAGE }, 'FAILED', await origins());
       changes.message(record.id);
       return { message: record.id };
     }

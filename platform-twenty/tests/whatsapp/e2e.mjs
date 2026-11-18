@@ -148,6 +148,34 @@ assert('sending the same message id again does not send twice', again.status ===
 await mock('/admin/status', { messageId: sentRecord.inventiveChatMessageId, status: 'delivered' });
 await mock('/admin/status', { messageId: sentRecord.inventiveChatMessageId, status: 'sent' });
 assert('statuses only move forward: a late "sent" after "delivered" changes nothing', (await messageBy('{ id: { eq: $value } }', { value: clientMessageId }))?.status === 'DELIVERED', '');
+
+// 5b. Sends InventiveChat cannot confirm are failed with the reason, never retried with the same key, and can be sent
+// again on purpose under a new key.
+const UNCONFIRMED = /could not confirm whether WhatsApp accepted/;
+const sendsOf = async (text) => (await mockLog('/v1/messages/send')).filter((entry) => entry.body?.payload?.body === text);
+const outcomeEvents = async (key) => (await mock('/admin/emitted')).filter((entry) => entry.type === 'message.send_outcome_unknown' && entry.data.idempotency_key === key);
+const timedOutId = randomUUID();
+await mock('/admin/unknown-next', {});
+const timedOut = await api({ action: 'send', conversationId: knownConversation.id, text: `Maybe sent ${run}`, clientMessageId: timedOutId });
+const timedOutRecord = await messageBy('{ id: { eq: $value } }', { value: timedOutId });
+assert('a 502 outcome_unknown fails the message with the reason and is not sent again on its own', timedOut.status >= 400 && UNCONFIRMED.test(JSON.stringify(timedOut.body)) && timedOutRecord?.status === 'FAILED' && UNCONFIRMED.test(timedOutRecord.error ?? '') && (await sendsOf(`Maybe sent ${run}`)).length === 1, JSON.stringify({ timedOut, timedOutRecord }));
+const timedOutEvent = await waitFor('the outcome_unknown webhook', async () => (await outcomeEvents(timedOutRecord?.idempotencyKey))[0], 10_000).catch(() => null);
+assert('its webhook is accepted and leaves the message failed with the same reason', timedOutEvent?.results?.[0]?.status === 200 && timedOutEvent.actor.type === 'system' && (await messageBy('{ id: { eq: $value } }', { value: timedOutId }))?.status === 'FAILED', JSON.stringify(timedOutEvent));
+const resent = await api({ action: 'send', conversationId: knownConversation.id, text: `Maybe sent ${run}`, clientMessageId: timedOutId });
+const resentSends = await sendsOf(`Maybe sent ${run}`);
+const resentRecord = await messageBy('{ id: { eq: $value } }', { value: timedOutId });
+assert('sending it again on purpose uses a new idempotency key and goes out', resent.status === 200 && resentSends.length === 2 && resentSends[0].body.idempotency_key !== resentSends[1].body.idempotency_key && resentRecord?.status === 'SENT' && !resentRecord.error, JSON.stringify({ resent, resentRecord, keys: resentSends.map((entry) => entry.body.idempotency_key) }));
+
+const crashedId = randomUUID();
+await mock('/admin/unknown-next', { crash: true });
+const crashed = await api({ action: 'send', conversationId: knownConversation.id, text: `Crashed ${run}`, clientMessageId: crashedId });
+const crashedSends = await sendsOf(`Crashed ${run}`);
+const crashedRecord = await messageBy('{ id: { eq: $value } }', { value: crashedId });
+assert('a send cut off mid-request is retried once with the same key, which InventiveChat answers outcome_unknown', UNCONFIRMED.test(JSON.stringify(crashed.body)) && crashedSends.length === 2 && crashedSends[0].body.idempotency_key === crashedSends[1].body.idempotency_key && crashedRecord?.status === 'FAILED', JSON.stringify({ crashed, crashedRecord, sends: crashedSends.length }));
+const crashEvent = await waitFor('the crash notification', async () => (await outcomeEvents(crashedRecord?.idempotencyKey))[0], 10_000).catch(() => null);
+assert("InventiveChat's crash notice (its own actor, a new correlation id) is matched by our key and accepted", crashEvent?.results?.[0]?.status === 200 && crashEvent.actor.id === 'messaging-service' && /"message"/.test(crashEvent.results[0].body), JSON.stringify(crashEvent));
+const strangerKey = await mock('/admin/emit', { type: 'message.send_outcome_unknown', data: { conversation_id: knownInbound.conversationId, idempotency_key: `crm_not_ours_${run}`, detail: 'x' } });
+assert('a notice for a send that is not ours is accepted and ignored, so it is not retried', strangerKey.results?.[0]?.status === 200 && /unknown message/.test(strangerKey.results[0].body), JSON.stringify(strangerKey.results?.[0]));
 await api({ action: 'markRead', conversationId: knownConversation.id });
 assert('marking read clears the unread count', (await conversationByIcId(knownInbound.conversationId)).unreadCount === 0, '');
 const assigned = await api({ action: 'assign', conversationId: knownConversation.id });
@@ -234,6 +262,16 @@ const retryRun = await route('/whatsapp/retry', {});
 const retried = await messageBy('{ deliveryId: { eq: $value } }', { value: heldDelivery });
 assert('the retry job sends it with the same idempotency key', retryRun.status === 200 && retried?.status === 'SENT' && retried.inventiveChatMessageId && retried.idempotencyKey === heldRecord.idempotencyKey, JSON.stringify({ retryRun, retried }));
 
+// An outcome_unknown notice for a notification still waiting stops it being retried.
+const waitingPhone = phoneOf('11');
+await mock('/admin/takeover', { phone: waitingPhone });
+const waitingDelivery = randomUUID();
+await gateway({ ...invoiceRequest, deliveryId: waitingDelivery, recipient: { ...invoiceRequest.recipient, phone: waitingPhone } });
+const waitingRecord = await messageBy('{ deliveryId: { eq: $value } }', { value: waitingDelivery });
+await mock('/admin/emit', { type: 'message.send_outcome_unknown', data: { conversation_id: null, idempotency_key: waitingRecord?.idempotencyKey, detail: 'The sending process stopped mid-send.' } });
+const unconfirmedNotice = await messageBy('{ deliveryId: { eq: $value } }', { value: waitingDelivery });
+assert('a waiting notification whose outcome became unknown is failed with the reason and taken off the retry queue', waitingRecord?.status === 'QUEUED' && unconfirmedNotice?.status === 'FAILED' && UNCONFIRMED.test(unconfirmedNotice.error ?? '') && unconfirmedNotice.retryAt === null, JSON.stringify({ waitingRecord, unconfirmedNotice }));
+
 // Campaign batches: consent recorded first, values filled by parameter name, each recipient once.
 const campaignId = randomUUID();
 const ann = { recipientId: randomUUID(), to: phoneOf('08'), variables: ['Ann', '20%'] };
@@ -300,6 +338,11 @@ if (noTopic) {
   const claims = await mockLog(`/v1/conversations/${unknown.conversationId}/claim`);
   const automatedSend = (await mockLog('/v1/messages/send')).find((entry) => entry.body?.payload?.body === `Automated hello ${run}`);
   assert('the AI tool claims the conversation for the latest message and replies on the topic', /Sent as a reply/.test(automated ?? '') && claims.at(-1)?.body.payload.claimant === 'ai' && claims.at(-1).body.payload.latest_message_id === unknown.messageId && automatedSend?.body.payload.claim_id && automatedSend.body.payload.topic === 'bookings' && !automatedSend.body.payload.on_behalf_of, JSON.stringify({ automated, automatedSend }));
+  const releases = (await mockLog(`/v1/conversations/${unknown.conversationId}/release`)).map((entry) => entry.body.payload.claim_id);
+  const refusedSend = (await mockLog('/v1/messages/send')).find((entry) => entry.body?.payload?.body === `Off topic ${run}`);
+  assert('the claim is released after a refused send and after a sent reply', releases.includes(refusedSend?.body.payload.claim_id) && releases.includes(automatedSend?.body.payload.claim_id) && (await mock('/admin/claims', { conversationId: unknown.conversationId })).length === 0, JSON.stringify({ releases, refused: refusedSend?.body.payload.claim_id, sent: automatedSend?.body.payload.claim_id }));
+  const followUp = await callTool({ personId: createdPerson?.id, text: `Automated follow-up ${run}`, topic: 'bookings' });
+  assert('so a second automated reply straight after is not blocked by the first claim', /Sent as a reply/.test(followUp ?? ''), followUp);
   const fresh = (await gql(`mutation($data: PersonCreateInput!) { createPerson(data: $data) { id } }`, { data: { name: { firstName: 'Tia', lastName: `Tool${run}` }, phones: { primaryPhoneNumber: phoneOf('10').slice(3), primaryPhoneCallingCode: '+44', primaryPhoneCountryCode: 'GB' } } })).createPerson;
   const templated = await callTool({ personId: fresh.id, templateName: 'appointment_reminder', parameters: { customer_name: 'Tia', day: 'Monday' } });
   assert('the AI tool sends a template by default', /Template appointment_reminder sent/.test(templated ?? ''), templated);

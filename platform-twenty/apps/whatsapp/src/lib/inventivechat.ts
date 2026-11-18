@@ -7,7 +7,7 @@ import { isUuid } from 'src/lib/rules';
 
 // Everything this app knows about InventiveChat's API lives in this file, so a change on their side is one edit here.
 // Contract: InventiveChat's CRM integration as confirmed by them (account, subscriptions, templates, sends, claims,
-// consent, webhooks and flat error bodies). Fields marked ASSUMED are still unconfirmed.
+// consent, webhooks and flat error bodies).
 
 export const INVENTIVECHAT_EVENT_TYPES = [
   'message.received',
@@ -51,6 +51,10 @@ export const inventiveChatBaseUrl = () => {
 
 // Other 429s (rate_limited, too_many_concurrent_sends) pass in seconds; these can last minutes or hours.
 const LATER_CODES = ['human_active', 'meta_rate_limited'];
+// Sends are at most once: after outcome_unknown the same key only ever answers outcome_unknown again.
+const FINAL_SERVER_CODES = ['provider_rejected', 'outcome_unknown'];
+
+export const OUTCOME_UNKNOWN_MESSAGE = 'InventiveChat could not confirm whether WhatsApp accepted this message. Check the conversation before sending it again.';
 
 export class InventiveChatError extends Error {
   readonly retryAfterSeconds: number | null;
@@ -77,7 +81,7 @@ export class InventiveChatError extends Error {
   get retryable() {
     if (this.status === 0) return this.code === 'unreachable';
     if (this.status === 429) return !LATER_CODES.includes(this.code);
-    return this.status >= 500 && this.code !== 'provider_rejected';
+    return this.status >= 500 && !FINAL_SERVER_CODES.includes(this.code);
   }
 
   // Worth sending again later (minutes to hours), with the same idempotency key.
@@ -100,6 +104,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   paused: 'Automated replies to this conversation are paused in InventiveChat.',
   newer_message: 'The customer wrote again in the meantime, so the automated reply was not sent.',
   already_claimed: 'Another automation is already answering this conversation.',
+  claim_invalid: 'The conversation changed while the automated reply was being sent (the customer wrote again or a teammate stepped in), so it was not sent.',
+  outcome_unknown: OUTCOME_UNKNOWN_MESSAGE,
   unauthenticated: 'InventiveChat refused the API key. An admin can reconnect WhatsApp under Settings, Accounts.',
   tenant_mismatch: 'The InventiveChat key belongs to another account. An admin can reconnect WhatsApp under Settings, Accounts.',
   rate_limited: 'WhatsApp is busy right now. Please try again in a moment.',
@@ -300,20 +306,38 @@ const send = async (context: InventiveChatContext, payload: Record<string, unkno
 export const sendStaffText = (context: InventiveChatContext, input: Send & { conversationId: string; text: string; member: StaffMember }) =>
   send(context, { conversation_id: input.conversationId, type: 'text', body: input.text, ...onBehalfOf(input.member) }, input);
 
-// ASSUMED: GET /v1/conversations/:id names the latest inbound message as latest_inbound_message_id.
+// latest_message_id is the customer's latest message only; outbound messages and business-phone echoes do not count.
 export const latestInboundMessageId = async (context: InventiveChatContext, conversationId: string) => {
   const body = await call<Record<string, unknown>>(context.key, 'GET', `/conversations/${encodeURIComponent(conversationId)}`);
-  const conversation = Object.keys(asRecord(body.conversation)).length ? asRecord(body.conversation) : body;
-  return asString(conversation.latest_inbound_message_id) || asString(asRecord(conversation.latest_inbound_message).id) || null;
+  return asString(body.latest_message_id) || asString(asRecord(body.conversation).latest_message_id) || null;
 };
 
+const releaseClaim = (context: InventiveChatContext, conversationId: string, claimId: string, correlation?: string) =>
+  call(context.key, 'POST', `/conversations/${encodeURIComponent(conversationId)}/release`, envelope(context, { claim_id: claimId }, `crm_release_${claimId}`, correlation)).catch(() => undefined);
+
 // Automation answers only after claiming the conversation for the customer's latest message, on an allowed topic.
+// A claim outlives the send whatever its outcome, so it is released at once; otherwise the next reply is blocked
+// until it expires. Each attempt claims afresh, so a retried send never carries a claim released by the last one.
 export const sendAutomationText = async (context: InventiveChatContext, input: Send & { conversationId: string; text: string; topic: string }) => {
   const latest = await latestInboundMessageId(context, input.conversationId);
   if (!latest) throw new InventiveChatError('The customer has not written in this conversation yet.', 409, 'outside_window');
-  const claim = await call<Record<string, unknown>>(context.key, 'POST', `/conversations/${encodeURIComponent(input.conversationId)}/claim`, envelope(context, { claimant: 'ai', latest_message_id: latest, ttl_seconds: CLAIM_TTL_SECONDS }, `${input.idempotencyKey}_claim`, input.correlation));
-  if (claim.claimed !== true || !asString(claim.claim_id)) throw readError(409, claim, null);
-  return send(context, { conversation_id: input.conversationId, claim_id: asString(claim.claim_id), topic: input.topic, type: 'text', body: input.text }, input);
+  const claim = await call<Record<string, unknown>>(
+    context.key,
+    'POST',
+    `/conversations/${encodeURIComponent(input.conversationId)}/claim`,
+    envelope(context, { claimant: 'ai', latest_message_id: latest, ttl_seconds: CLAIM_TTL_SECONDS }, `${input.idempotencyKey}_claim_${randomUUID().slice(0, 8)}`, input.correlation),
+  );
+  const claimId = asString(claim.claim_id);
+  if (claim.claimed !== true || !claimId) throw readError(409, claim, null);
+  try {
+    const result = await send(context, { conversation_id: input.conversationId, claim_id: claimId, topic: input.topic, type: 'text', body: input.text }, input);
+    await releaseClaim(context, input.conversationId, claimId, input.correlation);
+    return result;
+  } catch (error) {
+    // An unreachable InventiveChat would make the release wait out its own timeout too; the claim expires anyway.
+    if (!(error instanceof InventiveChatError && error.code === 'unreachable')) await releaseClaim(context, input.conversationId, claimId, input.correlation);
+    throw error;
+  }
 };
 
 // Without on_behalf_of a template is a notification, which InventiveChat holds back (423) while a teammate is chatting.
@@ -384,7 +408,7 @@ export type ConversationState = {
 
 export type WebhookEvent =
   | { kind: 'message'; eventType: string; message: WebhookMessage }
-  | { kind: 'outcome_unknown'; message: WebhookMessage }
+  | { kind: 'outcome_unknown'; idempotencyKey: string }
   | { kind: 'handling'; conversationId: string; handling: ConversationHandling }
   | { kind: 'conversation_state'; state: ConversationState }
   | { kind: 'opted_out'; conversationId: string | null; phone: string | null }
@@ -492,9 +516,10 @@ export const parseWebhook = (body: unknown, headerEventType?: string, now = Date
       const message = readMessage(data, occurredAt);
       return message ? result({ kind: 'message', eventType, message }) : null;
     }
+    // Nothing is stored before WhatsApp confirms, so there is no message id; our own send key names the message.
     case 'message.send_outcome_unknown': {
-      const message = readMessage(data, occurredAt);
-      return message ? result({ kind: 'outcome_unknown', message }) : null;
+      const idempotencyKey = asString(data.idempotency_key);
+      return idempotencyKey ? result({ kind: 'outcome_unknown', idempotencyKey }) : null;
     }
     case 'conversation.updated': {
       const state = conversationState(data, now);

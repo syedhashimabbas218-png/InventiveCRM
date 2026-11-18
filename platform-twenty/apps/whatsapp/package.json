@@ -1,6 +1,6 @@
 {
   "name": "inventivecrm-whatsapp",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "private": true,
   "packageManager": "yarn@4.18.1",
   "scripts": {
