@@ -8,6 +8,7 @@ import { fromAddress, isEmail, isTransient, phoneOf } from 'src/lib/engine';
 import { ResendError } from 'src/lib/resend';
 import { normaliseAddress } from 'src/lib/store';
 import { newNonce, openText, recipientToken, sealText, verifyRecipientToken, verifySvixSignature, verifyWebhookToken, webhookToken } from 'src/lib/tokens';
+import { resolveGatewayUrl } from 'src/lib/engine';
 
 const tokenFor = (workspaceId: string) => `x.${Buffer.from(JSON.stringify({ workspaceId })).toString('base64url')}.y`;
 const brand = { ...DEFAULT_BRAND, name: 'Acme', footerText: 'Acme Ltd\n1 High Street, London' };
@@ -213,5 +214,13 @@ describe('signed links', () => {
     process.env.CAMPAIGN_LINK_SECRET = 'short';
     process.env.TWENTY_APP_ACCESS_TOKEN = tokenFor('workspace-a');
     expect(() => webhookToken()).toThrow(/CAMPAIGN_LINK_SECRET/);
+  });
+});
+
+describe('WhatsApp gateway address', () => {
+  it('sends a path to the WhatsApp app of this same workspace, and keeps a full address as it is', () => {
+    expect(resolveGatewayUrl('/s/whatsapp/gateway', 'https://acme.crm.example.com/s')).toBe('https://acme.crm.example.com/s/whatsapp/gateway');
+    expect(resolveGatewayUrl('/s/whatsapp/gateway', 'https://glow.crm.example.com/s')).toBe('https://glow.crm.example.com/s/whatsapp/gateway');
+    expect(resolveGatewayUrl('https://chat.example.com/hand-off', 'https://acme.crm.example.com/s')).toBe('https://chat.example.com/hand-off');
   });
 });

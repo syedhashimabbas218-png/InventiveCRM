@@ -7,6 +7,7 @@ import { type Candidate, isMissingSourceAppError, nextScanCursor, pickNewRequest
 import { buildSurveyEmail } from 'src/lib/send';
 import { type FeedbackSettings } from 'src/lib/settings';
 import { newNonce, surveyToken, verifySurveyToken } from 'src/lib/tokens';
+import { resolveGatewayUrl } from 'src/lib/send';
 
 const tokenFor = (workspaceId: string) => `x.${Buffer.from(JSON.stringify({ workspaceId })).toString('base64url')}.y`;
 
@@ -128,5 +129,13 @@ describe('follow-up task', () => {
 
   it('keeps addresses out of logged errors', () => {
     expect(loggableError(new Error('550 <owner@acme.test>: Recipient address rejected'))).toBe('550 <<address>>: Recipient address rejected');
+  });
+});
+
+describe('WhatsApp gateway address', () => {
+  it('sends a path to the WhatsApp app of this same workspace, and keeps a full address as it is', () => {
+    expect(resolveGatewayUrl('/s/whatsapp/gateway', 'https://acme.crm.example.com/s')).toBe('https://acme.crm.example.com/s/whatsapp/gateway');
+    expect(resolveGatewayUrl('/s/whatsapp/gateway', 'https://glow.crm.example.com/s')).toBe('https://glow.crm.example.com/s/whatsapp/gateway');
+    expect(resolveGatewayUrl('https://chat.example.com/hand-off', 'https://acme.crm.example.com/s')).toBe('https://chat.example.com/hand-off');
   });
 });

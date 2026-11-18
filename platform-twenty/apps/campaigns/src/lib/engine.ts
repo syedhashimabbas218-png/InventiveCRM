@@ -59,6 +59,10 @@ export const functionsBaseUrl = async () => {
   return `${(currentWorkspace.workspaceUrls.customUrl || currentWorkspace.workspaceUrls.subdomainUrl).replace(/\/$/, '')}/s`;
 };
 
+// A path such as /s/whatsapp/gateway means the WhatsApp app of this same workspace: the variable is shared by every
+// workspace, but each workspace's messages must leave through its own InventiveChat account.
+export const resolveGatewayUrl = (configured: string, ownBase: string) => (configured.startsWith('/') ? `${new URL(ownBase).origin}${configured}` : configured);
+
 export const unsubscribeUrl = (base: string, recipient: Pick<Recipient, 'id' | 'nonce'>) => `${base}/campaigns/unsubscribe/${recipientToken(recipient.id, recipient.nonce)}`;
 
 const EMAIL_PATTERN = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/;
@@ -297,7 +301,7 @@ const sendWhatsAppBatch = async (campaign: Campaign, recipients: Recipient[], ba
   });
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = createHmac('sha256', WHATSAPP_GATEWAY_SECRET).update(`${timestamp}.${body}`).digest('hex');
-  const response = await fetch(WHATSAPP_GATEWAY_URL, {
+  const response = await fetch(resolveGatewayUrl(WHATSAPP_GATEWAY_URL, base), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-InventiveCRM-Timestamp': timestamp, 'X-InventiveCRM-Signature': `sha256=${signature}` },
     body,

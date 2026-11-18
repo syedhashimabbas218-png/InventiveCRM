@@ -74,6 +74,8 @@ export const fetchConnectionState = async (): Promise<ConnectionState> => {
   return { connected: Boolean(row?.tenantId), problem: row?.webhookProblem || null, phoneNumber: row?.phoneNumber ?? null, displayName: row?.displayName ?? null };
 };
 
+const RESYNC_SPREAD_MS = 5_000;
+
 export type LiveStatus = 'connecting' | 'live' | 'reconnecting' | 'off';
 export type ChangeKind = 'conversation' | 'message';
 type LiveListener = { onChange: (kind: ChangeKind, ids: string[]) => void; onResync: () => void };
@@ -117,7 +119,13 @@ export const openLiveConnection = (onStatus: (status: LiveStatus) => void = () =
     }
   };
 
-  const resyncAll = () => listeners.forEach((listener) => listener.onResync());
+  // After a restart of the realtime service every open screen resyncs at once; spreading them over a few seconds
+  // keeps that from arriving at the server as one burst.
+  let resyncTimer: ReturnType<typeof setTimeout> | undefined;
+  const resyncAll = () => {
+    clearTimeout(resyncTimer);
+    resyncTimer = setTimeout(() => listeners.forEach((listener) => listener.onResync()), Math.random() * RESYNC_SPREAD_MS);
+  };
 
   // Bumping the generation makes the connection being torn down ignore its own failure, so only one retry is queued.
   const scheduleReconnect = () => {
@@ -218,6 +226,7 @@ export const openLiveConnection = (onStatus: (status: LiveStatus) => void = () =
       clearTimeout(watchdog);
       clearTimeout(retryTimer);
       clearTimeout(batchTimer);
+      clearTimeout(resyncTimer);
       listeners.clear();
     },
   };

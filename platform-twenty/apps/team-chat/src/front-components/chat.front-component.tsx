@@ -441,6 +441,16 @@ const Chat = () => {
         refreshChannels();
       }, 800);
     };
+    // After a restart of the realtime service every open screen catches up at once, and each catch-up is an app call
+    // that costs the server about a second; spreading them over a few seconds avoids one big burst.
+    let catchUpTimer: ReturnType<typeof setTimeout> | undefined;
+    const catchUpSoon = () => {
+      clearTimeout(catchUpTimer);
+      catchUpTimer = setTimeout(() => {
+        void refreshOpen();
+        refreshChannels();
+      }, Math.random() * 8_000);
+    };
     const reconnect = (delay?: number) => {
       source?.close();
       source = null;
@@ -471,20 +481,14 @@ const Chat = () => {
         // The open channel is read as it arrives, so only news about other channels changes the unread counts.
         if (!aboutOpenChannel || data.ids.length > 1) refreshUnreadSoon();
       });
-      source.addEventListener('resync', () => {
-        void refreshOpen();
-        refreshChannels();
-      });
+      source.addEventListener('resync', catchUpSoon);
       source.addEventListener('expired', () => reconnect(0));
       // The browser retries a dropped stream itself; a refused one (an expired pass) needs a new pass.
       source.onerror = () => {
         if (source?.readyState === EventSource.CLOSED) reconnect();
         else setLive('reconnecting');
       };
-      if (catchUp) {
-        void refreshOpen();
-        refreshChannels();
-      }
+      if (catchUp) catchUpSoon();
     };
     void connect(false);
     return () => {
@@ -492,6 +496,7 @@ const Chat = () => {
       source?.close();
       clearTimeout(retry);
       clearTimeout(unreadTimer);
+      clearTimeout(catchUpTimer);
     };
   }, []);
 

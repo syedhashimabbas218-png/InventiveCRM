@@ -40,7 +40,7 @@ reading the settings record does not reveal it.
 | `WHATSAPP_GATEWAY_SECRET` | The same value the other apps sign with, so they can use this app as their gateway |
 | `REALTIME_INTERNAL_URL`, `REALTIME_PUBLIC_URL`, `REALTIME_SECRET` | The realtime hub as the server and as browsers reach it, and its shared secret. Leave the URLs empty to turn live updates off. If the hub has a private address, Twenty's `OUTBOUND_HTTP_ALLOWED_INTERNAL_HOSTS` may need its host name |
 
-To use this app as the gateway, set the other apps' `WHATSAPP_GATEWAY_URL` to `https://<workspace>/s/whatsapp/gateway`.
+To use this app as the gateway, set the other apps' `WHATSAPP_GATEWAY_URL` to the path `/s/whatsapp/gateway`, not a full address. The variable is shared by every workspace; a path is resolved against the sending workspace's own address, so each workspace's messages leave through its own WhatsApp app and InventiveChat account.
 
 ## Notification templates
 
@@ -81,9 +81,6 @@ The adapter (`src/lib/inventivechat.ts`) follows the API InventiveChat confirmed
 - Whether a send that is refused after a successful claim (for example `out_of_scope`) releases the claim; the app
   claims for 60 seconds.
 - `POST /v1/subscriptions/:id/disable` answers 200 for a subscription that is already disabled.
-
-The settings fields "Key type", "Key id" and "Reply topic" are no longer used (marked unused); they stay so that
-upgrading from 0.1.0 deletes no fields.
 
 ## Install
 

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type BusinessProfile } from 'src/lib/compliance';
 import { buildEmail, channelsFor, escapeHtml, requestedChannels, type SendableDocument, toE164, verifyWhatsAppSignature } from 'src/lib/delivery';
+import { resolveGatewayUrl } from 'src/lib/delivery';
 
 const profile = { id: 'p', tradingName: 'Bright Electrical', legalName: 'Bright Electrical Ltd', emailMessage: '' } as BusinessProfile;
 
@@ -121,5 +122,13 @@ describe('WhatsApp callback signatures', () => {
     vi.stubEnv('WHATSAPP_GATEWAY_SECRET', '');
     const now = Math.floor(Date.now() / 1000).toString();
     expect(verifyWhatsAppSignature('{}', now, sign('{}', now))).toBe(false);
+  });
+});
+
+describe('WhatsApp gateway address', () => {
+  it('sends a path to the WhatsApp app of this same workspace, and keeps a full address as it is', () => {
+    expect(resolveGatewayUrl('/s/whatsapp/gateway', 'https://acme.crm.example.com/s')).toBe('https://acme.crm.example.com/s/whatsapp/gateway');
+    expect(resolveGatewayUrl('/s/whatsapp/gateway', 'https://glow.crm.example.com/s')).toBe('https://glow.crm.example.com/s/whatsapp/gateway');
+    expect(resolveGatewayUrl('https://chat.example.com/hand-off', 'https://acme.crm.example.com/s')).toBe('https://chat.example.com/hand-off');
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "inventivecrm-commercial-docs",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "license": "UNLICENSED",
   "description": "InventiveCRM Quotes & Invoices: UK quotes, VAT invoices, credit notes, recurring billing and sending by email or WhatsApp",
