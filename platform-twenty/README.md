@@ -46,16 +46,22 @@ scripts/
   set-app-variables.mjs    set an app's instance-wide settings (mail server, WhatsApp service) from a KEY=value file
   check-app-plan.mjs       blocks an app release that would delete objects or fields (and the client data in them)
   apply-setup-spec.mjs     apply an AI-written setup spec (objects, fields, views, workflows) over MCP
+  sql/check-duplicates.sql read-only check for numbers the new unique indexes refuse (docs/duplicate-check.md)
 setup-specs/            example specs written from client prompts
 deploy/
   docker-compose.yml  server, worker, Postgres, Redis, our outgoing mail server (Postfix with DKIM), the Word-to-PDF
                       converter (Gotenberg) and, with --profile maps, road routing (OSRM) and geocoding (Nominatim)
   .env.example        multi-workspace settings; copy to .env and fill in secrets
-  ops/                backup, verify-backup (restore drill), upgrade (auto-rollback), restore, smoke-test, and the weekly
-                      auto-update: build-image, rehearse-data, rehearse-apps (it prepares an upgrade, never applies it)
-  ops.env.example     backup location, retention, offsite copy, smoke-test keys and the test stack for ops/
+  ops/                backup, verify-backup (restore drill), pre-upgrade-check (read-only go/no-go), upgrade (auto-rollback),
+                      restore, smoke-test, health-check (every 15 minutes, with alerts), and the weekly auto-update:
+                      build-image, rehearse-data, rehearse-apps (it prepares an upgrade, never applies it)
+  ops.env.example     backup location, retention, offsite copy, smoke-test keys, the test stack, health-check thresholds
+                      and alert channels for ops/
+  MONITORING.md       what the health check watches, how alerts are sent, and the outside uptime monitor
 UPDATES.md            update rules: how upgrades, backups and rollback work, and the release checklists
-docs/                 architecture-audit.md (how the apps fit together, measured limits) and launch-readiness.md (pre-launch QA)
+docs/                 architecture-audit.md (how the apps fit together, measured limits), launch-readiness.md (pre-launch QA),
+                      deploy-checklist.md (go-live), upgrade-checklist.md (the manual check around a production upgrade),
+                      onboarding-runbook.md (setting up a client) and duplicate-check.md (before installing the new app versions)
 realtime/             live change notices for the app screens (Server-Sent Events); replaces polling
 ../.github/workflows/platform-twenty-*.yml   build workflow (manual) and weekly upstream watch, at the repository root where GitHub runs them
 ```
@@ -91,11 +97,31 @@ One instance hosts every client. Each client gets its own workspace at `<subdoma
 3. Run `docker compose up -d` in `deploy/`. Migrations run when the server starts.
 4. Sign up first: the first account on a fresh instance becomes server admin. With `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS=true`, only server admins can create workspaces; clients join by invitation.
 5. Keep `LOGIC_FUNCTION_TYPE=LOCAL` (already in `.env.example`) so app functions such as invoice PDFs run.
-6. Copy `deploy/ops.env.example` to `deploy/ops.env`, install the cron lines in `deploy/ops/crontab.example` (nightly backup, monthly restore drill, weekly update check) and set `BACKUP_OFFSITE_COMMAND`. Keep `.env` in the password manager: backups cannot be restored without its `ENCRYPTION_KEY`.
+6. Copy `deploy/ops.env.example` to `deploy/ops.env`, install the cron lines in `deploy/ops/crontab.example` (nightly backup, monthly restore drill, weekly update check, health check every 15 minutes), set `BACKUP_OFFSITE_COMMAND` and choose the alert channels in `deploy/MONITORING.md`. Keep `.env` in the password manager: backups cannot be restored without its `ENCRYPTION_KEY`.
 7. Mail: the `mail` service sends system emails and documents sent "from our server". Before going live, publish SPF, DKIM (printed in the mail container's log on first start), DMARC and a PTR record for each sender domain, or set `MAIL_RELAYHOST` if the host blocks port 25.
 8. Scheduling maps (optional): prepare the map data and start the `maps` profile as described in `apps/scheduling/README.md`.
 
 Keep `APPLICATION_API_RATE_LIMITING_LIMIT` from `.env.example`: Twenty's default of 500 API calls a minute is shared by all workspaces using an app.
+
+### Redis password (maintenance window)
+
+Both Redis servers run without a password until `REDIS_PASSWORD` and `REDIS_QUEUE_PASSWORD` are set in `deploy/.env`. Setting them restarts both Redis servers, the server and the worker: plan about five minutes in which the CRM is unavailable. Sessions and queued jobs survive, since both Redis servers keep their data on disk.
+
+1. `cd /opt/inventivecrm/platform-twenty/deploy && ops/backup.sh manual`
+2. Add two new passwords to `.env` (hex, so they need no escaping in a URL):
+   `printf 'REDIS_PASSWORD=%s\nREDIS_QUEUE_PASSWORD=%s\n' "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" >> .env`
+3. `docker compose up -d`. Compose recreates both Redis servers, the server and the worker, and leaves the database, mail and documents alone.
+4. Check:
+   - `docker compose exec redis redis-cli ping` and `docker compose exec redis-queue redis-cli ping` answer `PONG` (redis-cli reads the password from `REDISCLI_AUTH`);
+   - `docker compose exec redis sh -c 'unset REDISCLI_AUTH; redis-cli ping'` answers `NOAUTH`;
+   - `curl -fsS http://127.0.0.1:3000/healthz`, then `ops/health-check.sh`;
+   - you are still signed in in the browser, and the worker log shows scheduled jobs running: `docker compose logs --since 10m worker | grep LogicFunctionTriggerJob`.
+5. Rollback: delete the two lines from `.env` and run `docker compose up -d` again.
+
+The worker logs a few Redis connection errors while Redis restarts and then reconnects on its own; `ops/health-check.sh`
+reports them once as a WARN.
+
+Until the passwords are set, the first `docker compose up -d` after this change (for example during an upgrade) still restarts both Redis servers once, without a password, because their start command changed.
 
 ### Before DNS: local mode
 

@@ -12,8 +12,8 @@ x-app: &app
   env_file: .env
   environment: &app-env
     PG_DATABASE_URL: postgres://${PG_DATABASE_USER}:${PG_DATABASE_PASSWORD}@db:5432/${PG_DATABASE_NAME}
-    REDIS_URL: redis://redis:6379
-    REDIS_QUEUE_URL: redis://redis-queue:6379
+    REDIS_URL: redis://${REDIS_PASSWORD:+:${REDIS_PASSWORD}@}redis:6379
+    REDIS_QUEUE_URL: redis://${REDIS_QUEUE_PASSWORD:+:${REDIS_QUEUE_PASSWORD}@}redis-queue:6379
   volumes:
     - server-local-data:/app/packages/twenty-server/.local-storage
   depends_on:
@@ -76,7 +76,10 @@ services:
     image: redis:7.4.12@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
     # Cache and login sessions. Kept on disk so a restart does not sign everyone out; when full, only keys that expire
     # anyway are evicted, least recently used first.
-    command: ["--maxmemory", "768mb", "--maxmemory-policy", "volatile-lru", "--appendonly", "yes", "--appendfsync", "everysec"]
+    # Without REDIS_PASSWORD in .env there is no password, as before; redis-cli and the health check read REDISCLI_AUTH.
+    command: ["sh", "-c", "exec redis-server $${REDISCLI_AUTH:+--requirepass \"$$REDISCLI_AUTH\"} --maxmemory 768mb --maxmemory-policy volatile-lru --appendonly yes --appendfsync everysec"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-}
     volumes:
       - redis-data:/data
     mem_limit: 1g
@@ -91,7 +94,9 @@ services:
   # Background job queues, separate so cache pressure can never evict a job. Never evicts; kept on disk.
   redis-queue:
     image: redis:7.4.12@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
-    command: ["--maxmemory-policy", "noeviction", "--appendonly", "yes", "--appendfsync", "everysec"]
+    command: ["sh", "-c", "exec redis-server $${REDISCLI_AUTH:+--requirepass \"$$REDISCLI_AUTH\"} --maxmemory-policy noeviction --appendonly yes --appendfsync everysec"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_QUEUE_PASSWORD:-}
     volumes:
       - redis-queue-data:/data
     mem_limit: 512m
